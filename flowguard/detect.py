@@ -310,13 +310,7 @@ def context(text: str, model: str | None = None, hide: list[Span] | None = None,
         messages += [{"role": "user", "content": question},
                      {"role": "assistant", "content": json.dumps({"findings": answer})}]
     messages.append({"role": "user", "content": masked})
-    body: dict = {"model": model, "messages": messages, "stream": False, "format": SCHEMA,
-                  "keep_alive": "30m", "options": {"temperature": 0, "seed": 0}}
-    if model.startswith("qwen3"):
-        body["think"] = False
-    r = httpx.post(f"{OLLAMA_URL}/api/chat", json=body, timeout=CONTEXT_TIMEOUT)
-    r.raise_for_status()
-    findings = json.loads(r.json()["message"]["content"]).get("findings", [])
+    findings = _ask(model, messages, SCHEMA).get("findings", [])
     out = []
     for f in findings:
         cat = f.get("category")
@@ -337,7 +331,30 @@ def context(text: str, model: str | None = None, hide: list[Span] | None = None,
                 out.append(Span(s, e, text[s:e], cat, "individual", "context", 0.9, "local LLM"))
             elif not _noise(text[s:e]) and text[s].isupper():
                 out.append(Span(s, e, text[s:e], "PERSON", "individual", "context", 0.7, "name missed by NER"))
-    return out
+    # second look at pay: extraction calls invoice totals "pay", a yes/no question gets it right more often
+    verdict = {t: _is_pay(model, masked, t) for t in {o.text for o in out if o.label == "COMPENSATION"}}
+    return [o for o in out if o.label != "COMPENSATION" or verdict[o.text]]
+
+
+def _ask(model: str, messages: list[dict], schema: dict) -> dict:
+    body: dict = {"model": model, "messages": messages, "stream": False, "format": schema,
+                  "keep_alive": "30m", "options": {"temperature": 0, "seed": 0}}
+    if model.startswith("qwen3"):
+        body["think"] = False
+    r = httpx.post(f"{OLLAMA_URL}/api/chat", json=body, timeout=CONTEXT_TIMEOUT)
+    r.raise_for_status()
+    return json.loads(r.json()["message"]["content"])
+
+
+YES_NO = {"type": "object", "properties": {"answer": {"type": "string", "enum": ["yes", "no"]}},
+          "required": ["answer"]}
+
+
+def _is_pay(model: str, masked: str, amount: str) -> bool:
+    question = (f'In the message below, what is "{amount}"? Answer yes if it is someone\'s salary, earnings, '
+                "bonus or pay deduction. Answer no if it is a price, invoice amount, rent or fee.\n\n"
+                f"Message: {masked}")
+    return _ask(model, [{"role": "user", "content": question}], YES_NO).get("answer") == "yes"
 
 
 FILLER = frozenset({
