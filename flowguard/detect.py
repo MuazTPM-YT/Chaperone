@@ -3,7 +3,7 @@ import json
 import os
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 
 import httpx
@@ -23,6 +23,7 @@ class Span:
     source: str = "regex"  # regex | ner | context
     score: float = 1.0
     note: str = ""
+    alias: str = ""  # "Rohan" alone is the same person as "Rohan Deshpande": share one placeholder
 
 
 @dataclass
@@ -333,7 +334,7 @@ def context(text: str, model: str | None = None, hide: list[Span] | None = None,
                 out.append(Span(s, e, text[s:e], "PERSON", "individual", "context", 0.7, "name missed by NER"))
     # second look at pay and HR: extraction over-flags them (invoice totals, meeting moves); a narrow question
     # about one phrase gets it right more often
-    check = {"COMPENSATION": _is_pay, "HR": _is_hr}
+    check = {"COMPENSATION": _is_pay, "HR": _is_hr, "MNPI": _is_mnpi}
     verdict = {(o.label, o.text): check[o.label](model, masked, o.text) for o in out if o.label in check}
     return [o for o in out if verdict.get((o.label, o.text), True)]
 
@@ -353,14 +354,34 @@ YES_NO = {"type": "object", "properties": {"answer": {"type": "string", "enum": 
 
 
 HR_KINDS = ["performance rating", "warning or discipline", "improvement plan", "schedule or meeting change",
-            "leave or absence", "paperwork or certificate", "other"]
+            "leave or absence", "paperwork or certificate", "office or facilities", "payroll or staff admin", "other"]
 
 
 def _is_hr(model: str, masked: str, phrase: str) -> bool:
     schema = {"type": "object", "properties": {"answer": {"type": "string", "enum": HR_KINDS}}, "required": ["answer"]}
     question = f'Message: {masked}\n\nWhat does "{phrase}" refer to in this message? Pick one: {", ".join(HR_KINDS)}.'
     # drop only on a clear non-HR answer; "other" keeps the finding, a leak costs more than a vague word
-    return _ask(model, [{"role": "user", "content": question}], schema).get("answer") not in HR_KINDS[3:6]
+    return _ask(model, [{"role": "user", "content": question}], schema).get("answer") not in HR_KINDS[3:8]
+
+
+def _sentence(text: str, phrase: str) -> str:
+    i = max(text.find(phrase), 0)
+    start = max(text.rfind(".", 0, i), text.rfind(";", 0, i)) + 1
+    ends = [x for x in (text.find(".", i + len(phrase)), text.find(";", i + len(phrase))) if x != -1]
+    return text[start:min(ends or [len(text)])].strip()
+
+
+# MNPI blocks the whole request, so a false alarm is expensive: ask about the phrase, and if that says no,
+# about its whole sentence (a bare "30%" needs the sentence; a sentence can bury the phrase)
+def _is_mnpi(model: str, masked: str, phrase: str) -> bool:
+    def secret(part: str) -> bool:
+        question = (f'In the message below, is "{part}" price-sensitive company information that is still secret '
+                    "(results, revenue, profit, acquisition, before an announcement)? Answer yes or no.\n\n"
+                    f"Message: {masked}")
+        return _ask(model, [{"role": "user", "content": question}], YES_NO).get("answer") == "yes"
+
+    short = len(re.findall(r"[A-Za-z]{2,}", phrase)) < 2
+    return secret(_sentence(masked, phrase) if short else phrase) or (not short and secret(_sentence(masked, phrase)))
 
 
 def _is_pay(model: str, masked: str, amount: str) -> bool:
@@ -410,6 +431,49 @@ def _merge_money(ctx: list[Span], money: list[Span]) -> list[Span]:
     return uniq
 
 
+# a found full name also covers its first name used alone later ("Rohan wants...", "Rohan's car")
+# ponytail: exact, case-sensitive first-name match; a name that is also a common word ("Will") can over-mask
+def first_names(text: str, spans: list[Span]) -> list[Span]:
+    out: list[Span] = []
+    for p in [s for s in spans if s.label == "PERSON" and len(s.text.split()) >= 2]:
+        first = p.text.split()[0]
+        if len(first) < 3 or first.lower() in NOT_ENTITIES:
+            continue
+        for m in re.finditer(rf"(?<![\w-]){re.escape(first)}(?![\w-])", text):
+            if not any(m.start() < o.end and o.start < m.end() for o in spans + out):
+                out.append(Span(m.start(), m.end(), first, "PERSON", "individual", "ner", p.score,
+                                f"same person as {p.text}", alias=p.text))
+    return out
+
+
+CONTEXT_CHUNK = int(os.environ.get("CONTEXT_CHUNK", "250"))
+
+
+# sentence-aligned windows: the 3B model returns nothing for long pasted text, so it reads it in pieces
+def windows(text: str, size: int = CONTEXT_CHUNK) -> list[tuple[int, int]]:
+    out, start, last = [], 0, 0
+    for end in [m.end() for m in re.finditer(r"[.!?;\n](?=\s|$)", text)] + [len(text)]:
+        if end - start > size and last > start:
+            out.append((start, last))
+            start = last
+        last = end
+    out.append((start, len(text)))
+    return [(a, b) for a, b in out if text[a:b].strip()]
+
+
+def _shift(spans: list[Span], by: int) -> list[Span]:
+    return [replace(x, start=x.start + by, end=x.end + by) for x in spans]
+
+
+def _context_windowed(text: str, model: str | None, hide: list[Span], money: list[Span]) -> list[Span]:
+    found = []
+    for a, b in windows(text):
+        hide_w = _shift([x for x in hide if a <= x.start and x.end <= b], -a)
+        money_w = _shift([x for x in money if a <= x.start and x.end <= b], -a)
+        found += _shift(context(text[a:b], model, hide_w, money_w), a)
+    return found
+
+
 def detect(text: str, use_context: bool = True, model: str | None = None) -> Detection:
     t = {}
     t0 = time.perf_counter()
@@ -418,6 +482,7 @@ def detect(text: str, use_context: bool = True, model: str | None = None) -> Det
 
     t0 = time.perf_counter()
     ner = [n for n in entities(text) if not any(n.start < d.end and d.start < n.end for d in det)]
+    ner += first_names(text, det + ner)
     t["ner_ms"] = (time.perf_counter() - t0) * 1000
 
     ctx: list[Span] = []
@@ -427,7 +492,7 @@ def detect(text: str, use_context: bool = True, model: str | None = None) -> Det
         try:
             hide = det + [n for n in ner if n.label == "PERSON"]
             money = money_candidates(text, det)
-            ctx = _merge_money(context(text, model, hide, money), money)
+            ctx = _merge_money(_context_windowed(text, model, hide, money), money)
             ok, err = True, ""
         except (httpx.HTTPError, json.JSONDecodeError, KeyError) as exc:
             err = f"{type(exc).__name__}: {exc}"[:200]

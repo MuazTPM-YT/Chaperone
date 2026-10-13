@@ -75,3 +75,36 @@ def test_example_audit_key_is_rejected(monkeypatch, llm):
     monkeypatch.setenv("AUDIT_HMAC_KEY", "change-me")
     with pytest.raises(RuntimeError, match="AUDIT_HMAC_KEY"):
         gateway.chat("hello", EXTERNAL, "s1", use_context=False)
+
+
+def test_first_name_alone_gets_the_full_names_placeholder(llm):
+    r = gateway.chat("Rohan Deshpande joined in May. Rohan's car is in the visitor slot.", EXTERNAL, "s1",
+                     use_context=False)
+    assert "Rohan" not in r["outbound"]
+    assert r["outbound"].count("[PERSON_1]") == 2
+    assert restore("Tell [PERSON_1] to move it.", gateway.vault_for("s1", "external"))[0] == "Tell Rohan Deshpande to move it."
+
+
+def test_placeholders_follow_reading_order(llm):
+    r = gateway.chat("Ward round: Ramesh Rao, Sunita Rao and Kiran Patil need discharge notes.", EXTERNAL, "s1",
+                     use_context=False)
+    assert r["outbound"].startswith("Ward round: [PERSON_1], [PERSON_2] and [PERSON_3]")
+
+
+def test_message_length_is_bounded():
+    from fastapi.testclient import TestClient
+
+    from flowguard.app import MAX_TEXT, app
+
+    client = TestClient(app)
+    body = {"session_id": "s", "role": "Manager", "destination": "external", "purpose": "general"}
+    assert client.post("/api/chat", json={**body, "text": "x" * (MAX_TEXT + 1)}).status_code == 422
+    assert client.post("/api/chat", json={**body, "text": ""}).status_code == 422
+
+
+def test_prompt_names_bracket_rules_only_when_brackets_were_sent():
+    # the 3B model copied "[health detail]" and "(Type and Number)" from a prompt that named them
+    assert "bracket" not in gateway.system_prompt("Move the 1:1 with Priya to Friday.")
+    assert "placeholders" in gateway.system_prompt("Invoice to [PERSON_1].")
+    assert "vague" in gateway.system_prompt("On leave for [health detail].")
+    assert "vague" not in gateway.system_prompt("Invoice to [PERSON_1].")

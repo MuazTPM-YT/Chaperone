@@ -1,0 +1,102 @@
+[
+ {
+  "id": "w1",
+  "group": "1. Long text",
+  "title": "Long name, long email, big amount",
+  "role": "Accountant",
+  "destination": "external",
+  "purpose": "invoicing",
+  "text": "Draft an invoice to Aleksandra Wiśniewska-Kowalczyk, cc bartholomew.fitzgerald@northwind-industries-holdings.example.com, PAN ABKPS7312M, for ₹12,34,56,789 of consulting.",
+  "expect": {}
+ },
+ {
+  "id": "w2",
+  "group": "1. Long text",
+  "title": "Unbreakable link",
+  "role": "Manager",
+  "destination": "external",
+  "purpose": "general",
+  "text": "Summarise the thread at https://example.com/workspaces/acme/projects/q3-launch/docs/9f8e7d6c5b4a?tab=comments&filter=unresolved and reply to Christopher Alexander Montgomery III.",
+  "expect": {}
+ },
+ {
+  "id": "w3",
+  "group": "1. Long text",
+  "title": "Pasted meeting minutes (1,274 characters)",
+  "role": "Manager",
+  "destination": "external",
+  "purpose": "general",
+  "text": "Minutes, Friday leadership sync. Present: Meenakshi Sundaram, Rohan Deshpande, Ayesha Siddiqui, Gurpreet Singh Bhatia. 1) Hiring: two offers out for the Bengaluru office; Rohan wants the senior designer at 24 LPA but finance capped the band. 2) Ayesha Siddiqui is on a performance improvement plan since August after missing the Q2 targets; HR will review on 30 October 2026. 3) Gurpreet will be out for two weeks after knee surgery, so his vendor calls move to Meenakshi. 4) Vendor dispute: Kaveri Foods has sent a legal notice over the unpaid March invoice; legal is drafting a reply. 5) Payroll: the October run had a bug that deducted PF twice for 14 staff, refunds go out with November salaries. 6) Customer escalations: three tickets from Ravi Traders Pvt Ltd about delayed GST invoices; their accounts team at accounts@ravitraders.in wants revised copies by Monday. 7) Office: the Mangaluru branch lease renewal is due; landlord asked for a 9% rent increase. 8) Misc: Rohan's car KA19MN4521 was towed from the visitor slot again; please remind everyone to use staff parking. Action items: Meenakshi to send the vendor reply, Rohan to finalise offers, HR to close the PF refunds, everyone to submit Q3 self-reviews. Summarise this into five bullet points for the team.",
+  "expect": {}
+ },
+ {
+  "id": "w4",
+  "group": "2. Scripts and markup",
+  "title": "Vietnamese, Arabic, Chinese, emoji",
+  "role": "Manager",
+  "destination": "external",
+  "purpose": "scheduling",
+  "text": "Move the 1:1 with Đặng Thị Ngọc Hân, نور الهدى عبد الرحمن and 王秀英 to Friday. 👩🏽‍💻 Priya joins too.",
+  "expect": {}
+ },
+ {
+  "id": "w5",
+  "group": "2. Scripts and markup",
+  "title": "HTML and markdown in the message",
+  "role": "HR",
+  "destination": "external",
+  "purpose": "hr_summary",
+  "text": "Seán O'Brien-Ó Súilleabháin wrote: <script>alert(1)</script> &amp; **please** keep my salary of ₹18 lakh private.",
+  "expect": {}
+ },
+ {
+  "id": "w6",
+  "group": "3. Counts",
+  "title": "Ward round, many items",
+  "role": "Doctor",
+  "destination": "external",
+  "purpose": "clinical_summary",
+  "text": "Ward round: Ramesh Rao (98450 12345), Sunita Rao (91234 56780), Kiran Patil (99001 23456), Fatima Sheikh (98860 54321), Imran Khan (97411 22334), Neha Gupta (90080 11223) and Arjun Mehta (93425 66778) all need discharge summaries today. Aadhaar 4462 8194 8213 and 551819093782 are still pending verification.",
+  "expect": {}
+ },
+ {
+  "id": "w7",
+  "group": "3. Counts",
+  "title": "Exactly one item",
+  "role": "Sales",
+  "destination": "internal",
+  "purpose": "marketing",
+  "text": "Write a haiku about Mangaluru rain.",
+  "expect": {}
+ },
+ {
+  "id": "w8",
+  "group": "3. Counts",
+  "title": "Nothing to find",
+  "role": "Sales",
+  "destination": "external",
+  "purpose": "marketing",
+  "text": "Write a haiku about monsoon rain.",
+  "expect": {}
+ },
+ {
+  "id": "w9",
+  "group": "3. Counts",
+  "title": "One-letter names",
+  "role": "Manager",
+  "destination": "external",
+  "purpose": "general",
+  "text": "Jo and J are on leave on Monday; tell the team.",
+  "expect": {}
+ },
+ {
+  "id": "w10",
+  "group": "4. Empty input",
+  "title": "Blank message",
+  "role": "Manager",
+  "destination": "external",
+  "purpose": "general",
+  "text": "   ",
+  "expect": {}
+ }
+]

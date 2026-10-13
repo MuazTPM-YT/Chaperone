@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import time
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -14,13 +15,21 @@ from .policy import Decision, Flow, decide
 from .transform import OutboundLeak, Vault, apply, guard, restore
 
 AUDIT_PATH = ROOT / "data" / "audit.jsonl"
-SYSTEM_PROMPT = ("You are a workplace assistant for a small Indian organisation. Do the task the user asks for: "
-                 "draft, summarise, rewrite or answer. Write the finished result, not a template, and never just "
-                 "repeat the message back. Some names and numbers were replaced by bracketed placeholders (a type "
-                 "and a number); use them exactly as written, brackets included, wherever the real value belongs. "
-                 "Never invent new placeholders and never ask what they stand for. Bracketed phrases such as "
-                 "[health detail] or a salary band are deliberately vague; keep them vague. Reply in English "
-                 "unless the user asks otherwise.")
+BASE_PROMPT = ("You are a workplace assistant for a small Indian organisation. Do the task the user asks for: "
+               "draft, summarise, rewrite or answer. Write the finished result, not a template, and never just "
+               "repeat the message back. Reply in English unless the user asks otherwise.")
+PLACEHOLDER_RULE = (" Some names and numbers were replaced by placeholders in square brackets. Copy each one exactly, "
+                    "brackets included, where the real value belongs. Never invent new ones and never ask what they "
+                    "stand for.")
+VAGUE_RULE = " Other bracketed phrases are deliberately vague; keep them vague."
+PLACEHOLDER = re.compile(r"\[[A-Z]+_\d+\]")
+VAGUE = re.compile(r"\[(?![A-Z]+_\d+\])[^\]\n]+\]")
+
+
+# a 3B model copies whatever the prompt names, so rules about brackets appear only when brackets were sent
+def system_prompt(outbound: str) -> str:
+    return (BASE_PROMPT + (PLACEHOLDER_RULE if PLACEHOLDER.search(outbound) else "")
+            + (VAGUE_RULE if VAGUE.search(outbound) else ""))
 
 # ponytail: in-memory sessions, lost on restart; fine for a single-user local gateway
 SESSIONS: dict[str, dict[str, Vault]] = {}
@@ -44,7 +53,7 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
     decisions = []
     for s in det.spans:
         d = decide(s.label, s.subject, flow)
-        if d.action == "pass" and vault.holds(s.label, s.text):
+        if d.action == "pass" and vault.holds(s.label, s.alias or s.text):
             d = Decision("pseudonymize", "session-sticky", "Masked earlier in this conversation, so it stays masked.")
         decisions.append(d)
     outbound, applied = apply(text, det.spans, decisions, vault)
@@ -112,7 +121,8 @@ def chat(text: str, flow: Flow, session_id: str, use_context: bool = True) -> di
     protected = result.pop("protected")
     result.update(reply=None, restored=None, restore_stats=None, error=None, sent=False)
     if not result["blocked"]:
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}, *vault.history,
+        sent_so_far = "\n".join([m["content"] for m in vault.history if m["role"] == "user"] + [result["outbound"]])
+        messages = [{"role": "system", "content": system_prompt(sent_so_far)}, *vault.history,
                     {"role": "user", "content": result["outbound"]}]
         t0 = time.perf_counter()
         try:

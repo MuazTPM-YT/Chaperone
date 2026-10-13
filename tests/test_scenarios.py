@@ -37,3 +37,12 @@ def test_patient_summary_comes_back_with_real_names(llm):
     r = gateway.chat(sc["text"], Flow(sc["role"], sc["destination"], sc["purpose"]), "s7")
     assert "Ramesh Rao" not in r["outbound"]
     assert r["restored"] == "Discharge: Ramesh Rao, in their 50s, chest pain, diabetes. Inform Sunita Rao (wife) at 98450 12345."
+
+
+# a 1,274-character paste: the model reads it in windows, and first names alone stay masked
+def test_long_pasted_minutes_do_not_leak(llm):
+    sc = next(s for s in json.loads((Path(gateway.__file__).parent / "scenarios_worst.json").read_text()) if s["id"] == "w3")
+    r = gateway.chat(sc["text"], Flow(sc["role"], sc["destination"], sc["purpose"]), "s-w3")
+    assert not r["blocked"], r["block_reason"]
+    for leak in ("Rohan", "Gurpreet", "Meenakshi", "Ayesha", "24 LPA", "performance improvement plan"):
+        assert leak not in r["outbound"], leak

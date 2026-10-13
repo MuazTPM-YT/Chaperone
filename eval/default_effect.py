@@ -31,7 +31,7 @@ def run(mode: str, role: str, dest: str, purpose: str, text: str) -> tuple[str |
     r = gateway.analyze(text, Flow(role, dest, purpose), vault)
     if r["blocked"]:
         return None, "(request blocked)"
-    reply = gateway.send(dest, [{"role": "system", "content": gateway.SYSTEM_PROMPT},
+    reply = gateway.send(dest, [{"role": "system", "content": gateway.system_prompt(r["outbound"])},
                                 {"role": "user", "content": r["outbound"]}], [] if mode == "pass" else r["protected"])
     return r["outbound"], restore(reply, vault)[0]
 

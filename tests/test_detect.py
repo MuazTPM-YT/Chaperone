@@ -57,3 +57,11 @@ def test_context_layer_offline_falls_back(monkeypatch):
     d = detect_mod.detect("Customer Aadhaar 7260 1815 9082, salary 14 lakh")
     assert d.context_ok is False and "ConnectError" in d.context_error
     assert {s.label for s in d.spans} == {"AADHAAR"}  # ids still caught, pay is not
+
+
+def test_long_text_is_read_in_sentence_windows():
+    text = " ".join(f"Sentence number {i} talks about the quarterly plan." for i in range(30))
+    wins = detect_mod.windows(text, size=250)
+    assert len(wins) > 1 and wins[0][0] == 0 and wins[-1][1] == len(text)
+    assert all(text[b - 1] in ".!?;" or b == len(text) for _, b in wins)  # cut only at sentence ends
+    assert detect_mod.windows("Short note.", size=250) == [(0, 11)]

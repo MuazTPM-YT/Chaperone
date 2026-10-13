@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT))
 
 from run_eval import load
 
-from flowguard.gateway import SYSTEM_PROMPT, analyze, send
+from flowguard.gateway import analyze, send, system_prompt
 from flowguard.policy import Flow
 from flowguard.transform import Vault, restore
 
@@ -26,7 +26,7 @@ def main() -> None:
         r = analyze(ex["text"], Flow(ex["role"], ex["destination"], ex["purpose"]), vault)
         if r["blocked"] or not vault.raw:
             continue
-        msgs = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": r["outbound"]}]
+        msgs = [{"role": "system", "content": system_prompt(r["outbound"])}, {"role": "user", "content": r["outbound"]}]
         reply = send("external", msgs, r["protected"])
         restored, stats = restore(reply, vault)
         replies += 1

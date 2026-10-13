@@ -107,8 +107,11 @@ def apply(text: str, spans: list[Span], decisions: list[Decision], vault: Vault)
             records[i] = Applied(s, d, None, covered=True)
             continue
         chosen.append(i)
+    # number placeholders in reading order, so [PERSON_1] is the first name in the message
+    for i in sorted(chosen, key=lambda i: pairs[i][0].start):
+        s, d = pairs[i]
         if d.action == "pseudonymize":
-            rep = vault.placeholder(s.label, s.text)
+            rep = vault.placeholder(s.label, s.alias or s.text)
         elif d.action == "generalize":
             rep = generalize(s, text)
         else:
