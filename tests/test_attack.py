@@ -54,3 +54,14 @@ def test_message_that_cannot_be_cleared_is_not_sent(monkeypatch, llm, no_context
     assert any(s["rule"] == "attacker-block" for s in r["spans"])
     assert r["blocked"] and r["block_reason"]["rule"] == "attacker-not-cleared"
     assert len(r["attack"]["rounds"]) == attack.MAX_ROUNDS + 1 and llm.calls == []
+
+
+def test_health_proxy_is_not_dropped_by_a_word_check(monkeypatch):
+    # the 3B model calls "ART centre" not health-related; that answer must not veto a specific, cited inference
+    def model_says(model, question, options):
+        return "specific" if "specific or vague" in question else options[-1]
+    monkeypatch.setattr(attack, "_choice", model_says)
+    text = "Tell the team [PERSON_1] will collect his monthly refill from the ART centre on the first Friday."
+    assert attack._confirmed("m", text, Inference("HEALTH", "HIV", 0.8, ["ART centre"]))
+    assert not attack._confirmed("m", text, Inference("HEALTH", "parental leave", 0.8, ["leave"]))
+    assert not attack._confirmed("m", text, Inference("HEALTH", "no specific health condition", 0.8, ["refill"]))

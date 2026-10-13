@@ -111,8 +111,7 @@ COUNTS = ["exactly one", "two to five", "more than five"]
 SPECIFIC = ["specific", "vague"]
 SPECIFIC_Q = ("Health words like cancer, diabetes, pregnancy, disability or kidney failure are specific. Words like illness, "
               "injury, unwell, a health issue or medical leave are vague. Is \"{guess}\" specific or vague?")
-HEALTHY = [("health-related: a medicine, procedure, test, medical device, pregnancy or maternity, disability, or a "
-            "medical condition"), "not health-related: a verb, a request, a date, a return, or ordinary leave or time off"]
+NOT_CONDITION = re.compile(r"\b(?:no|none|not|leave|unknown|unspecified)\b", re.IGNORECASE)  # "parental leave", "no condition"
 LEGALY = ["legal: a court, case, hearing, lawsuit, police, legal notice or inquiry", "not legal: ordinary work or personal words"]
 HR_KINDS = ["performance rating or review", "warning, discipline or suspension", "improvement plan or firing",
             "schedule, meeting or leave", "ordinary work", "other"]
@@ -124,8 +123,7 @@ def _any_word(model: str, text: str, inf: Inference, options: list[str], what: s
 
 
 # second checks: a 3B model over-reports, a narrow question about one finding is more reliable.
-# Asking "do these words prove X?" failed (it said no to tamoxifen -> breast cancer); asking what each
-# evidence word is works: 11 of 12 test words right, three runs in a row.
+# Asking "do these words prove X?" failed (it said no to tamoxifen -> breast cancer).
 def _confirmed(model: str, text: str, inf: Inference) -> bool:
     if inf.category == "IDENTITY":
         q = (f'Message: {text}\n\nIn an Indian organisation with several branches and a few hundred staff, how many people '
@@ -133,9 +131,12 @@ def _confirmed(model: str, text: str, inf: Inference) -> bool:
         return _choice(model, q, COUNTS) in COUNTS[:2]
     if inf.category == "HEALTH":
         # "illness" or "a health matter" is what our own vague tokens are meant to allow
-        # wording picked from three tried: 11 of 12 test guesses right, and its one miss errs towards caution
-        specific = _choice(model, SPECIFIC_Q.format(guess=inf.guess), SPECIFIC) == SPECIFIC[0]
-        return specific and _any_word(model, text, inf, HEALTHY, "health-related")
+        # wording picked from three tried: 11 of 12 test guesses right, and its one miss errs towards caution.
+        # No per-word "is this health-related?" check: it said no to proxies (ART centre, white cane, NIMHANS) and cut
+        # dev health recall from 13/17 to 5/17. Without it, 3 extra false alarms in 21 negatives; NOT_CONDITION drops 2.
+        if NOT_CONDITION.search(inf.guess):
+            return False
+        return _choice(model, SPECIFIC_Q.format(guess=inf.guess), SPECIFIC) == SPECIFIC[0]
     if inf.category == "LEGAL":
         return _any_word(model, text, inf, LEGALY, "legal")
     if inf.category == "HR":
