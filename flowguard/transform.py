@@ -31,6 +31,7 @@ class Vault:
     counts: dict[str, int] = field(default_factory=dict)
     history: list[dict] = field(default_factory=list)  # outbound chat turns, already transformed
     sources: list[str] = field(default_factory=list)  # what the user actually typed, for the reply check
+    exposure: list[dict] = field(default_factory=list)  # what the attacker could still infer from what was sent
 
     # coarse given: the token carries it outbound ("[AGE_1: in their 50s]") and still restores to the exact value
     def placeholder(self, label: str, text: str, coarse: str | None = None) -> str:

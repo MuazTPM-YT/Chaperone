@@ -4,13 +4,13 @@ import json
 import os
 import re
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 
 import httpx
 
-from . import ROOT, verify
-from .detect import detect
+from . import ROOT, attack, verify
+from .detect import SEMANTIC, Span, detect_cached
 from .policy import Decision, Flow, decide
 from .transform import OutboundLeak, Vault, apply, guard, restore_marked
 
@@ -46,20 +46,60 @@ def vault_for(session_id: str, destination: str) -> Vault:
     return SESSIONS.setdefault(session_id, {}).setdefault(destination, Vault())
 
 
-# detect -> decide -> transform, no network except the local context model
-def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model: str | None = None) -> dict:
+# detect -> decide -> transform -> attack and tighten; no network except the local models
+def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model: str | None = None,
+            use_attack: bool = True) -> dict:
     t0 = time.perf_counter()
-    det = detect(text, use_context=use_context, model=model)
+    det = detect_cached(text, use_context=use_context, model=model)
+    spans = list(det.spans)
     decisions = []
-    for s in det.spans:
+    for s in spans:
         d = decide(s.label, s.subject, flow)
         if d.action == "pass" and vault.holds(s.label, s.alias or s.text):
             d = Decision("pseudonymize", "session-sticky", "Masked earlier in this conversation, so it stays masked.")
         decisions.append(d)
-    outbound, applied = apply(text, det.spans, decisions, vault)
-    blocker = next((a.decision for a in applied if a.decision.scope == "request" and a.decision.action == "block"), None)
+    outbound, applied = apply(text, spans, decisions, vault)
+
+    earlier = [m["content"] for m in vault.history if m["role"] == "user"]
+    rounds, unresolved, skipped = [], [], ""
+    t_attack = time.perf_counter()
+    if not use_attack:
+        skipped = "turned off"
+    elif not det.context_ok:
+        skipped = "local AI unavailable"
+    elif outbound is None:
+        skipped = "request already blocked"
+    elif not attack.forbidden_categories(flow):
+        skipped = "this flow allows every category"
+    else:
+        for rnd in range(attack.MAX_ROUNDS + 1):
+            if outbound is None:
+                break
+            r, infs = attack.timed_attack(outbound, earlier, flow, rnd, model)
+            rounds.append(r)
+            live = [inf for inf in infs if inf.forbidden and not inf.disclosed]
+            if not live:
+                break
+            if rnd == attack.MAX_ROUNDS:
+                unresolved = live
+                break
+            changed = _tighten(text, live, spans, decisions, r, model)
+            if not changed:
+                unresolved = live
+                break
+            outbound, applied = apply(text, spans, decisions, vault)
+    blocker: Decision | None
+    if unresolved:
+        outbound = None
+        guesses = "; ".join(sorted({inf.guess for inf in unresolved}))
+        blocker = Decision("block", "attacker-not-cleared",
+                           f"After {attack.MAX_ROUNDS} tightening rounds a local attacker could still infer: {guesses}. "
+                           "Edit the message and try again.", "request")
+    else:
+        blocker = next((a.decision for a in applied if a.decision.scope == "request" and a.decision.action == "block"), None)
     protected = list(vault.raw.values()) + [a.span.text for a in applied if a.decision.action != "pass"]
-    timings = {**det.timings, "total_ms": (time.perf_counter() - t0) * 1000}
+    timings = {**det.timings, "attack_ms": (time.perf_counter() - t_attack) * 1000,
+               "total_ms": (time.perf_counter() - t0) * 1000}
     return {
         "original": text,
         "flow": asdict(flow),
@@ -70,9 +110,54 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
         "context_error": det.context_error,
         "spans": [{**asdict(a.span), **asdict(a.decision), "replacement": a.replacement, "covered": a.covered}
                   for a in applied],
+        "attack": {"ran": bool(rounds), "skipped": skipped, "max_rounds": attack.MAX_ROUNDS,
+                   "rounds": [attack.as_dict(r) for r in rounds],
+                   "unresolved": [asdict(inf) for inf in unresolved]},
         "protected": protected,
         "timings": {k: round(v, 1) for k, v in timings.items()},
     }
+
+
+# what an identifier-only cloak would send (names and IDs masked, meaning left as typed), and what the attacker gets from it.
+# our own ablation for comparison, not any specific product
+def baseline(text: str, flow: Flow, model: str | None = None) -> dict:
+    t0 = time.perf_counter()
+    det = detect_cached(text, model=model)
+    decisions = [Decision("pass", "baseline", "") if s.label in SEMANTIC else decide(s.label, s.subject, flow) for s in det.spans]
+    sent, _ = apply(text, det.spans, decisions, Vault())
+    infs = attack.attack(sent, [], flow, model) if sent and det.context_ok else []
+    return {"outbound": sent, "inferences": [asdict(i) for i in infs], "context_ok": det.context_ok,
+            "ms": round((time.perf_counter() - t0) * 1000, 1)}
+
+
+# replace only the words the attacker relied on: vague first, blocked if the same words still give it away
+def _tighten(text: str, live: list, spans: list[Span], decisions: list[Decision], r: "attack.Round",
+             model: str | None) -> bool:
+    changed = False
+    for inf in live:
+        for cand in attack.evidence_spans(text, inf, spans, block=False, model=model):
+            # touching or overlapping an earlier attacker span of the same kind: grow that one, no token soup
+            hit = next((k for k, s in enumerate(spans) if s.source == "attacker" and s.label == cand.label
+                        and cand.start <= s.end + 2 and s.start <= cand.end + 2
+                        and not text[min(s.end, cand.end):max(s.start, cand.start)].strip(" ,;")), None)
+            if hit is not None and not (cand.start < spans[hit].end and spans[hit].start < cand.end):
+                old = spans[hit]
+                s0, e0 = min(old.start, cand.start), max(old.end, cand.end)
+                spans[hit] = replace(old, start=s0, end=e0, text=text[s0:e0])
+                r.tightened.append(cand.text)
+                changed = True
+                continue
+            why = f"A local attacker inferred \"{inf.guess}\" from these words."
+            if hit is None:
+                spans.append(cand)
+                decisions.append(Decision("generalize", "attacker-tighten", why))
+                r.tightened.append(cand.text)
+                changed = True
+            elif decisions[hit].action != "block":
+                decisions[hit] = Decision("block", "attacker-block", why + " Making them vague was not enough.")
+                r.tightened.append(spans[hit].text)
+                changed = True
+    return changed
 
 
 # the only door to an LLM: guard runs first, every time
@@ -87,6 +172,17 @@ def send(destination: str, messages: list[dict], protected: list[str]) -> str:
                    json={"model": model, "messages": messages, "temperature": 0.2, "max_tokens": 700})
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
+
+
+# E2: per conversation, what the external AI could now infer about people, turn by turn
+def _record_exposure(vault: Vault, result: dict) -> None:
+    rounds = result["attack"]["rounds"]
+    for inf in rounds[-1]["inferences"] if rounds else []:
+        status = "already disclosed earlier" if inf["disclosed"] else "allowed for this flow"
+        entry = {"turn": len(vault.sources), "category": inf["category"], "guess": inf["guess"], "status": status}
+        if not any(e["category"] == entry["category"] and e["guess"] == entry["guess"] for e in vault.exposure):
+            vault.exposure.append(entry)
+    result["exposure"] = list(vault.exposure)
 
 
 def audit(session_id: str, result: dict) -> None:
@@ -120,7 +216,8 @@ def chat(text: str, flow: Flow, session_id: str, use_context: bool = True) -> di
     result = analyze(text, flow, vault, use_context)
     vault.sources.append(text)
     protected = result.pop("protected")
-    result.update(reply=None, restored=None, restore_stats=None, restore_marks=[], flags=[], error=None, sent=False)
+    result.update(reply=None, restored=None, restore_stats=None, restore_marks=[], flags=[], error=None, sent=False,
+                  exposure=list(vault.exposure))
     if not result["blocked"]:
         sent_so_far = "\n".join([m["content"] for m in vault.history if m["role"] == "user"] + [result["outbound"]])
         messages = [{"role": "system", "content": system_prompt(sent_so_far)}, *vault.history,
@@ -140,5 +237,6 @@ def chat(text: str, flow: Flow, session_id: str, use_context: bool = True) -> di
             result["reply"] = reply
             result["restored"], result["restore_stats"], result["restore_marks"] = restore_marked(reply, vault)
             result["flags"] = verify.check(result["restored"], vault.sources)
+            _record_exposure(vault, result)
     audit(session_id, result)
     return result

@@ -500,3 +500,19 @@ def detect(text: str, use_context: bool = True, model: str | None = None) -> Det
         t["context_ms"] = (time.perf_counter() - t0) * 1000
     spans = sorted(det + ner + ctx, key=lambda s: (s.start, -s.end))
     return Detection(spans, ok, t, err)
+
+
+_CACHE: dict[tuple, Detection] = {}
+
+
+# same text, same model: same detection. Baseline and the three-flow view reuse it. Failures are not cached.
+def detect_cached(text: str, use_context: bool = True, model: str | None = None) -> Detection:
+    key = (text, use_context, model or CONTEXT_MODEL)
+    if key in _CACHE:
+        return replace(_CACHE[key], timings={"cached": 1.0})
+    det = detect(text, use_context, model)
+    if det.context_ok or not use_context:
+        if len(_CACHE) >= 64:
+            _CACHE.pop(next(iter(_CACHE)))
+        _CACHE[key] = det
+    return det

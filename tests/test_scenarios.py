@@ -64,3 +64,11 @@ def test_discharge_round_trip_restores_exact_values_and_flags_invention(llm):
     assert "[AGE_1: in their 50s]" in r["outbound"] and "[DATE_1: March 2026]" in r["outbound"]
     assert r["restored"].startswith("Ramesh Rao (54-year-old) was admitted on 12 March 2026.")
     assert [(f["kind"], f["text"]) for f in r["flags"]] == [("age", "50-year-old")]
+
+
+# W1 live: an identifier-only cloak leaks the diagnosis through the medicine; our outbound does not
+def test_attacker_sees_through_identifier_only_masking():
+    sc = next(s for s in SCENARIOS if s["id"] == "8a")
+    base = gateway.baseline(sc["text"], Flow(sc["role"], sc["destination"], sc["purpose"]))
+    assert "tamoxifen" in base["outbound"]
+    assert any(i["category"] == "HEALTH" for i in base["inferences"])
