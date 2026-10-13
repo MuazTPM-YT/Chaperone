@@ -20,6 +20,8 @@ def test_scenario(sc, llm):
         assert r["block_reason"]["rule"] == exp["block_rule"]
         assert llm.calls == []
         return
+    if exp.get("unchanged"):
+        assert r["outbound"] == sc["text"], "this flow should send the message exactly as typed"
     for s in exp["sent_contains"]:
         assert s in r["outbound"]
     for s in exp["sent_excludes"]:

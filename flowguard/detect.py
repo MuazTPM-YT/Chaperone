@@ -331,9 +331,11 @@ def context(text: str, model: str | None = None, hide: list[Span] | None = None,
                 out.append(Span(s, e, text[s:e], cat, "individual", "context", 0.9, "local LLM"))
             elif not _noise(text[s:e]) and text[s].isupper():
                 out.append(Span(s, e, text[s:e], "PERSON", "individual", "context", 0.7, "name missed by NER"))
-    # second look at pay: extraction calls invoice totals "pay", a yes/no question gets it right more often
-    verdict = {t: _is_pay(model, masked, t) for t in {o.text for o in out if o.label == "COMPENSATION"}}
-    return [o for o in out if o.label != "COMPENSATION" or verdict[o.text]]
+    # second look at pay and HR: extraction over-flags them (invoice totals, meeting moves); a narrow question
+    # about one phrase gets it right more often
+    check = {"COMPENSATION": _is_pay, "HR": _is_hr}
+    verdict = {(o.label, o.text): check[o.label](model, masked, o.text) for o in out if o.label in check}
+    return [o for o in out if verdict.get((o.label, o.text), True)]
 
 
 def _ask(model: str, messages: list[dict], schema: dict) -> dict:
@@ -348,6 +350,17 @@ def _ask(model: str, messages: list[dict], schema: dict) -> dict:
 
 YES_NO = {"type": "object", "properties": {"answer": {"type": "string", "enum": ["yes", "no"]}},
           "required": ["answer"]}
+
+
+HR_KINDS = ["performance rating", "warning or discipline", "improvement plan", "schedule or meeting change",
+            "leave or absence", "paperwork or certificate", "other"]
+
+
+def _is_hr(model: str, masked: str, phrase: str) -> bool:
+    schema = {"type": "object", "properties": {"answer": {"type": "string", "enum": HR_KINDS}}, "required": ["answer"]}
+    question = f'Message: {masked}\n\nWhat does "{phrase}" refer to in this message? Pick one: {", ".join(HR_KINDS)}.'
+    # drop only on a clear non-HR answer; "other" keeps the finding, a leak costs more than a vague word
+    return _ask(model, [{"role": "user", "content": question}], schema).get("answer") not in HR_KINDS[3:6]
 
 
 def _is_pay(model: str, masked: str, amount: str) -> bool:

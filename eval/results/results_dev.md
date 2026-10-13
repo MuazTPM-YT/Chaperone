@@ -4,9 +4,9 @@
 
 | System | Leak rate ↓ | Over-redaction ↓ | Protect/allow acc. | 4-way action acc. | Request blocks (TP/FP/FN) | Latency p50 / p95 |
 |---|---|---|---|---|---|---|
-| FlowGuard (full) | 2.0% (2/100) | 0.0% (0/69) | 98.8% | 98.8% | 5/0/0 | 1529 / 3199 ms |
-| FlowGuard (no context layer) | 39.0% (39/100) | 0.0% (0/69) | 76.9% | 75.7% | 0/0/5 | 76 / 85 ms |
-| Presidio + India recognizers | 38.0% (38/100) | 71.0% (49/69) | 48.5% | — | 0/0/5 | 8 / 12 ms |
+| FlowGuard (full) | 3.0% (3/100) | 0.0% (0/69) | 98.2% | 98.2% | 5/0/0 | 1218 / 2421 ms |
+| FlowGuard (no context layer) | 39.0% (39/100) | 0.0% (0/69) | 76.9% | 75.7% | 0/0/5 | 43 / 53 ms |
+| Presidio + India recognizers | 38.0% (38/100) | 71.0% (49/69) | 48.5% | — | 0/0/5 | 5 / 8 ms |
 
 Leak rate = sensitive gold spans whose raw text reached the outbound payload. Over-redaction = spans that should pass but were altered or blocked.
 
@@ -30,16 +30,16 @@ Leak rate = sensitive gold spans whose raw text reached the outbound payload. Ov
 | HEALTH | 24 | 0.88 (P 1.00 R 0.79) | 0.00 (P 0.00 R 0.00) | not supported |
 | COMPENSATION | 14 | 1.00 (P 1.00 R 1.00) | 0.00 (P 0.00 R 0.00) | not supported |
 | MNPI | 6 | 1.00 (P 1.00 R 1.00) | 0.00 (P 0.00 R 0.00) | not supported |
-| HR | 6 | 0.71 (P 0.62 R 0.83) | 0.00 (P 0.00 R 0.00) | not supported |
+| HR | 6 | 0.91 (P 1.00 R 0.83) | 0.00 (P 0.00 R 0.00) | not supported |
 | LEGAL | 4 | 1.00 (P 1.00 R 1.00) | 0.00 (P 0.00 R 0.00) | not supported |
 | *Identifiers + entities* | | **0.98** (P 1.00 R 0.97) | **0.97** (P 1.00 R 0.95) | **0.74** (P 0.72 R 0.76) |
 | *Only labels Presidio supports* | | **0.98** (P 1.00 R 0.97) | **0.97** (P 1.00 R 0.95) | **0.82** (P 0.72 R 0.96) |
-| *Context categories* | | **0.91** (P 0.94 R 0.89) | **0.00** (P 0.00 R 0.00) | **0.00** (P 0.00 R 0.00) |
+| *Context categories* | | **0.94** (P 1.00 R 0.89) | **0.00** (P 0.00 R 0.00) | **0.00** (P 0.00 R 0.00) |
 
 ### Leak rate by language
 
 | System | en | hinglish |
 |---|---|---|
-| FlowGuard (full) | 1.4% (1/72) | 3.6% (1/28) |
+| FlowGuard (full) | 2.8% (2/72) | 3.6% (1/28) |
 | FlowGuard (no context layer) | 36.1% (26/72) | 46.4% (13/28) |
 | Presidio + India recognizers | 34.7% (25/72) | 46.4% (13/28) |
