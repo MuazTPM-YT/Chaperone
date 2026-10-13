@@ -53,6 +53,10 @@ Destinations: `internal` = the organisation's own model; `external` = a third-pa
 11. Ages, dates and places otherwise pass.
 12. Personal IDs and names going external: pseudonymize.
 13. Anything not covered: pseudonymize.
+14. **Purpose minimisation** (applies before rules 1 to 13 can send anything): identifiers the stated purpose does
+    not need are left out (`block`). Clinical summary: phone, email, UPI, Aadhaar, PAN, GSTIN, IFSC, vehicle.
+    HR summary: UPI, Aadhaar, GSTIN, IFSC, vehicle. Scheduling: UPI, Aadhaar, PAN, GSTIN, IFSC, vehicle. Marketing:
+    all identifiers. Invoicing: Aadhaar, vehicle. General: nothing.
 
 A GSTIN whose 6th character is `P` belongs to a sole proprietor, so it is personal. A span inside a wider
 span that gets a stricter action takes that stricter action.

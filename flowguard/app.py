@@ -33,6 +33,7 @@ class ChatIn(BaseModel):
     destination: str
     purpose: str
     use_context: bool = True
+    include: list[dict] = []  # "include anyway": [{label, text, reason}] for identifiers the purpose would omit
 
 
 def _endpoint(dest: str) -> dict:
@@ -60,7 +61,7 @@ def meta(data: str = "") -> dict:
 def chat(body: ChatIn) -> dict:
     flow = Flow(body.role, body.destination, body.purpose)
     with LOCK:
-        return gateway.chat(body.text, flow, body.session_id, body.use_context)
+        return gateway.chat(body.text, flow, body.session_id, body.use_context, body.include)
 
 
 @app.post("/api/reset/{session_id}")

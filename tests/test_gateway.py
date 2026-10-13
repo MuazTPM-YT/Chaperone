@@ -108,3 +108,25 @@ def test_prompt_names_bracket_rules_only_when_brackets_were_sent():
     assert "placeholders" in gateway.system_prompt("Invoice to [PERSON_1].")
     assert "vague" in gateway.system_prompt("On leave for [health detail].")
     assert "vague" not in gateway.system_prompt("Invoice to [PERSON_1].")
+
+
+DISCHARGE = "Patient Ramesh Rao admitted with chest pain. Wife Sunita Rao can be reached at 98450 12345. Summarise."
+CLINIC = Flow("Doctor", "external", "clinical_summary")
+
+
+def test_purpose_omits_what_the_task_does_not_need(llm):
+    r = gateway.chat(DISCHARGE, CLINIC, "s-p1", use_context=False)
+    assert "[PHONE omitted]" in r["outbound"] and "98450" not in r["outbound"]
+    assert [s["rule"] for s in r["spans"] if s["label"] == "PHONE"] == ["purpose-minimisation"]
+    invoice = gateway.chat("Bill Suresh Kumar, PAN ABKPS7312M, for the audit.", Flow("Accountant", "external", "invoicing"),
+                           "s-p2", use_context=False)
+    assert "[PAN_1]" in invoice["outbound"]  # an invoice needs the PAN
+
+
+def test_include_anyway_needs_a_reason_and_is_logged_without_raw_values(llm):
+    reason = "Ward clerk Ravi Kumar needs the contact on the note"
+    r = gateway.chat(DISCHARGE, CLINIC, "s-p3", use_context=False,
+                     include=[{"label": "PHONE", "text": "98450 12345", "reason": reason}])
+    assert "[PHONE_1]" in r["outbound"] and r["overrides"][0]["label"] == "PHONE"
+    log = gateway.AUDIT_PATH.read_text()
+    assert "98450" not in log and "Ravi" not in log and "needs the contact on the note" in log

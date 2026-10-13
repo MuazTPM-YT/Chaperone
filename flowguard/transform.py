@@ -121,7 +121,7 @@ def apply(text: str, spans: list[Span], decisions: list[Decision], vault: Vault)
         elif d.action == "generalize":
             rep = vault.placeholder(s.label, s.alias or s.text, coarse(s, text))
         else:
-            rep = f"[{s.label} withheld]"
+            rep = f"[{s.label} omitted]" if d.rule == "purpose-minimisation" else f"[{s.label} withheld]"
         records[i] = Applied(s, d, rep)
     applied = [records[i] for i in range(len(pairs))]
     if request_block:

@@ -9,10 +9,10 @@ from datetime import UTC, datetime
 
 import httpx
 
-from . import ROOT, attack, verify
+from . import ROOT, attack, purpose, verify
 from .detect import SEMANTIC, Span, detect_cached
 from .policy import Decision, Flow, decide
-from .transform import OutboundLeak, Vault, apply, guard, restore_marked
+from .transform import OutboundLeak, Vault, apply, canonical, guard, restore_marked
 
 AUDIT_PATH = ROOT / "data" / "audit.jsonl"
 BASE_PROMPT = ("You are a workplace assistant for a small Indian organisation. Do the task the user asks for: "
@@ -48,7 +48,7 @@ def vault_for(session_id: str, destination: str) -> Vault:
 
 # detect -> decide -> transform -> attack and tighten; no network except the local models
 def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model: str | None = None,
-            use_attack: bool = True) -> dict:
+            use_attack: bool = True, use_purpose: bool = True, include: list[dict] | None = None) -> dict:
     t0 = time.perf_counter()
     det = detect_cached(text, use_context=use_context, model=model)
     spans = list(det.spans)
@@ -59,6 +59,25 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
             d = Decision("pseudonymize", "session-sticky", "Masked earlier in this conversation, so it stays masked.")
         decisions.append(d)
     outbound, applied = apply(text, spans, decisions, vault)
+
+    # W2: identifiers the stated purpose does not need are omitted, not masked (DPDP data minimisation)
+    t_purpose = time.perf_counter()
+    overrides: list[dict] = []
+    if use_purpose and outbound is not None:
+        wanted = {(i["label"], canonical(i["label"], i["text"])): i.get("reason", "") for i in include or []}
+        task = purpose.TASKS.get(flow.purpose, flow.purpose)
+        for k, a in enumerate(applied):
+            if a.decision.action not in ("pass", "pseudonymize", "generalize") or not purpose.omits(flow.purpose, a.span.label):
+                continue
+            key = (a.span.label, canonical(a.span.label, a.span.alias or a.span.text))
+            if key in wanted:
+                overrides.append({"label": a.span.label, "text": a.span.text, "reason": wanted[key]})
+                continue
+            decisions[k] = Decision("block", "purpose-minimisation",
+                                    f"Not needed to {task}, so it is left out (purpose limitation, data minimisation).")
+        if any(d.rule == "purpose-minimisation" for d in decisions):
+            outbound, applied = apply(text, spans, decisions, vault)
+    purpose_ms = (time.perf_counter() - t_purpose) * 1000
 
     earlier = [m["content"] for m in vault.history if m["role"] == "user"]
     rounds, unresolved, skipped = [], [], ""
@@ -98,7 +117,7 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
     else:
         blocker = next((a.decision for a in applied if a.decision.scope == "request" and a.decision.action == "block"), None)
     protected = list(vault.raw.values()) + [a.span.text for a in applied if a.decision.action != "pass"]
-    timings = {**det.timings, "attack_ms": (time.perf_counter() - t_attack) * 1000,
+    timings = {**det.timings, "purpose_ms": purpose_ms, "attack_ms": (time.perf_counter() - t_attack) * 1000,
                "total_ms": (time.perf_counter() - t0) * 1000}
     return {
         "original": text,
@@ -113,6 +132,7 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
         "attack": {"ran": bool(rounds), "skipped": skipped, "max_rounds": attack.MAX_ROUNDS,
                    "rounds": [attack.as_dict(r) for r in rounds],
                    "unresolved": [asdict(inf) for inf in unresolved]},
+        "overrides": overrides,
         "protected": protected,
         "timings": {k: round(v, 1) for k, v in timings.items()},
     }
@@ -185,6 +205,14 @@ def _record_exposure(vault: Vault, result: dict) -> None:
     result["exposure"] = list(vault.exposure)
 
 
+# an override reason is free text; names and ids in it are replaced before it reaches the log
+def mask_reason(reason: str) -> str:
+    out = reason[:300]
+    for sp in sorted(detect_cached(out, use_context=False).spans, key=lambda x: -x.start):
+        out = out[:sp.start] + f"[{sp.label}]" + out[sp.end:]
+    return out
+
+
 def audit(session_id: str, result: dict) -> None:
     secret = need("AUDIT_HMAC_KEY")
     if secret == "change-me":
@@ -206,14 +234,16 @@ def audit(session_id: str, result: dict) -> None:
                        "placeholder": s["replacement"] if s["action"] == "pseudonymize" else None}
                       for s in result["spans"]],
     }
+    line["overrides"] = [{"label": o["label"], "value_hmac": tag(o["text"]), "reason": mask_reason(o["reason"])}
+                         for o in result.get("overrides", [])]
     AUDIT_PATH.parent.mkdir(exist_ok=True)
     with AUDIT_PATH.open("a") as f:
         f.write(json.dumps(line, ensure_ascii=False) + "\n")
 
 
-def chat(text: str, flow: Flow, session_id: str, use_context: bool = True) -> dict:
+def chat(text: str, flow: Flow, session_id: str, use_context: bool = True, include: list[dict] | None = None) -> dict:
     vault = vault_for(session_id, flow.destination)
-    result = analyze(text, flow, vault, use_context)
+    result = analyze(text, flow, vault, use_context, include=include)
     vault.sources.append(text)
     protected = result.pop("protected")
     result.update(reply=None, restored=None, restore_stats=None, restore_marks=[], flags=[], error=None, sent=False,

@@ -4,8 +4,8 @@
 
 | System | Leak rate ↓ | Over-redaction ↓ | Protect/allow acc. | 4-way action acc. | Request blocks (TP/FP/FN) | Latency p50 / p95 |
 |---|---|---|---|---|---|---|
-| FlowGuard (full) | 1.0% (1/100) | 2.9% (2/69) | 98.2% | 97.6% | 5/0/0 | 954 / 4618 ms |
-| FlowGuard (no context layer) | 39.0% (39/100) | 0.0% (0/69) | 76.9% | 75.7% | 0/0/5 | 38 / 57 ms |
+| FlowGuard (full) | 1.0% (1/102) | 3.0% (2/67) | 98.2% | 97.6% | 5/0/0 | 979 / 4740 ms |
+| FlowGuard (no context layer) | 38.2% (39/102) | 0.0% (0/67) | 76.9% | 75.7% | 0/0/5 | 40 / 49 ms |
 
 Leak rate = sensitive gold spans whose raw text reached the outbound payload. Over-redaction = spans that should pass but were altered or blocked.
 
@@ -39,5 +39,5 @@ Leak rate = sensitive gold spans whose raw text reached the outbound payload. Ov
 
 | System | en | hinglish |
 |---|---|---|
-| FlowGuard (full) | 0.0% (0/72) | 3.6% (1/28) |
-| FlowGuard (no context layer) | 36.1% (26/72) | 46.4% (13/28) |
+| FlowGuard (full) | 0.0% (0/74) | 3.6% (1/28) |
+| FlowGuard (no context layer) | 35.1% (26/74) | 46.4% (13/28) |

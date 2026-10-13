@@ -93,3 +93,14 @@ rules:
   - id: default-cautious
     action: pseudonymize
     why: No rule covers this flow; reversible masking is the safe default.
+
+# Purpose limitation and data minimisation: for each stated purpose, identifiers it does not need. They are omitted
+# before anything leaves, even as placeholders. "general" means no purpose was stated, so nothing is assumed unneeded.
+# (A 3B model asked "is this needed?" said yes almost every time, so needs are declared here, not guessed.)
+purposes:
+  clinical_summary: {omit: [PHONE, EMAIL, UPI, AADHAAR, PAN, GSTIN, IFSC, VEHICLE]}
+  hr_summary: {omit: [UPI, AADHAAR, GSTIN, IFSC, VEHICLE]}
+  scheduling: {omit: [UPI, AADHAAR, PAN, GSTIN, IFSC, VEHICLE]}
+  marketing: {omit: [PHONE, EMAIL, UPI, AADHAAR, PAN, GSTIN, IFSC, VEHICLE]}
+  invoicing: {omit: [AADHAAR, VEHICLE]}
+  general: {omit: []}
