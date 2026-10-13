@@ -14,10 +14,13 @@ from .policy import Decision, Flow, decide
 from .transform import OutboundLeak, Vault, apply, guard, restore
 
 AUDIT_PATH = ROOT / "data" / "audit.jsonl"
-SYSTEM_PROMPT = ("You are a helpful workplace assistant. Some names and numbers in the user's message were "
-                 "replaced by bracketed placeholders. Copy each placeholder exactly as it appears, brackets included. "
-                 "Never invent new placeholders and never guess what they stand for. Bracketed phrases such as "
-                 "[health detail] are deliberately vague.")
+SYSTEM_PROMPT = ("You are a workplace assistant for a small Indian organisation. Do the task the user asks for: "
+                 "draft, summarise, rewrite or answer. Write the finished result, not a template, and never just "
+                 "repeat the message back. Some names and numbers were replaced by bracketed placeholders (a type "
+                 "and a number); use them exactly as written, brackets included, wherever the real value belongs. "
+                 "Never invent new placeholders and never ask what they stand for. Bracketed phrases such as "
+                 "[health detail] or a salary band are deliberately vague; keep them vague. Reply in English "
+                 "unless the user asks otherwise.")
 
 # ponytail: in-memory sessions, lost on restart; fine for a single-user local gateway
 SESSIONS: dict[str, dict[str, Vault]] = {}
