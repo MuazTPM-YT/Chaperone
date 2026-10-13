@@ -52,6 +52,7 @@ fastapi, uvicorn, httpx (LLM + Ollama calls; also FastAPI TestClient), pyyaml (p
 - `uv run` re-checks a GitHub-hosted spaCy wheel online; use `uv run --frozen` everywhere (offline-safe).
 - Replies were capped at 700 tokens after one 3-minute runaway generation.
 - Extraction called invoice totals "pay"; a second yes/no question on each pay finding fixed it (pay precision 0.78 -> 1.00 on dev). A few-shot example tried first made MNPI recall worse, so it was dropped.
+- The same over-flagging hit HR ("Monday 1:1s move to Thursday" became "[HR matter]"). HR findings get a multiple-choice check (a yes/no wording failed 2 of 7 test phrases; multiple choice got 8 of 8). HR precision on dev 0.62 -> 1.00.
 - Any placeholder named as an example in a system prompt gets invented by the 3B model; prompts name none.
 - Extra dependencies beyond the brief: `sentencepiece`, `protobuf` (GLiNER's tokenizer needs them at load time).
 

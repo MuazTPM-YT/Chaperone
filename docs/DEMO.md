@@ -29,7 +29,7 @@
 | 2:30–2:55 | Scenario 6: both buttons | Apple's public revenue passes. Our own revenue before Thursday's announcement is unpublished price-sensitive information: blocked. |
 | 2:55–3:30 | Scenario 7 | A patient note goes to an external AI for a discharge summary. Names and phone become placeholders, age and date get coarser, clinical detail stays so the summary is useful. The reply comes back with the real names, put back on this laptop. Switch the reply to "As the AI wrote it" to show the AI only ever saw placeholders. |
 | 3:30–3:50 | Untick "Local AI check", click scenario 1b again | If the local model is down, the UI says so: IDs and names are still caught, health details are not. No silent failure. |
-| 3:50–4:00 | Results slide | Dev set: leak rate 2% vs 38% for Presidio with India recognizers on; over-redaction 0% vs 71%. Held-out numbers on the slide. |
+| 3:50–4:00 | Results slide | Dev set: leak rate 3% vs 38% for Presidio with India recognizers on; over-redaction 0% vs 71%. Held-out numbers on the slide. |
 
 ## Facts for questions
 

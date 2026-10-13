@@ -48,8 +48,8 @@ flowchart LR
    personal. GLiNER finds names, organisations and places. A small local LLM labels meaning a pattern cannot see:
    health, pay, unpublished company results (MNPI), HR and legal matters, in English and Hinglish. Before the
    LLM reads the text, IDs and names are swapped for tags like `[AADHAAR]`, so it judges meaning, not numbers.
-   When it flags an amount as pay, a second yes/no question checks it, because extraction alone called invoice
-   totals "salary".
+   Pay and HR findings get a second, narrower question about that one phrase, because extraction alone called
+   invoice totals "salary" and a moved meeting an "HR matter".
 2. **Decide per flow.** `flowguard/policies.yaml` holds 17 ordered rules over category, data subject (person or
    business), sender role, destination and purpose. The first match wins, and every decision records its rule id
    and a plain reason.
@@ -75,12 +75,13 @@ will replace these.
 
 | System | Leak rate ↓ | Over-redaction ↓ | Request blocks (TP/FP/FN) | Latency p50 / p95 |
 |---|---|---|---|---|
-| FlowGuard | 2.0% (2/100) | 0.0% (0/69) | 5/0/0 | 1529 / 3199 ms* |
+| FlowGuard | 3.0% (3/100) | 0.0% (0/69) | 5/0/0 | 1218 / 2421 ms* |
 | FlowGuard, context layer off | 39.0% (39/100) | 0.0% (0/69) | 0/0/5 | 45 / 64 ms |
 | Presidio + India recognizers | 38.0% (38/100) | 71.0% (49/69) | 0/0/5 | 5 / 9 ms |
 
-\* Measured while OBS and Chrome were busy on the same laptop; OBS shares the GPU. On a quiet machine earlier runs
-measured about 400 ms p50 and 950 ms p95. To be re-measured.
+\* Measured with the GPU at 82 °C after long test runs, and partly while OBS was recording (OBS shares the GPU).
+A cool, quiet machine measured 495 / 945 ms with the same code. Re-measure before quoting. Results move by about
+one span between runs because the 3B model is not fully deterministic.
 
 - **Leak rate**: sensitive spans whose raw text reached the outbound payload.
 - **Over-redaction**: spans that should have passed (company PAN, a colleague's name for scheduling) but were
@@ -90,7 +91,7 @@ measured about 400 ms p50 and 950 ms p95. To be re-measured.
 |---|---|---|
 | Identifiers and entities (13 labels) | 0.98 | 0.74 |
 | Only the 8 labels Presidio supports | 0.98 | 0.82 |
-| Context categories (health, pay, MNPI, HR, legal; n = 54) | 0.91 | not supported |
+| Context categories (health, pay, MNPI, HR, legal; n = 54) | 0.94 | not supported |
 
 Full per-label table: [`eval/results/results_dev.md`](eval/results/results_dev.md).
 
@@ -145,8 +146,8 @@ More in [PLAN.md](PLAN.md).
 
 ## Known limits
 
-- The context layer is a 3B model. It is not fully deterministic across runs, HR precision is 0.62 on dev, and it
-  missed some Hinglish names and conditions ("Kavya ... surgery").
+- The context layer is a 3B model. It is not fully deterministic across runs, and it missed some Hinglish names
+  and conditions ("Kavya ... surgery") and "pregnant" as a health detail.
 - The simulated external AI is the same 3B model. Its answers are short and sometimes add facts that were not
   in the message ("patient is now stable"). A hosted model would answer better.
 - Ages written as a bare number ("Kavya Shetty, 29") are not caught.
