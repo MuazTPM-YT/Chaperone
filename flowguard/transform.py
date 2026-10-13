@@ -66,9 +66,14 @@ def money_band(span_text: str, context: str) -> str:
 
 
 # the coarse words that stand in for a span outbound
-def coarse(span: Span, text: str) -> str:
+def coarse(span: Span, text: str, style: str = "") -> str:
     if span.coarse:
         return span.coarse
+    if style == "year":
+        yr = re.search(r"(?:19|20)\d{2}", span.text)
+        return yr.group() if yr else "a year"
+    if style == "age90":
+        return "90 or older"
     if span.label == "COMPENSATION":
         window = text[max(0, span.start - 40): span.end + 20]
         return money_band(span.text, window) if re.search(r"\d", span.text) else "pay detail"
@@ -119,7 +124,7 @@ def apply(text: str, spans: list[Span], decisions: list[Decision], vault: Vault)
         if d.action == "pseudonymize":
             rep = vault.placeholder(s.label, s.alias or s.text)
         elif d.action == "generalize":
-            rep = vault.placeholder(s.label, s.alias or s.text, coarse(s, text))
+            rep = vault.placeholder(s.label, s.alias or s.text, coarse(s, text, d.coarse))
         else:
             rep = f"[{s.label} omitted]" if d.rule == "purpose-minimisation" else f"[{s.label} withheld]"
         records[i] = Applied(s, d, rep)

@@ -1,0 +1,71 @@
+# HIPAA Safe Harbor mode: the de-identification method of 45 CFR 164.514(b)(2). Its 18 identifier types apply to the
+# patient and to relatives, employers and household members. These rules run first; anything they do not cover falls
+# through to policies.yaml. Software alone cannot make anyone meet HIPAA: Safe Harbor also requires that the sender
+# has no actual knowledge that what remains could identify the person (164.514(b)(2)(ii)).
+# Items marked "our adaptation" map an Indian identifier onto a US category; they are not part of the US rule.
+# Not detected in text by this tool: (I) health plan beneficiary numbers, (K) certificate or licence numbers,
+# (M) device identifiers and serial numbers, (P) biometric identifiers, (Q) full-face photographs.
+extends: policies.yaml
+
+rules:
+  - id: hipaa-a-names
+    when: {label: PERSON}
+    action: pseudonymize
+    why: "Safe Harbor (A): names, including relatives'. Replaced by a code that is not derived from the name."
+
+  - id: hipaa-employer
+    when: {label: ORG}
+    action: pseudonymize
+    why: Safe Harbor covers identifiers of the patient's employer as well as the patient.
+
+  - id: hipaa-b-geography
+    when: {label: LOCATION}
+    action: generalize
+    why: "Safe Harbor (B): places smaller than a state. This tool cannot tell a state from a city, so every place goes."
+
+  - id: hipaa-c-dates
+    when: {label: DATE}
+    action: generalize
+    coarse: year
+    why: "Safe Harbor (C): every part of a date except the year."
+
+  - id: hipaa-c-ages
+    when: {label: AGE}
+    action: generalize
+    coarse: age90
+    why: "Safe Harbor (C): ages over 89 become '90 or older'; younger ages may stay."
+
+  - id: hipaa-d-f-contact
+    when: {label: [PHONE, EMAIL]}
+    action: pseudonymize
+    why: "Safe Harbor (D, E, F): telephone and fax numbers, email addresses."
+
+  - id: hipaa-g-national-ids
+    when: {label: [AADHAAR, PAN], subject: individual}
+    action: pseudonymize
+    why: "Our adaptation of Safe Harbor (G), social security numbers: Aadhaar and personal PAN."
+
+  - id: hipaa-h-records
+    when: {label: MRN}
+    action: pseudonymize
+    why: "Safe Harbor (H): medical record numbers. UHID and IP numbers of Indian hospitals are our adaptation."
+
+  - id: hipaa-j-accounts
+    when: {label: [ACCOUNT, UPI]}
+    action: pseudonymize
+    why: "Safe Harbor (J): account numbers. UPI handles are our adaptation."
+
+  - id: hipaa-l-vehicles
+    when: {label: VEHICLE}
+    action: pseudonymize
+    why: "Safe Harbor (L): vehicle identifiers, including licence plates."
+
+  - id: hipaa-n-o-links
+    when: {label: [URL, IP]}
+    action: pseudonymize
+    why: "Safe Harbor (N, O): web addresses and IP addresses."
+
+  - id: hipaa-r-other-ids
+    when: {label: GSTIN, subject: individual}
+    action: pseudonymize
+    why: "Our adaptation of Safe Harbor (R), other unique numbers: a sole proprietor's GSTIN contains a personal PAN."

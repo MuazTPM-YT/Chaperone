@@ -13,7 +13,7 @@ SCENARIOS = json.loads((Path(gateway.__file__).parent / "scenarios.json").read_t
 
 @pytest.mark.parametrize("sc", SCENARIOS, ids=[s["id"] for s in SCENARIOS])
 def test_scenario(sc, llm):
-    r = gateway.chat(sc["text"], Flow(sc["role"], sc["destination"], sc["purpose"]), f"s-{sc['id']}")
+    r = gateway.chat(sc["text"], Flow(sc["role"], sc["destination"], sc["purpose"], sc.get("pack", "default")), f"s-{sc['id']}")
     assert r["context_ok"], r["context_error"]
     exp = sc["expect"]
     assert r["blocked"] == exp["blocked"]

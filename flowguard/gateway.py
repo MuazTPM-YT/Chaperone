@@ -55,6 +55,8 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
     decisions = []
     for s in spans:
         d = decide(s.label, s.subject, flow)
+        if d.coarse == "age90" and (m := re.search(r"\d+", s.text)) and int(m.group()) <= 89:
+            d = Decision("pass", "safe-harbor-age-under-90", "Safe Harbor keeps ages up to 89; only older ages are grouped.")
         if d.action == "pass" and vault.holds(s.label, s.alias or s.text):
             d = Decision("pseudonymize", "session-sticky", "Masked earlier in this conversation, so it stays masked.")
         decisions.append(d)

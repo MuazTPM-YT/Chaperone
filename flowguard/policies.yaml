@@ -4,7 +4,7 @@
 
 groups:
   semantic: &SEMANTIC [HEALTH, COMPENSATION, MNPI, HR, LEGAL]
-  personal_ids: &PERSONAL_IDS [AADHAAR, PAN, GSTIN, PHONE, EMAIL, UPI, VEHICLE, PERSON]
+  personal_ids: &PERSONAL_IDS [AADHAAR, PAN, GSTIN, PHONE, EMAIL, UPI, VEHICLE, PERSON, MRN, ACCOUNT, IP]
 
 rules:
   - id: mnpi-never-external
@@ -88,6 +88,11 @@ rules:
     when: {label: *PERSONAL_IDS, destination: external}
     action: pseudonymize
     why: Personal identifiers leave only as placeholders; real values are restored locally.
+
+  - id: links-pass
+    when: {label: URL}
+    action: pass
+    why: A web link is not personal data by itself. Safe Harbor mode treats it as an identifier.
 
   # catch-all: unknown flows lean cautious but keep the answer usable
   - id: default-cautious

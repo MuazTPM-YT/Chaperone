@@ -47,6 +47,11 @@ MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|A
 
 RX = {
     "EMAIL": re.compile(r"\b[\w.+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\b"),
+    "URL": re.compile(r"\bhttps?://[^\s<>\"')\]]*[^\s<>\"')\].,;:!?]"),
+    "IP": re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b"),
+    # record and account numbers only count next to their cue word; the span is the number itself
+    "MRN": re.compile(r"\b(?:MRN|UHID|IP\s?No\.?|CR\s?No\.?)\s*[:#-]?\s*(?P<v>[A-Z0-9][A-Z0-9/-]{3,})\b"),
+    "ACCOUNT": re.compile(r"\b(?:A/c|Acct|Account)\s*(?:No\.?|Number)?\s*[:#-]?\s*(?P<v>\d{9,18})\b", re.IGNORECASE),
     "UPI": re.compile(r"\b[\w.-]{2,64}@[A-Za-z]{2,32}\b(?!\.\w)"),
     "GSTIN": re.compile(r"\b\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b"),
     "PAN": re.compile(r"\b[A-Z]{3}[ABCFGHJLPT][A-Z]\d{4}[A-Z]\b"),
@@ -68,7 +73,7 @@ MONEY = re.compile(
     r"|\b\d{1,3}(?:,\d{2,3})+\b"
 )
 # deterministic labels win ties in this order (GSTIN contains a PAN, UPI can contain a phone)
-PRIORITY = ["EMAIL", "UPI", "GSTIN", "PAN", "IFSC", "AADHAAR", "VEHICLE", "PHONE", "DATE", "AGE"]
+PRIORITY = ["EMAIL", "URL", "UPI", "GSTIN", "PAN", "IFSC", "MRN", "ACCOUNT", "AADHAAR", "IP", "VEHICLE", "PHONE", "DATE", "AGE"]
 
 
 # keep hit? plus whose data it is and why
@@ -97,8 +102,10 @@ def _valid(label: str, value: str) -> tuple[bool, str, str]:
         return True, "business" if role else "individual", "role mailbox" if role else "personal mailbox"
     if label == "UPI":
         return True, "individual", "UPI handle"
-    if label in ("AGE", "DATE", "PHONE", "VEHICLE"):
+    if label in ("AGE", "DATE", "PHONE", "VEHICLE", "MRN", "ACCOUNT", "IP"):
         return True, "individual", ""
+    if label == "URL":
+        return True, "unknown", "web link"
     return True, "unknown", ""
 
 
@@ -107,12 +114,12 @@ def deterministic(text: str) -> list[Span]:
     taken: list[tuple[int, int]] = []
     for label in PRIORITY:
         for m in RX[label].finditer(text):
-            s, e = m.span()
+            s, e = m.span("v") if "v" in m.re.groupindex else m.span()
             if any(s < te and ts < e for ts, te in taken):
                 continue
-            keep, subject, note = _valid(label, m.group())
+            keep, subject, note = _valid(label, text[s:e])
             if keep:
-                found.append(Span(s, e, m.group(), label, subject, "regex", 1.0, note))
+                found.append(Span(s, e, text[s:e], label, subject, "regex", 1.0, note))
                 taken.append((s, e))
     return found
 

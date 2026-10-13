@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from . import gateway
 from .detect import CONTEXT_MODEL
-from .policy import Flow
+from .policy import PACKS, Flow
 from .transform import Vault
 
 HERE = Path(__file__).parent
@@ -35,6 +35,7 @@ class ChatIn(BaseModel):
     purpose: str
     use_context: bool = True
     include: list[dict] = []  # "include anyway": [{label, text, reason}] for identifiers the purpose would omit
+    pack: str = "default"  # policy pack: "default" or "safe_harbor"
 
 
 def _endpoint(dest: str) -> dict:
@@ -42,6 +43,10 @@ def _endpoint(dest: str) -> dict:
     host = urlparse(base).hostname or ""
     return {"model": os.environ.get(f"{dest}_LLM_MODEL", ""), "host": host,
             "simulated": host in ("127.0.0.1", "localhost")}
+
+
+def _pack(name: str) -> str:
+    return name if name in PACKS else "default"
 
 
 @app.get("/")
@@ -54,13 +59,14 @@ def meta(data: str = "") -> dict:
     fixture = "scenarios_worst.json" if DEV and data == "worst" else "scenarios.json"
     return {"roles": ROLES, "destinations": ["internal", "external"], "purposes": PURPOSES,
             "scenarios": json.loads((HERE / fixture).read_text()), "dev": DEV, "max_text": MAX_TEXT,
+            "packs": [{"id": "default", "name": "Standard rules"}, {"id": "safe_harbor", "name": "HIPAA Safe Harbor mode"}],
             "context_model": CONTEXT_MODEL,
             "endpoints": {"internal": _endpoint("INTERNAL"), "external": _endpoint("EXTERNAL")}}
 
 
 @app.post("/api/chat")
 def chat(body: ChatIn) -> dict:
-    flow = Flow(body.role, body.destination, body.purpose)
+    flow = Flow(body.role, body.destination, body.purpose, _pack(body.pack))
     with LOCK:
         return gateway.chat(body.text, flow, body.session_id, body.use_context, body.include)
 
@@ -71,6 +77,7 @@ class CompareIn(BaseModel):
                          {"role": "Doctor", "destination": "external", "purpose": "general"},
                          {"role": "Intern", "destination": "external", "purpose": "general"}]
     use_context: bool = True
+    pack: str = "default"
 
 
 # W3: one message, several flows, side by side. Dry runs: nothing is sent to any AI, no session is touched.
@@ -79,7 +86,8 @@ def compare(body: CompareIn) -> dict:
     with LOCK:
         runs = []
         for f in body.flows[:4]:
-            r = gateway.analyze(body.text, Flow(f["role"], f["destination"], f["purpose"]), Vault(), body.use_context)
+            flow = Flow(f["role"], f["destination"], f["purpose"], _pack(body.pack))
+            r = gateway.analyze(body.text, flow, Vault(), body.use_context)
             r.pop("protected")
             runs.append(r)
     return {"text": body.text, "runs": runs}
@@ -89,7 +97,7 @@ def compare(body: CompareIn) -> dict:
 @app.post("/api/baseline")
 def baseline(body: ChatIn) -> dict:
     with LOCK:
-        return gateway.baseline(body.text, Flow(body.role, body.destination, body.purpose))
+        return gateway.baseline(body.text, Flow(body.role, body.destination, body.purpose, _pack(body.pack)))
 
 
 @app.post("/api/reset/{session_id}")
