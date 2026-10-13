@@ -1,4 +1,5 @@
-from flowguard.detect import Span, _mask, _to_orig, deterministic
+from flowguard import detect as detect_mod
+from flowguard.detect import Span, _mask, _to_orig, deterministic, rupees
 
 
 def labels(text):
@@ -44,3 +45,15 @@ def test_mask_offsets_map_back():
     assert text[_to_orig(a, segs, False):_to_orig(b, segs, True)] == "divorce case"
     tag = masked.index("[AADHAAR]")
     assert text[_to_orig(tag, segs, False):_to_orig(tag + 9, segs, True)] == "7260 1815 9082"
+
+
+def test_rupees_reads_indian_units():
+    assert rupees("₹14.2 lakh") == rupees("₹14,20,000") == 1_420_000
+    assert rupees("8.5 LPA") == 850_000 and rupees("20 hazaar") == 20_000 and rupees("2 crore") == 20_000_000
+
+
+def test_context_layer_offline_falls_back(monkeypatch):
+    monkeypatch.setattr(detect_mod, "OLLAMA_URL", "http://127.0.0.1:9")  # nothing listens here
+    d = detect_mod.detect("Customer Aadhaar 7260 1815 9082, salary 14 lakh")
+    assert d.context_ok is False and "ConnectError" in d.context_error
+    assert {s.label for s in d.spans} == {"AADHAAR"}  # ids still caught, pay is not

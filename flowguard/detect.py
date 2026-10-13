@@ -115,6 +115,21 @@ def deterministic(text: str) -> list[Span]:
     return found
 
 
+UNITS = [(r"crores?|cr", 1e7), (r"lakhs?|lacs?|LPA|L", 1e5), (r"k|K|thousand|hazaa?r", 1e3)]
+
+
+# "₹14.2 lakh" and "₹14,20,000" are the same 1420000.0
+def rupees(text: str) -> float | None:
+    m = re.search(r"\d[\d,]*(?:\.\d+)?", text)
+    if not m:
+        return None
+    amount = float(m.group().replace(",", ""))
+    for unit, mult in UNITS:
+        if re.search(rf"\d\s?(?:{unit})\b", text):
+            return amount * mult
+    return amount
+
+
 def money_candidates(text: str, taken: list[Span]) -> list[Span]:
     out = []
     for m in MONEY.finditer(text):
@@ -133,7 +148,8 @@ NER_LABELS = {"person name": ("PERSON", "individual"), "organization": ("ORG", "
 NER_THRESHOLD = {"PERSON": 0.5, "ORG": 0.6, "LOCATION": 0.6}
 # acronyms and role nouns GLiNER likes to call entities
 NOT_ENTITIES = {"aadhaar", "pan", "gstin", "gst", "upi", "ifsc", "kyc", "tds", "pf", "ctc", "pip", "ca", "hr", "lpa",
-                "emi", "customer", "student", "patient", "client", "team", "company", "board", "manager", "doctor"}
+                "emi", "customer", "student", "patient", "client", "team", "company", "board", "manager", "doctor",
+                "wife", "husband", "son", "daughter", "mother", "father", "sir", "madam", "boss"}
 
 
 @lru_cache(maxsize=1)
@@ -175,7 +191,8 @@ CONTEXT_TIMEOUT = float(os.environ.get("CONTEXT_TIMEOUT", "20"))
 CONTEXT_PROMPT = """You find sensitive details in workplace messages written in English or Hinglish \
 (Hindi in Latin script mixed with English). Names and ID numbers are already hidden as tags like [PERSON] or \
 [AADHAAR]; never return a tag on its own. Return each sensitive phrase copied EXACTLY from the message, \
-with one category:
+with one category. Quote only the sensitive words themselves (at most six words), with a separate finding \
+for each separate detail. Categories:
 - HEALTH: a specific person's medical condition, diagnosis, symptom, treatment, medicine, test result, \
 surgery, pregnancy or disability.
 - COMPENSATION: a specific person's salary, CTC, bonus, pay, deductions or income. Copy the amount itself.
@@ -284,7 +301,8 @@ def _pieces(masked: str, a: int, b: int) -> list[tuple[int, int]]:
     return out
 
 
-def context(text: str, model: str | None = None, hide: list[Span] | None = None) -> list[Span]:
+def context(text: str, model: str | None = None, hide: list[Span] | None = None,
+            money: list[Span] | None = None) -> list[Span]:
     model = model or CONTEXT_MODEL
     masked, segs = _mask(text, hide or [])
     messages = [{"role": "system", "content": CONTEXT_PROMPT}]
@@ -303,12 +321,17 @@ def context(text: str, model: str | None = None, hide: list[Span] | None = None)
     for f in findings:
         cat = f.get("category")
         loc = _locate(masked, f.get("quote", "")) if cat in (*SEMANTIC, "PERSON") else None
+        if not loc and cat == "COMPENSATION":
+            # model rewrote the amount ("₹14.2 lakh" -> "₹14,20,000"): match it by value
+            value = rupees(f.get("quote", ""))
+            out += [Span(m.start, m.end, m.text, "COMPENSATION", "individual", "context", 0.8,
+                         "amount flagged as pay by local LLM") for m in money or [] if value and rupees(m.text) == value]
         # MNPI blocks the whole request; one built around an id number is the model confusing ids with secrets
         if loc and cat == "MNPI" and ID_TAGS.search(masked, *loc):
             continue
         for pa, pb in _pieces(masked, *loc) if loc else []:
             s, e = _to_orig(pa, segs, False), _to_orig(pb, segs, True)
-            if e <= s or not _has_content(masked[pa:pb], cat):
+            if e <= s or not _has_content(masked[pa:pb]):
                 continue
             if cat != "PERSON":
                 out.append(Span(s, e, text[s:e], cat, "individual", "context", 0.9, "local LLM"))
@@ -324,11 +347,13 @@ FILLER = frozenset({
 })
 
 
-# a finding of only tags, ids and filler words ("Aadhaar number", "aur") is noise; pay and ratings may be bare numbers
-def _has_content(masked_quote: str, category: str) -> bool:
-    if category in ("COMPENSATION", "HR") and re.search(r"\d", re.sub(r"\[[A-Z]+\]", " ", masked_quote)):
+# a finding of only tags, ids and filler words ("Aadhaar number", "aur") is noise; short numbers
+# ("30%", "42,000", "2/5") are content, long digit runs look like ids
+def _has_content(masked_quote: str) -> bool:
+    bare = re.sub(r"\[[A-Z]+\]", " ", masked_quote)
+    if re.search(r"\d", bare) and not re.search(r"\d{6,}", re.sub(r"[\s-]", "", bare)):
         return True
-    words = re.findall(r"[A-Za-z]{2,}", re.sub(r"\[[A-Z]+\]", " ", masked_quote))
+    words = re.findall(r"[A-Za-z]{2,}", bare)
     return any(w.lower() not in FILLER and w.lower() not in NOT_ENTITIES and w.lower() != "aadhaar" for w in words)
 
 
@@ -371,7 +396,8 @@ def detect(text: str, use_context: bool = True, model: str | None = None) -> Det
         t0 = time.perf_counter()
         try:
             hide = det + [n for n in ner if n.label == "PERSON"]
-            ctx = _merge_money(context(text, model, hide), money_candidates(text, det))
+            money = money_candidates(text, det)
+            ctx = _merge_money(context(text, model, hide, money), money)
             ok, err = True, ""
         except (httpx.HTTPError, json.JSONDecodeError, KeyError) as exc:
             err = f"{type(exc).__name__}: {exc}"[:200]

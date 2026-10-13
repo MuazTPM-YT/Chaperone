@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass, field
 
-from .detect import Span
+from .detect import Span, rupees
 from .policy import Decision
 
 SEVERITY = {"pass": 0, "pseudonymize": 1, "generalize": 2, "block": 3}
@@ -46,7 +46,6 @@ class Vault:
 
 # ---------- generalize: irreversible coarsening ----------
 
-UNITS = [(r"crores?|cr", 1e7), (r"lakhs?|lacs?|LPA|L", 1e5), (r"k|K|thousand|hazaa?r", 1e3)]
 BANDS = [(3e5, "entry-level salary band (under ₹3 lakh/yr)"), (10e5, "mid-level salary band (₹3–10 lakh/yr)"),
          (30e5, "senior salary band (₹10–30 lakh/yr)"), (float("inf"), "executive salary band (over ₹30 lakh/yr)")]
 WORDS = {"HEALTH": "[health detail]", "HR": "[HR matter]", "LEGAL": "[legal matter]",
@@ -55,14 +54,9 @@ WORDS = {"HEALTH": "[health detail]", "HR": "[HR matter]", "LEGAL": "[legal matt
 
 
 def money_band(span_text: str, context: str) -> str:
-    m = re.search(r"\d[\d,]*(?:\.\d+)?", span_text)
-    if not m:
+    amount = rupees(span_text)
+    if amount is None:
         return "[an undisclosed amount]"
-    amount = float(m.group().replace(",", ""))
-    for unit, mult in UNITS:
-        if re.search(rf"\d\s?(?:{unit})\b", span_text):
-            amount *= mult
-            break
     if re.search(r"month|mahin|\bpm\b|/m\b", context, re.IGNORECASE):
         amount *= 12
     return "[" + next(label for cap, label in BANDS if amount < cap) + "]"
