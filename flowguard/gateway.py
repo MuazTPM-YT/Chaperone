@@ -145,11 +145,11 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
 
 # what an identifier-only cloak would send (names and IDs masked, meaning left as typed), and what the attacker gets from it.
 # our own ablation for comparison, not any specific product
-def baseline(text: str, flow: Flow, model: str | None = None) -> dict:
+def baseline(text: str, flow: Flow, model: str | None = None, vault: Vault | None = None) -> dict:
     t0 = time.perf_counter()
     det = detect_cached(text, model=model)
     decisions = [Decision("pass", "baseline", "") if s.label in SEMANTIC else decide(s.label, s.subject, flow) for s in det.spans]
-    sent, _ = apply(text, det.spans, decisions, Vault())
+    sent, _ = apply(text, det.spans, decisions, vault if vault is not None else Vault())
     infs = attack.attack(sent, [], flow, model) if sent and det.context_ok else []
     return {"outbound": sent, "inferences": [asdict(i) for i in infs], "context_ok": det.context_ok,
             "ms": round((time.perf_counter() - t0) * 1000, 1)}

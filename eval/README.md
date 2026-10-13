@@ -60,3 +60,26 @@ Destinations: `internal` = the organisation's own model; `external` = a third-pa
 
 A GSTIN whose 6th character is `P` belongs to a sole proprietor, so it is personal. A span inside a wider
 span that gets a stricter action takes that stricter action.
+
+## Inference set (what a reader can work out, not just what is written)
+
+- `inference_dev.jsonl`: written by the builder. Never copied into the attacker's examples. Numbers are optimistic.
+- `inference_heldout.jsonl`: empty. Teammates fill it **without reading `flowguard/attack.py`** or the dev set.
+
+One JSON object per line:
+
+```json
+{"id": "inf-h01", "kind": "proxy", "lang": "en", "role": "Manager", "destination": "external", "purpose": "general",
+ "text": "...", "forbidden": [{"category": "HEALTH", "attribute": "the person this message is about has cancer"}],
+ "must_include": ["Meena", "Monday"]}
+```
+
+- `kind`: `proxy` (a place, drug or routine that implies a condition), `quasi` (a role plus details that point to
+  one person), `both`, or `control` (nothing to infer; `forbidden` is empty).
+- `forbidden`: what the flow must not let the outside AI conclude. Write health claims about "the person this message
+  is about", never by name: the name is hidden anyway, the question is whether the condition still shows. Write
+  identity claims as "the message points to one specific <role>".
+- `must_include`: words the restored reply must still contain for the task to be done (names, days, amounts).
+
+Run: `uv run --frozen python eval/run_inference.py --split heldout`. The grader is `llama3.1:8b`, a different model
+family from the in-loop attacker (`qwen2.5:3b`), with its own prompt. CloakLLM and CloakPipe were not run here.

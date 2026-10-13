@@ -39,7 +39,7 @@ Measured on this laptop, qwen2.5:3b on the RTX 3050, GPU cool, 8 test messages:
 
 1. Generalization was one-way on purpose. W0 makes it restorable; README and UI copy change from "made vague for good" to "vague outbound, exact on this laptop".
 2. The machine has a 4 GB GPU, not CPU-only. Numbers above are GPU numbers.
-3. Disk has 2.1 GB free. The evaluator cannot be pulled until space is freed. W4 waits for that.
+3. Disk had 2.1 GB free. After space was freed, llama3.1:8b was pulled as the W4 grader.
 4. Purpose minimisation drops only identifiers (phone, email, IDs, UPI, vehicle). It never drops names or clinical facts: a discharge summary without the patient would be wrong.
 5. HIPAA Safe Harbor covers the patient and relatives, employers, household members. Text has no photos or biometrics. We cannot tell a state from a city without a gazetteer, so Safe Harbor mode removes every location. Indian items (Aadhaar for SSN, PIN codes, UHID) are labelled as our adaptation. We never claim that the software makes anyone meet HIPAA.
 6. "Attacker found nothing" is shown as "No inference found by the local check", never "safe".
