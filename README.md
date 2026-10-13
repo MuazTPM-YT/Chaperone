@@ -48,6 +48,8 @@ flowchart LR
    personal. GLiNER finds names, organisations and places. A small local LLM labels meaning a pattern cannot see:
    health, pay, unpublished company results (MNPI), HR and legal matters, in English and Hinglish. Before the
    LLM reads the text, IDs and names are swapped for tags like `[AADHAAR]`, so it judges meaning, not numbers.
+   When it flags an amount as pay, a second yes/no question checks it, because extraction alone called invoice
+   totals "salary".
 2. **Decide per flow.** `flowguard/policies.yaml` holds 17 ordered rules over category, data subject (person or
    business), sender role, destination and purpose. The first match wins, and every decision records its rule id
    and a plain reason.
@@ -73,7 +75,7 @@ will replace these.
 
 | System | Leak rate ↓ | Over-redaction ↓ | Request blocks (TP/FP/FN) | Latency p50 / p95 |
 |---|---|---|---|---|
-| FlowGuard | 2.0% (2/100) | 0.0% (0/69) | 5/0/0 | 1110 / 2463 ms* |
+| FlowGuard | 2.0% (2/100) | 0.0% (0/69) | 5/0/0 | 1529 / 3199 ms* |
 | FlowGuard, context layer off | 39.0% (39/100) | 0.0% (0/69) | 0/0/5 | 45 / 64 ms |
 | Presidio + India recognizers | 38.0% (38/100) | 71.0% (49/69) | 0/0/5 | 5 / 9 ms |
 
@@ -88,7 +90,7 @@ measured about 400 ms p50 and 950 ms p95. To be re-measured.
 |---|---|---|
 | Identifiers and entities (13 labels) | 0.98 | 0.74 |
 | Only the 8 labels Presidio supports | 0.98 | 0.82 |
-| Context categories (health, pay, MNPI, HR, legal; n = 54) | 0.88 | not supported |
+| Context categories (health, pay, MNPI, HR, legal; n = 54) | 0.91 | not supported |
 
 Full per-label table: [`eval/results/results_dev.md`](eval/results/results_dev.md).
 
@@ -117,14 +119,16 @@ only one model sits in 4 GB of VRAM.
 | qwen3:1.7b | 0.75 | 8.0% | 344 / 892 ms |
 | gemma3:1b | 0.48 | 13.0% | 264 / 481 ms |
 
-The prompt was tuned while using qwen2.5:3b, which favours it in this comparison.
+The prompt was tuned while using qwen2.5:3b, which favours it in this comparison. This benchmark ran before the
+yes/no pay check was added.
 
 ### Placeholders survive
 
-In 37 real replies from the local model, 54 of 54 placeholder mentions came back in exact `[LABEL_N]` form, with
-no unrestorable tokens ([`eval/results/placeholders_dev.md`](eval/results/placeholders_dev.md)). An earlier system
-prompt that showed `[PAN_1]` as an example made the model invent placeholders in 4 of 37 replies; the prompt no
-longer gives examples.
+In 37 real replies from the local model, 61 of 63 placeholder mentions came back in exact `[LABEL_N]` form; the
+other 2 were mangled and restored by tolerant matching. In 1 of 37 replies the model invented a placeholder that
+was never sent, which stays visible as text ([`eval/results/placeholders_dev.md`](eval/results/placeholders_dev.md)).
+A system prompt that shows a placeholder as an example (`[PAN_1]`) made the model invent placeholders in 4 of 37
+replies, so the prompt names none.
 
 ## Design decisions
 
@@ -141,8 +145,10 @@ More in [PLAN.md](PLAN.md).
 
 ## Known limits
 
-- The context layer is a 3B model. It is not deterministic across runs, sometimes calls an invoice amount a salary
-  (pay precision 0.78 on dev), and missed some Hinglish names and conditions ("Kavya ... surgery").
+- The context layer is a 3B model. It is not fully deterministic across runs, HR precision is 0.62 on dev, and it
+  missed some Hinglish names and conditions ("Kavya ... surgery").
+- The simulated external AI is the same 3B model. Its answers are short and sometimes add facts that were not
+  in the message ("patient is now stable"). A hosted model would answer better.
 - Ages written as a bare number ("Kavya Shetty, 29") are not caught.
 - Addresses are not a category. Kannada is out of scope.
 - Sessions live in memory; a restart forgets placeholder maps.

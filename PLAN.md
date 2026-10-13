@@ -51,6 +51,8 @@ fastapi, uvicorn, httpx (LLM + Ollama calls; also FastAPI TestClient), pyyaml (p
 - The LLM sometimes rewrites amounts ("₹14.2 lakh" -> "₹14,20,000"); pay findings are matched to the text by value.
 - `uv run` re-checks a GitHub-hosted spaCy wheel online; use `uv run --frozen` everywhere (offline-safe).
 - Replies were capped at 700 tokens after one 3-minute runaway generation.
+- Extraction called invoice totals "pay"; a second yes/no question on each pay finding fixed it (pay precision 0.78 -> 1.00 on dev). A few-shot example tried first made MNPI recall worse, so it was dropped.
+- Any placeholder named as an example in a system prompt gets invented by the 3B model; prompts name none.
 - Extra dependencies beyond the brief: `sentencepiece`, `protobuf` (GLiNER's tokenizer needs them at load time).
 
 ## Open items
