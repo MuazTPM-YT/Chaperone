@@ -7,6 +7,7 @@ AGE = re.compile(r"\b(\d{1,3})[- ](?:year|yr)s?[- ]old\b|\baged (\d{1,3})\b|\b(\
                  r"|\bage:? ?(\d{1,3})\b", re.IGNORECASE)
 MONTH_YEAR = re.compile(rf"\b({MONTHS})[a-z]*,? ((?:19|20)\d{{2}})\b", re.IGNORECASE)
 LONG_NUMBER = re.compile(r"(?<![\w.])\d[\d\s-]{4,}\d(?!\w|\.\d)")
+TEMPLATE_SLOT = re.compile(r"\[[^\]\n]{1,60}\]")
 RANGE_NEAR = re.compile(r"\d\s*(?:–|-|to)\s*[₹\d]")
 MONTH_NUM = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
 
@@ -78,9 +79,12 @@ def check(reply: str, sources: list[str], names: bool = True) -> list[dict]:
 
     if names:
         low = src.casefold()
+        slots = [m.span() for m in TEMPLATE_SLOT.finditer(reply)]  # "[Your Name]" is a blank to fill, not a claim
         for a, b in windows(reply, 600):
             for p in entities(reply[a:b]):
                 if p.label != "PERSON" or p.text.casefold() in NOT_ENTITIES:
+                    continue
+                if any(s <= a + p.start and a + p.end <= e for s, e in slots):
                     continue
                 if not any(w.casefold() in low for w in p.text.split() if len(w) > 2):
                     flag(a + p.start, a + p.end, "name", "This name is not in your message.")

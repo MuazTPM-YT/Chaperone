@@ -41,3 +41,7 @@ def test_generalized_value_goes_out_coarse_and_comes_back_exact():
         assert out == "A 54-year-old man.", seen
         assert out[marks[0]["start"]:marks[0]["end"]] == "54-year-old"
     assert restore_marked("[AGE_1: in their 50s] and [AGE_7]", v)[0] == "54-year-old and [AGE_7]"  # unknown stays
+
+
+def test_template_slots_are_not_invented_names():
+    assert check("Best regards,\n[Your Name]", SOURCE) == []

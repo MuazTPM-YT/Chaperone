@@ -13,7 +13,7 @@ MAX_ROUNDS = int(os.environ.get("ATTACK_MAX_ROUNDS", "2"))  # tightening rounds;
 CATEGORIES = set(os.environ.get("ATTACK_CATEGORIES", "IDENTITY,HEALTH").split(","))
 MIN_CONFIDENCE = float(os.environ.get("ATTACK_MIN_CONFIDENCE", "0.7"))
 HISTORY_TURNS = 6
-TOKEN = re.compile(r"\[[A-Z]+_\d+(?::[^\]\n]*)?\]")
+TOKEN = re.compile(r"\[[A-Z]+(?:_\d+(?::[^\]\n]*)?| withheld| omitted)\]")  # our placeholders and markers
 CATEGORY_LABEL = {"IDENTITY": "PERSON", "HEALTH": "HEALTH", "COMPENSATION": "COMPENSATION", "HR": "HR", "LEGAL": "LEGAL"}
 COARSE = {"IDENTITY": "a colleague", "HEALTH": "a health matter", "COMPENSATION": "a pay matter", "HR": "an HR matter",
           "LEGAL": "a legal matter"}
@@ -157,9 +157,9 @@ def _too_specific(rewrite: str, description: str) -> bool:
 def safer_description(model: str, inf: Inference) -> str:
     if inf.safer and not _too_specific(inf.safer, inf.description):
         return inf.safer
-    q = (f'Rewrite "{inf.description}" so it fits many people: keep only the general job (for example a doctor, a nurse, '
-         "an accountant, a teacher) and say \"at one of our branches\". Remove place names, gender, rank, language, "
-         "tenure and words like only or new.")
+    q = (f'Rewrite "{inf.description}" as a short noun phrase that fits many people, like "a doctor at one of our '
+         'branches" or "an accountant in one of our offices": keep only the general job. Remove place names, gender, '
+         "rank, language, tenure and words like only or new.")
     rewrite = _ask(model, [{"role": "user", "content": q}], REWRITE_SCHEMA).get("rewrite", "").strip().rstrip(".")
     return rewrite if rewrite and not _too_specific(rewrite, inf.description) else "a colleague at one of our branches"
 
@@ -244,7 +244,7 @@ def evidence_spans(text: str, inf: Inference, taken: list[Span], block: bool, mo
             s, e = loc
             coarse = "" if block else (inf.safer if inf.category == "IDENTITY" and inf.safer else COARSE[inf.category])
             out.append(Span(s, e, text[s:e], inf.category if inf.category != "IDENTITY" else "IDENTITY", "individual",
-                            "attacker", inf.confidence, f"a local attacker inferred: {inf.guess}", coarse=coarse))
+                            "attacker", inf.confidence, "", coarse=coarse))
     return out
 
 
