@@ -37,15 +37,23 @@ Eval: `eval/run_eval.py` over `eval/dev.jsonl` / `eval/heldout.jsonl`, same metr
 | Placeholder content | Type only | Type + role (`[PATIENT_1]`) helps reasoning but leaks role; gender hints leak more and are guessed from names (unreliable). Type is the minimum the LLM needs. |
 | Context layer down | Fall back to deterministic + NER; UI shows a red "context layer offline" banner; external sends still get identifiers pseudonymized | Health/MNPI phrases will not be caught in that mode. Stated, not hidden. |
 | Unknown flow default | Identifiers and names: **pseudonymize**. Semantic categories (health, salary, MNPI, HR, legal): **generalize**. | Block-by-default kills most answers; pass-by-default leaks. Pseudonymize keeps answers useful (restored) and leaks nothing raw. Effect shown in results. |
-| Entity model | GLiNER `urchade/gliner_small-v2.1` (Apache-2.0), CPU | Zero-shot labels, handles Indian names better than spaCy sm/md. |
-| Context LLM | Benchmark `gemma3:1b`, `qwen3:1.7b`, `qwen2.5:3b` on dev set; smallest acceptable wins | Accuracy vs latency table in results. |
+| Entity model | GLiNER `urchade/gliner_small-v2.1` (Apache-2.0), CPU, label "person name" | Splits "Rahul and Deepak"; misses some Hinglish names, so the context LLM also flags names NER missed. |
+| Context LLM | **qwen2.5:3b** after benchmarking `gemma3:1b`, `qwen3:1.7b`, `qwen2.5:3b` | qwen3:1.7b is smaller but made 5 false request blocks vs 1; qwen2.5:3b also serves as the simulated external AI, so one model fits in VRAM. |
 | Baseline | Presidio analyzer with India recognizers **enabled**, spaCy `en_core_web_lg` (its default) | Fair: we report where Presidio already validates checksums. |
 
 ## Dependencies (all pinned `~=x.y.z`, uv `exclude-newer` = 14 days ago)
 
 fastapi, uvicorn, httpx (LLM + Ollama calls; also FastAPI TestClient), pyyaml (policies), python-stdnum, gliner + torch (CPU), presidio-analyzer + spacy model (baseline only). Dev: pytest, ruff, mypy.
 
-## Open questions for you
+## Learned while building
 
-1. Teammates writing held-out cases: they need `eval/POLICY_GUIDE.md`-style plain rules (no detector internals). I put that in `eval/README.md`.
-2. A real external API for the video? Default stays simulated. Your call later, costs only an API key.
+- The context LLM mistook ID numbers for MNPI. Fix: IDs and names are masked as `[AADHAAR]`, `[PERSON]` before it reads the text.
+- The LLM sometimes rewrites amounts ("₹14.2 lakh" -> "₹14,20,000"); pay findings are matched to the text by value.
+- `uv run` re-checks a GitHub-hosted spaCy wheel online; use `uv run --frozen` everywhere (offline-safe).
+- Replies were capped at 700 tokens after one 3-minute runaway generation.
+- Extra dependencies beyond the brief: `sentencepiece`, `protobuf` (GLiNER's tokenizer needs them at load time).
+
+## Open items
+
+1. Held-out set: teammates write it with `eval/add_case.py`, guided by `eval/README.md` (no detector internals).
+2. Real external API for the video? Default stays simulated; switching is three `.env` lines.
