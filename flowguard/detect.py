@@ -24,6 +24,7 @@ class Span:
     score: float = 1.0
     note: str = ""
     alias: str = ""  # "Rohan" alone is the same person as "Rohan Deshpande": share one placeholder
+    coarse: str = ""  # vaguer words to send instead, when a check already proposed them
 
 
 @dataclass
@@ -61,9 +62,9 @@ RX = {
 }
 # money is only a candidate: the context layer decides whether it is pay
 MONEY = re.compile(
-    r"(?:₹|\bRs\.?|\bINR)\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:lakhs?|lacs?|L|LPA|crores?|cr|k|K|hazaa?r|thousand)\b)?"
+    r"(?:₹|\bRs\.?|\bINR)\s?\d(?:[\d,]*\d)?(?:\.\d+)?(?:\s?(?:lakhs?|lacs?|L|LPA|crores?|cr|k|K|hazaa?r|thousand)\b)?"
     r"(?:\s(?:a|per)\s(?:month|year|annum))?"
-    r"|\b\d[\d,]*(?:\.\d+)?\s?(?:lakhs?|lacs?|LPA|crores?|cr|k|K|hazaa?r|thousand)\b(?:\s(?:a|per)\s(?:month|year|annum))?"
+    r"|\b\d(?:[\d,]*\d)?(?:\.\d+)?\s?(?:lakhs?|lacs?|LPA|crores?|cr|k|K|hazaa?r|thousand)\b(?:\s(?:a|per)\s(?:month|year|annum))?"
     r"|\b\d{1,3}(?:,\d{2,3})+\b"
 )
 # deterministic labels win ties in this order (GSTIN contains a PAN, UPI can contain a phone)

@@ -26,17 +26,19 @@ def canonical(label: str, text: str) -> str:
 # placeholder <-> raw map for one conversation with one destination
 @dataclass
 class Vault:
-    by_key: dict[tuple[str, str], str] = field(default_factory=dict)
-    raw: dict[str, str] = field(default_factory=dict)  # placeholder -> first raw form seen
+    by_key: dict[tuple[str, str], str] = field(default_factory=dict)  # (label, value) -> token as sent
+    raw: dict[str, str] = field(default_factory=dict)  # "[AGE_1]" -> first raw form seen
     counts: dict[str, int] = field(default_factory=dict)
     history: list[dict] = field(default_factory=list)  # outbound chat turns, already transformed
+    sources: list[str] = field(default_factory=list)  # what the user actually typed, for the reply check
 
-    def placeholder(self, label: str, text: str) -> str:
+    # coarse given: the token carries it outbound ("[AGE_1: in their 50s]") and still restores to the exact value
+    def placeholder(self, label: str, text: str, coarse: str | None = None) -> str:
         key = (label, canonical(label, text))
         if key not in self.by_key:
             self.counts[label] = self.counts.get(label, 0) + 1
             ph = f"[{label}_{self.counts[label]}]"
-            self.by_key[key] = ph
+            self.by_key[key] = f"{ph[:-1]}: {coarse}]" if coarse else ph
             self.raw[ph] = text
         return self.by_key[key]
 
@@ -44,39 +46,42 @@ class Vault:
         return (label, canonical(label, text)) in self.by_key
 
 
-# ---------- generalize: irreversible coarsening ----------
+# ---------- generalize: coarse outbound, exact value kept on this laptop ----------
 
 BANDS = [(3e5, "entry-level salary band (under ₹3 lakh/yr)"), (10e5, "mid-level salary band (₹3–10 lakh/yr)"),
          (30e5, "senior salary band (₹10–30 lakh/yr)"), (float("inf"), "executive salary band (over ₹30 lakh/yr)")]
-WORDS = {"HEALTH": "[health detail]", "HR": "[HR matter]", "LEGAL": "[legal matter]",
-         "MNPI": "[confidential company financials]", "LOCATION": "[a location]", "PERSON": "[a person]",
-         "ORG": "[an organisation]"}
+WORDS = {"HEALTH": "health detail", "HR": "HR matter", "LEGAL": "legal matter",
+         "MNPI": "confidential company financials", "LOCATION": "a location", "PERSON": "a person",
+         "ORG": "an organisation", "IDENTITY": "a colleague"}
 
 
 def money_band(span_text: str, context: str) -> str:
     amount = rupees(span_text)
     if amount is None:
-        return "[an undisclosed amount]"
+        return "an undisclosed amount"
     if re.search(r"month|mahin|\bpm\b|/m\b", context, re.IGNORECASE):
         amount *= 12
-    return "[" + next(label for cap, label in BANDS if amount < cap) + "]"
+    return next(label for cap, label in BANDS if amount < cap)
 
 
-def generalize(span: Span, text: str) -> str:
+# the coarse words that stand in for a span outbound
+def coarse(span: Span, text: str) -> str:
+    if span.coarse:
+        return span.coarse
     if span.label == "COMPENSATION":
         window = text[max(0, span.start - 40): span.end + 20]
-        return money_band(span.text, window) if re.search(r"\d", span.text) else "[pay detail]"
+        return money_band(span.text, window) if re.search(r"\d", span.text) else "pay detail"
     if span.label == "AGE":
         m = re.search(r"\d+", span.text)
-        return f"[age {int(m.group()) // 10 * 10}s]" if m else "[an adult]"
+        return f"in their {int(m.group()) // 10 * 10}s" if m else "an adult"
     if span.label == "DATE":
         mon = re.search(r"[A-Za-z]{3,9}", span.text)
         yr = re.search(r"(?:19|20)\d{2}", span.text)
         if mon and yr:
             return f"{mon.group()} {yr.group()}"
         nums = re.findall(r"\d+", span.text)
-        return f"month {nums[1]}/{nums[2]}" if len(nums) == 3 else "[a date]"
-    return WORDS.get(span.label, f"[{span.label.lower()}]")
+        return f"month {nums[1]}/{nums[2]}" if len(nums) == 3 else "a date"
+    return WORDS.get(span.label, span.label.lower())
 
 
 # ---------- apply decisions ----------
@@ -113,7 +118,7 @@ def apply(text: str, spans: list[Span], decisions: list[Decision], vault: Vault)
         if d.action == "pseudonymize":
             rep = vault.placeholder(s.label, s.alias or s.text)
         elif d.action == "generalize":
-            rep = generalize(s, text)
+            rep = vault.placeholder(s.label, s.alias or s.text, coarse(s, text))
         else:
             rep = f"[{s.label} withheld]"
         records[i] = Applied(s, d, rep)
@@ -148,14 +153,31 @@ def guard(payload: str, protected: list[str]) -> None:
 
 # ---------- restore ----------
 
-# swap placeholders back; tolerate [person_1], PERSON_1, Person 1, PERSON-1's
-def restore(reply: str, vault: Vault) -> tuple[str, dict]:
+# swap placeholders back; tolerate [person_1], PERSON_1, Person 1, PERSON-1's, [AGE_1: in their 50s]
+# returns the restored text, counts, and where each restored value now sits (for highlighting)
+def restore_marked(reply: str, vault: Vault) -> tuple[str, dict, list[dict]]:
     stats = {"exact": 0, "fuzzy": 0}
-    for ph in sorted(vault.raw, key=len, reverse=True):
-        label, n = ph[1:-1].rsplit("_", 1)
-        exact = reply.count(ph)
-        stats["exact"] += exact
-        rx = re.compile(rf"(?<![A-Za-z])(?:\[\s*)?{label}[_ -]?{n}(?!\d)(?:\s*\])?", re.IGNORECASE)
-        reply, total = rx.subn(vault.raw[ph].replace("\\", "\\\\"), reply)
-        stats["fuzzy"] += total - exact
-    return reply, stats
+    if not vault.raw:
+        return reply, stats, []
+    labels = "|".join(sorted({ph[1:-1].rsplit("_", 1)[0] for ph in vault.raw}, key=len, reverse=True))
+    rx = re.compile(rf"\[\s*({labels})[_ -]?(\d+)(?:\s*:[^\]\n]{{0,80}})?\s*\]"
+                    rf"|(?<![A-Za-z])({labels})[_ -]?(\d+)(?!\d)", re.IGNORECASE)
+    tokens = set(vault.by_key.values()) | set(vault.raw)
+    out, marks, pos = [], [], 0
+    for m in rx.finditer(reply):
+        ph = f"[{(m.group(1) or m.group(3)).upper()}_{m.group(2) or m.group(4)}]"
+        if ph not in vault.raw:
+            continue  # a placeholder we never sent: leave it visible
+        out.append(reply[pos:m.start()])
+        start = sum(len(x) for x in out)
+        out.append(vault.raw[ph])
+        marks.append({"start": start, "end": start + len(vault.raw[ph]), "placeholder": ph, "seen": m.group()})
+        stats["exact" if m.group() in tokens else "fuzzy"] += 1
+        pos = m.end()
+    out.append(reply[pos:])
+    return "".join(out), stats, marks
+
+
+def restore(reply: str, vault: Vault) -> tuple[str, dict]:
+    text, stats, _ = restore_marked(reply, vault)
+    return text, stats

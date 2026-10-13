@@ -1,5 +1,6 @@
 # demo scenarios 1-7, full stack: regex + GLiNER + local context LLM (needs Ollama running)
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -46,3 +47,20 @@ def test_long_pasted_minutes_do_not_leak(llm):
     assert not r["blocked"], r["block_reason"]
     for leak in ("Rohan", "Gurpreet", "Meenakshi", "Ayesha", "24 LPA", "performance improvement plan"):
         assert leak not in r["outbound"], leak
+
+
+# W0: the vague age and date go out, the exact ones come back, and an invented age is flagged
+def test_discharge_round_trip_restores_exact_values_and_flags_invention(llm):
+    sc = next(s for s in SCENARIOS if s["id"] == "7")
+
+    def echo_tokens(body):
+        sent = body["messages"][-1]["content"]
+        age = re.search(r"\[AGE_1[^\]]*\]", sent).group()
+        when = re.search(r"\[DATE_1[^\]]*\]", sent).group()
+        return f"[PERSON_1] ({age}) was admitted on {when}. A 50-year-old male, stable."
+    llm.reply = echo_tokens
+    r = gateway.chat(sc["text"], Flow(sc["role"], sc["destination"], sc["purpose"]), "s7rt")
+    assert "54-year-old" not in r["outbound"] and "12 March 2026" not in r["outbound"]
+    assert "[AGE_1: in their 50s]" in r["outbound"] and "[DATE_1: March 2026]" in r["outbound"]
+    assert r["restored"].startswith("Ramesh Rao (54-year-old) was admitted on 12 March 2026.")
+    assert [(f["kind"], f["text"]) for f in r["flags"]] == [("age", "50-year-old")]

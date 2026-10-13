@@ -9,10 +9,10 @@ from datetime import UTC, datetime
 
 import httpx
 
-from . import ROOT
+from . import ROOT, verify
 from .detect import detect
 from .policy import Decision, Flow, decide
-from .transform import OutboundLeak, Vault, apply, guard, restore
+from .transform import OutboundLeak, Vault, apply, guard, restore_marked
 
 AUDIT_PATH = ROOT / "data" / "audit.jsonl"
 BASE_PROMPT = ("You are a workplace assistant for a small Indian organisation. Do the task the user asks for: "
@@ -118,8 +118,9 @@ def audit(session_id: str, result: dict) -> None:
 def chat(text: str, flow: Flow, session_id: str, use_context: bool = True) -> dict:
     vault = vault_for(session_id, flow.destination)
     result = analyze(text, flow, vault, use_context)
+    vault.sources.append(text)
     protected = result.pop("protected")
-    result.update(reply=None, restored=None, restore_stats=None, error=None, sent=False)
+    result.update(reply=None, restored=None, restore_stats=None, restore_marks=[], flags=[], error=None, sent=False)
     if not result["blocked"]:
         sent_so_far = "\n".join([m["content"] for m in vault.history if m["role"] == "user"] + [result["outbound"]])
         messages = [{"role": "system", "content": system_prompt(sent_so_far)}, *vault.history,
@@ -137,6 +138,7 @@ def chat(text: str, flow: Flow, session_id: str, use_context: bool = True) -> di
             vault.history += [{"role": "user", "content": result["outbound"]},
                               {"role": "assistant", "content": reply}]
             result["reply"] = reply
-            result["restored"], result["restore_stats"] = restore(reply, vault)
+            result["restored"], result["restore_stats"], result["restore_marks"] = restore_marked(reply, vault)
+            result["flags"] = verify.check(result["restored"], vault.sources)
     audit(session_id, result)
     return result
