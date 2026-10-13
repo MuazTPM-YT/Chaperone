@@ -130,3 +130,15 @@ def test_include_anyway_needs_a_reason_and_is_logged_without_raw_values(llm):
     assert "[PHONE_1]" in r["outbound"] and r["overrides"][0]["label"] == "PHONE"
     log = gateway.AUDIT_PATH.read_text()
     assert "98450" not in log and "Ravi" not in log and "needs the contact on the note" in log
+
+
+def test_compare_runs_one_message_through_several_flows_without_sending(llm):
+    from fastapi.testclient import TestClient
+
+    from flowguard.app import app
+
+    r = TestClient(app).post("/api/compare", json={"text": DISCHARGE, "use_context": False}).json()
+    assert [x["flow"]["role"] + "/" + x["flow"]["destination"] for x in r["runs"]] == [
+        "Doctor/internal", "Doctor/external", "Intern/external"]
+    assert "Ramesh Rao" in r["runs"][0]["outbound"] and "Ramesh Rao" not in r["runs"][1]["outbound"]
+    assert llm.calls == [] and gateway.SESSIONS == {}

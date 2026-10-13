@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from . import gateway
 from .detect import CONTEXT_MODEL
 from .policy import Flow
+from .transform import Vault
 
 HERE = Path(__file__).parent
 ROLES = ["Manager", "HR", "Sales", "Intern", "Doctor", "Accountant"]
@@ -62,6 +63,33 @@ def chat(body: ChatIn) -> dict:
     flow = Flow(body.role, body.destination, body.purpose)
     with LOCK:
         return gateway.chat(body.text, flow, body.session_id, body.use_context, body.include)
+
+
+class CompareIn(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_TEXT)
+    flows: list[dict] = [{"role": "Doctor", "destination": "internal", "purpose": "general"},
+                         {"role": "Doctor", "destination": "external", "purpose": "general"},
+                         {"role": "Intern", "destination": "external", "purpose": "general"}]
+    use_context: bool = True
+
+
+# W3: one message, several flows, side by side. Dry runs: nothing is sent to any AI, no session is touched.
+@app.post("/api/compare")
+def compare(body: CompareIn) -> dict:
+    with LOCK:
+        runs = []
+        for f in body.flows[:4]:
+            r = gateway.analyze(body.text, Flow(f["role"], f["destination"], f["purpose"]), Vault(), body.use_context)
+            r.pop("protected")
+            runs.append(r)
+    return {"text": body.text, "runs": runs}
+
+
+# what an identifier-only cloak would send for this message, and what the attacker infers from it (our ablation)
+@app.post("/api/baseline")
+def baseline(body: ChatIn) -> dict:
+    with LOCK:
+        return gateway.baseline(body.text, Flow(body.role, body.destination, body.purpose))
 
 
 @app.post("/api/reset/{session_id}")
