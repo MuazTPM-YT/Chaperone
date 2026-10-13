@@ -231,6 +231,7 @@ def report(split: str, n: int, results: dict[str, dict]) -> str:
                 cells.append(f"{f:.2f} (P {p:.2f} R {r:.2f})")
         lines.append(f"| {label} | {n_l} | " + " | ".join(cells) + " |")
     for group, labels in (("Identifiers + entities", [lb for lb in LABELS if lb not in SEMANTIC]),
+                          ("Only labels Presidio supports", sorted(PRESIDIO_SUPPORTS)),
                           ("Context categories", SEMANTIC)):
         cells = []
         for name, m in results.items():
