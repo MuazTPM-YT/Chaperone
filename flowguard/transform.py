@@ -1,0 +1,164 @@
+import re
+from dataclasses import dataclass, field
+
+from .detect import Span
+from .policy import Decision
+
+SEVERITY = {"pass": 0, "pseudonymize": 1, "generalize": 2, "block": 3}
+NUMERIC = ("AADHAAR", "PHONE")
+CODES = ("PAN", "GSTIN", "IFSC", "VEHICLE")
+
+
+class OutboundLeak(Exception):
+    pass
+
+
+# same value written two ways ("7260 1815 9082" / "726018159082") gets one placeholder
+def canonical(label: str, text: str) -> str:
+    if label in NUMERIC:
+        digits = re.sub(r"\D", "", text)
+        return digits[-10:] if label == "PHONE" else digits
+    if label in CODES:
+        return re.sub(r"[^A-Z0-9]", "", text.upper())
+    return " ".join(text.casefold().split())
+
+
+# placeholder <-> raw map for one conversation with one destination
+@dataclass
+class Vault:
+    by_key: dict[tuple[str, str], str] = field(default_factory=dict)
+    raw: dict[str, str] = field(default_factory=dict)  # placeholder -> first raw form seen
+    counts: dict[str, int] = field(default_factory=dict)
+    history: list[dict] = field(default_factory=list)  # outbound chat turns, already transformed
+
+    def placeholder(self, label: str, text: str) -> str:
+        key = (label, canonical(label, text))
+        if key not in self.by_key:
+            self.counts[label] = self.counts.get(label, 0) + 1
+            ph = f"[{label}_{self.counts[label]}]"
+            self.by_key[key] = ph
+            self.raw[ph] = text
+        return self.by_key[key]
+
+    def holds(self, label: str, text: str) -> bool:
+        return (label, canonical(label, text)) in self.by_key
+
+
+# ---------- generalize: irreversible coarsening ----------
+
+UNITS = [(r"crores?|cr", 1e7), (r"lakhs?|lacs?|LPA|L", 1e5), (r"k|K|thousand|hazaa?r", 1e3)]
+BANDS = [(3e5, "entry-level salary band (under ₹3 lakh/yr)"), (10e5, "mid-level salary band (₹3–10 lakh/yr)"),
+         (30e5, "senior salary band (₹10–30 lakh/yr)"), (float("inf"), "executive salary band (over ₹30 lakh/yr)")]
+WORDS = {"HEALTH": "[health detail]", "HR": "[HR matter]", "LEGAL": "[legal matter]",
+         "MNPI": "[confidential company financials]", "LOCATION": "[a location]", "PERSON": "[a person]",
+         "ORG": "[an organisation]"}
+
+
+def money_band(span_text: str, context: str) -> str:
+    m = re.search(r"\d[\d,]*(?:\.\d+)?", span_text)
+    if not m:
+        return "[an undisclosed amount]"
+    amount = float(m.group().replace(",", ""))
+    for unit, mult in UNITS:
+        if re.search(rf"\d\s?(?:{unit})\b", span_text):
+            amount *= mult
+            break
+    if re.search(r"month|mahin|\bpm\b|/m\b", context, re.IGNORECASE):
+        amount *= 12
+    return "[" + next(label for cap, label in BANDS if amount < cap) + "]"
+
+
+def generalize(span: Span, text: str) -> str:
+    if span.label == "COMPENSATION":
+        window = text[max(0, span.start - 40): span.end + 20]
+        return money_band(span.text, window) if re.search(r"\d", span.text) else "[pay detail]"
+    if span.label == "AGE":
+        m = re.search(r"\d+", span.text)
+        return f"[age {int(m.group()) // 10 * 10}s]" if m else "[an adult]"
+    if span.label == "DATE":
+        mon = re.search(r"[A-Za-z]{3,9}", span.text)
+        yr = re.search(r"(?:19|20)\d{2}", span.text)
+        if mon and yr:
+            return f"{mon.group()} {yr.group()}"
+        nums = re.findall(r"\d+", span.text)
+        return f"month {nums[1]}/{nums[2]}" if len(nums) == 3 else "[a date]"
+    return WORDS.get(span.label, f"[{span.label.lower()}]")
+
+
+# ---------- apply decisions ----------
+
+@dataclass
+class Applied:
+    span: Span
+    decision: Decision
+    replacement: str | None  # None = left as is (pass or covered by a wider span)
+    covered: bool = False
+
+
+# outbound text (None if whole request blocked) plus what happened to each span
+def apply(text: str, spans: list[Span], decisions: list[Decision], vault: Vault) -> tuple[str | None, list[Applied]]:
+    pairs = list(zip(spans, decisions))
+    request_block = any(d.action == "block" and d.scope == "request" for _, d in pairs)
+    # strictest, widest span wins an overlap; the loser is covered and needs no own replacement
+    order = sorted(range(len(pairs)), key=lambda i: (-SEVERITY[pairs[i][1].action],
+                                                    -(pairs[i][0].end - pairs[i][0].start)))
+    chosen: list[int] = []
+    records: dict[int, Applied] = {}
+    for i in order:
+        s, d = pairs[i]
+        if d.action == "pass":
+            records[i] = Applied(s, d, None)
+            continue
+        if any(s.start < pairs[j][0].end and pairs[j][0].start < s.end for j in chosen):
+            records[i] = Applied(s, d, None, covered=True)
+            continue
+        chosen.append(i)
+        if d.action == "pseudonymize":
+            rep = vault.placeholder(s.label, s.text)
+        elif d.action == "generalize":
+            rep = generalize(s, text)
+        else:
+            rep = f"[{s.label} withheld]"
+        records[i] = Applied(s, d, rep)
+    applied = [records[i] for i in range(len(pairs))]
+    if request_block:
+        return None, applied
+    out = text
+    for i in sorted(chosen, key=lambda i: -pairs[i][0].start):
+        s = pairs[i][0]
+        out = out[: s.start] + (records[i].replacement or "") + out[s.end:]
+    return out, applied
+
+
+# ---------- outbound guard ----------
+
+# ids and amounts match however they are spaced: "7260 1815 9082" == "726018159082"
+def value_pattern(value: str) -> re.Pattern:
+    alnum = re.sub(r"[^A-Za-z0-9]", "", value)
+    if re.search(r"\d", value) and len(alnum) >= 4:
+        body = r"[^A-Za-z0-9]{0,3}".join(re.escape(c) for c in alnum)
+        return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?![A-Za-z0-9])", re.IGNORECASE)
+    words = [re.escape(w) for w in value.split()]
+    return re.compile(r"(?<!\w)" + r"\s+".join(words) + r"(?!\w)", re.IGNORECASE)
+
+
+# last line of defence: refuse to send if any protected raw value survived
+def guard(payload: str, protected: list[str]) -> None:
+    for value in protected:
+        if len(value.strip()) >= 2 and value_pattern(value).search(payload):
+            raise OutboundLeak("outbound payload still contains a protected value; request not sent")
+
+
+# ---------- restore ----------
+
+# swap placeholders back; tolerate [person_1], PERSON_1, Person 1, PERSON-1's
+def restore(reply: str, vault: Vault) -> tuple[str, dict]:
+    stats = {"exact": 0, "fuzzy": 0}
+    for ph in sorted(vault.raw, key=len, reverse=True):
+        label, n = ph[1:-1].rsplit("_", 1)
+        exact = reply.count(ph)
+        stats["exact"] += exact
+        rx = re.compile(rf"(?<![A-Za-z])(?:\[\s*)?{label}[_ -]?{n}(?!\d)(?:\s*\])?", re.IGNORECASE)
+        reply, total = rx.subn(vault.raw[ph].replace("\\", "\\\\"), reply)
+        stats["fuzzy"] += total - exact
+    return reply, stats

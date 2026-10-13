@@ -1,0 +1,95 @@
+# Flow policies. First matching rule wins. A missing key in `when` matches anything.
+# Keys: label, subject, role, destination, purpose. Values: one string or a list.
+# Actions: pass | pseudonymize | generalize | block. `scope: request` blocks the whole request.
+
+groups:
+  semantic: &SEMANTIC [HEALTH, COMPENSATION, MNPI, HR, LEGAL]
+  personal_ids: &PERSONAL_IDS [AADHAAR, PAN, GSTIN, PHONE, EMAIL, UPI, VEHICLE, PERSON]
+
+rules:
+  - id: mnpi-never-external
+    when: {label: MNPI, destination: external}
+    action: block
+    scope: request
+    why: Unpublished company results or deals sent to a third party is an insider-trading risk (SEBI PIT rules).
+
+  - id: salary-not-for-marketing
+    when: {label: COMPENSATION, destination: external, purpose: marketing}
+    action: block
+    scope: request
+    why: Pay data has no place in an external marketing tool.
+
+  - id: business-data-is-routine
+    when: {subject: business}
+    action: pass
+    why: Company PAN, business GSTIN, IFSC and company names are business data, not personal data.
+
+  - id: intern-no-sensitive
+    when: {role: Intern, label: *SEMANTIC}
+    action: block
+    why: Interns are not cleared for health, pay, HR, legal or unpublished financial details.
+
+  - id: intern-ids-masked
+    when: {role: Intern, label: *PERSONAL_IDS}
+    action: pseudonymize
+    why: Interns work on placeholders, not real identities.
+
+  - id: doctor-health-internal
+    when: {label: HEALTH, role: Doctor, destination: internal}
+    action: pass
+    why: Treating doctor, clinic's own model.
+
+  - id: doctor-health-deidentified
+    when: {label: HEALTH, role: Doctor, destination: external, purpose: clinical_summary}
+    action: pass
+    why: Clinical detail may go out only for a clinical summary, and only once identities are pseudonymized.
+
+  - id: pay-hr-finance-internal
+    when: {label: COMPENSATION, role: [HR, Accountant], destination: internal}
+    action: pass
+    why: HR and finance own pay data inside the organisation.
+
+  - id: hr-legal-managers-internal
+    when: {label: [HR, LEGAL], role: [HR, Manager], destination: internal}
+    action: pass
+    why: HR and line managers handle performance and legal matters inside the organisation.
+
+  - id: mnpi-insiders-internal
+    when: {label: MNPI, role: [Manager, Accountant], destination: internal}
+    action: pass
+    why: Designated insiders may discuss unpublished results on internal systems.
+
+  - id: sensitive-need-to-know
+    when: {label: *SEMANTIC}
+    action: generalize
+    why: Sender or destination has no need to know the exact detail; the gist is kept.
+
+  - id: internal-stays-internal
+    when: {destination: internal}
+    action: pass
+    why: Data does not leave the organisation.
+
+  - id: scheduling-needs-names
+    when: {label: [PERSON, DATE], destination: external, purpose: scheduling}
+    action: pass
+    why: A scheduling assistant needs colleague names and dates to do its job.
+
+  - id: clinical-quasi-ids
+    when: {label: [AGE, DATE], destination: external, purpose: clinical_summary}
+    action: generalize
+    why: Exact age and admission date can re-identify a patient; ranges keep clinical meaning.
+
+  - id: quasi-ids-ok
+    when: {label: [AGE, DATE, LOCATION]}
+    action: pass
+    why: Alone, a city, an age or a date does not identify a person here.
+
+  - id: personal-ids-external
+    when: {label: *PERSONAL_IDS, destination: external}
+    action: pseudonymize
+    why: Personal identifiers leave only as placeholders; real values are restored locally.
+
+  # catch-all: unknown flows lean cautious but keep the answer usable
+  - id: default-cautious
+    action: pseudonymize
+    why: No rule covers this flow; reversible masking is the safe default.
