@@ -53,7 +53,9 @@ fastapi, uvicorn, httpx (LLM + Ollama calls; also FastAPI TestClient), pyyaml (p
 - Replies were capped at 700 tokens after one 3-minute runaway generation.
 - Extraction called invoice totals "pay"; a second yes/no question on each pay finding fixed it (pay precision 0.78 -> 1.00 on dev). A few-shot example tried first made MNPI recall worse, so it was dropped.
 - The same over-flagging hit HR ("Monday 1:1s move to Thursday" became "[HR matter]"). HR findings get a multiple-choice check (a yes/no wording failed 2 of 7 test phrases; multiple choice got 8 of 8). HR precision on dev 0.62 -> 1.00.
-- Any placeholder named as an example in a system prompt gets invented by the 3B model; prompts name none.
+- UI stress test (break-ui skill) found two real leaks the demo data hid: a 1,274-character paste got zero context findings (fixed by ~250-character windows) and first names used alone after a full name went out raw (fixed by aliasing to the full name's placeholder). Windows over-flag MNPI, which blocks whole requests, so MNPI findings get a second check too.
+- Server offsets are code points, browser offsets UTF-16: every highlight after an emoji shifted until the UI converted them.
+- Any placeholder or bracketed phrase named in a system prompt gets copied by the 3B model ("[health detail]", "(Type and Number)"); bracket rules are added only when the message has brackets.
 - Extra dependencies beyond the brief: `sentencepiece`, `protobuf` (GLiNER's tokenizer needs them at load time).
 
 ## Open items

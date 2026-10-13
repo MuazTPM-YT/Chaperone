@@ -48,8 +48,11 @@ flowchart LR
    personal. GLiNER finds names, organisations and places. A small local LLM labels meaning a pattern cannot see:
    health, pay, unpublished company results (MNPI), HR and legal matters, in English and Hinglish. Before the
    LLM reads the text, IDs and names are swapped for tags like `[AADHAAR]`, so it judges meaning, not numbers.
-   Pay and HR findings get a second, narrower question about that one phrase, because extraction alone called
-   invoice totals "salary" and a moved meeting an "HR matter".
+   Pay, HR and MNPI findings get a second, narrower question about that one phrase, because extraction alone
+   called invoice totals "salary", a moved meeting an "HR matter" and a rent increase "unpublished results".
+   Long text is read in sentence-sized windows (about 250 characters): on a 1,274-character paste the 3B model
+   found nothing at all when given the whole thing. A full name found once also masks its first name used
+   alone later ("Rohan wants…"), with the same placeholder.
 2. **Decide per flow.** `flowguard/policies.yaml` holds 17 ordered rules over category, data subject (person or
    business), sender role, destination and purpose. The first match wins, and every decision records its rule id
    and a plain reason.
@@ -75,12 +78,12 @@ will replace these.
 
 | System | Leak rate ↓ | Over-redaction ↓ | Request blocks (TP/FP/FN) | Latency p50 / p95 |
 |---|---|---|---|---|
-| FlowGuard | 3.0% (3/100) | 0.0% (0/69) | 5/0/0 | 1218 / 2421 ms* |
+| FlowGuard | 3.0% (3/100) | 0.0% (0/69) | 5/0/0 | 890 / 2430 ms* |
 | FlowGuard, context layer off | 39.0% (39/100) | 0.0% (0/69) | 0/0/5 | 45 / 64 ms |
 | Presidio + India recognizers | 38.0% (38/100) | 71.0% (49/69) | 0/0/5 | 5 / 9 ms |
 
-\* Measured with the GPU at 82 °C after long test runs, and partly while OBS was recording (OBS shares the GPU).
-A cool, quiet machine measured 495 / 945 ms with the same code. Re-measure before quoting. Results move by about
+\* Measured with the GPU thermally throttled (75–82 °C, clock down to ~440 MHz) after hours of test runs. A cool,
+quiet machine measured about 495 / 945 ms before the second checks were added. Re-measure before quoting. Results move by about
 one span between runs because the 3B model is not fully deterministic.
 
 - **Leak rate**: sensitive spans whose raw text reached the outbound payload.
@@ -91,7 +94,7 @@ one span between runs because the 3B model is not fully deterministic.
 |---|---|---|
 | Identifiers and entities (13 labels) | 0.98 | 0.74 |
 | Only the 8 labels Presidio supports | 0.98 | 0.82 |
-| Context categories (health, pay, MNPI, HR, legal; n = 54) | 0.94 | not supported |
+| Context categories (health, pay, MNPI, HR, legal; n = 54) | 0.93 | not supported |
 
 Full per-label table: [`eval/results/results_dev.md`](eval/results/results_dev.md).
 
@@ -121,15 +124,16 @@ only one model sits in 4 GB of VRAM.
 | gemma3:1b | 0.48 | 13.0% | 264 / 481 ms |
 
 The prompt was tuned while using qwen2.5:3b, which favours it in this comparison. This benchmark ran before the
-yes/no pay check was added.
+second checks and windowed reading were added.
 
 ### Placeholders survive
 
-In 37 real replies from the local model, 61 of 63 placeholder mentions came back in exact `[LABEL_N]` form; the
+In 37 real replies from the local model, 59 of 61 placeholder mentions came back in exact `[LABEL_N]` form; the
 other 2 were mangled and restored by tolerant matching. In 1 of 37 replies the model invented a placeholder that
 was never sent, which stays visible as text ([`eval/results/placeholders_dev.md`](eval/results/placeholders_dev.md)).
-A system prompt that shows a placeholder as an example (`[PAN_1]`) made the model invent placeholders in 4 of 37
-replies, so the prompt names none.
+The 3B model copies whatever the system prompt names: an example `[PAN_1]` produced invented placeholders in 4 of
+37 replies, and an example "[health detail]" produced "[health detail]" in a message with no health data. The
+prompt now mentions placeholders or vague phrases only when the outbound message actually contains them.
 
 ## Design decisions
 
@@ -150,9 +154,11 @@ More in [PLAN.md](PLAN.md).
   and conditions ("Kavya ... surgery") and "pregnant" as a health detail.
 - The simulated external AI is the same 3B model. Its answers are short and sometimes add facts that were not
   in the message ("patient is now stable"). A hosted model would answer better.
+- Long pasted text is slower (about 6.5 s of checks for 1,274 characters) and recall drops: in the stress test the
+  vendor's "legal notice" went through unmarked.
 - Ages written as a bare number ("Kavya Shetty, 29") are not caught.
 - Addresses are not a category. Kannada is out of scope.
-- Sessions live in memory; a restart forgets placeholder maps.
+- Sessions live in memory; a restart forgets placeholder maps. Messages are capped at 4,000 characters.
 - Results above are on our own tuning set. Wait for the held-out numbers before quoting them as final.
 
 ## Repository
@@ -165,14 +171,18 @@ More in [PLAN.md](PLAN.md).
 | `flowguard/gateway.py` | Pipeline, the single LLM call path, audit log |
 | `flowguard/app.py`, `static/index.html` | API and UI |
 | `flowguard/scenarios.json` | The 7 demo scenarios, used by the UI and the tests |
+| `flowguard/scenarios_worst.json` | Stress-test messages (long names, scripts, emoji, a long paste); dev only |
 | `eval/` | Datasets, harness, baseline, model and placeholder tests ([guide](eval/README.md)) |
 | `docs/DEMO.md` | Demo video runbook |
 
 ```sh
-uv run --frozen pytest                              # 29 tests; scenario tests need Ollama running
+uv run --frozen pytest                              # 35 tests; scenario tests need Ollama running
 uv run --frozen python eval/run_eval.py --split dev # or --split heldout
 uv run --frozen python eval/add_case.py             # add a held-out case
 ```
+
+UI stress test: start with `FLOWGUARD_DEV=1 uv run --frozen python -m flowguard` and use the "Demo data / Worst case"
+switch at the bottom of the page. Without that variable the switch and the stress data are not served.
 
 ## License
 
