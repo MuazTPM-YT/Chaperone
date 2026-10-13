@@ -28,7 +28,8 @@ def main() -> None:
     case = {"id": f"{prefix}-{len(rows) + 1:03d}", "pair": input("Pair id (blank if none): ").strip(),
             "lang": pick("Language", ["en", "hinglish"]), "role": pick("Sender role", ROLES),
             "destination": pick("Destination", DESTINATIONS), "purpose": pick("Purpose", PURPOSES),
-            "text": text, "block_request": pick("Whole request blocked?", ["no", "yes"]) == "yes", "spans": []}
+            "text": text, "block_request": pick("Whole request blocked?", ["no", "yes"]) == "yes"}
+    spans: list[list[str]] = []
     print("Sensitive or notable spans, one per line as: exact text | LABEL | action. Blank line ends.")
     print(f"  labels: {LABELS}\n  actions: {ACTIONS}")
     while line := input("  span> ").strip():
@@ -36,7 +37,8 @@ def main() -> None:
         if len(parts) != 3 or parts[0] not in text or parts[1] not in LABELS or parts[2] not in ACTIONS:
             print("  rejected: need 'text | LABEL | action' with text copied exactly from the message")
             continue
-        case["spans"].append(parts)
+        spans.append(parts)
+    case["spans"] = spans
     with path.open("a") as f:
         f.write(json.dumps(case, ensure_ascii=False) + "\n")
     print(f"saved {case['id']} to {path.name}")

@@ -11,12 +11,13 @@ import httpx
 from . import ROOT
 from .detect import detect
 from .policy import Decision, Flow, decide
-from .transform import Vault, apply, guard, restore
+from .transform import OutboundLeak, Vault, apply, guard, restore
 
 AUDIT_PATH = ROOT / "data" / "audit.jsonl"
-SYSTEM_PROMPT = ("You are a helpful workplace assistant. Some values are replaced by placeholders such as "
-                 "[PERSON_1] or [PAN_1]. Use placeholders exactly as written, including brackets, and never "
-                 "guess what they stand for. Bracketed phrases such as [health detail] are deliberately vague.")
+SYSTEM_PROMPT = ("You are a helpful workplace assistant. Some names and numbers in the user's message were "
+                 "replaced by bracketed placeholders. Copy each placeholder exactly as it appears, brackets included. "
+                 "Never invent new placeholders and never guess what they stand for. Bracketed phrases such as "
+                 "[health detail] are deliberately vague.")
 
 # ponytail: in-memory sessions, lost on restart; fine for a single-user local gateway
 SESSIONS: dict[str, dict[str, Vault]] = {}
@@ -69,15 +70,18 @@ def send(destination: str, messages: list[dict], protected: list[str]) -> str:
     prefix = destination.upper()
     base, model = need(f"{prefix}_LLM_BASE_URL"), need(f"{prefix}_LLM_MODEL")
     key = os.environ.get(f"{prefix}_LLM_API_KEY", "")
-    r = httpx.post(f"{base.rstrip('/')}/chat/completions", timeout=180,
+    r = httpx.post(f"{base.rstrip('/')}/chat/completions", timeout=120,
                    headers={"Authorization": f"Bearer {key}"} if key else {},
-                   json={"model": model, "messages": messages, "temperature": 0.2})
+                   json={"model": model, "messages": messages, "temperature": 0.2, "max_tokens": 700})
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
 
 
 def audit(session_id: str, result: dict) -> None:
-    key = need("AUDIT_HMAC_KEY").encode()
+    secret = need("AUDIT_HMAC_KEY")
+    if secret == "change-me":
+        raise RuntimeError("AUDIT_HMAC_KEY still has the example value; run ./setup.sh or set a random key")
+    key = secret.encode()
 
     def tag(v: str) -> str:
         return hmac.new(key, v.encode(), hashlib.sha256).hexdigest()[:16]
@@ -87,6 +91,7 @@ def audit(session_id: str, result: dict) -> None:
         "session": tag(session_id),
         "flow": result["flow"],
         "blocked": result["blocked"],
+        "sent": result["sent"],
         "context_ok": result["context_ok"],
         "decisions": [{"label": s["label"], "subject": s["subject"], "source": s["source"], "rule": s["rule"],
                        "action": s["action"], "value_hmac": tag(s["text"]),
@@ -102,16 +107,19 @@ def chat(text: str, flow: Flow, session_id: str, use_context: bool = True) -> di
     vault = vault_for(session_id, flow.destination)
     result = analyze(text, flow, vault, use_context)
     protected = result.pop("protected")
-    result.update(reply=None, restored=None, restore_stats=None, error=None)
+    result.update(reply=None, restored=None, restore_stats=None, error=None, sent=False)
     if not result["blocked"]:
         messages = [{"role": "system", "content": SYSTEM_PROMPT}, *vault.history,
                     {"role": "user", "content": result["outbound"]}]
         t0 = time.perf_counter()
         try:
             reply = send(flow.destination, messages, protected)
+        except OutboundLeak as exc:
+            result["error"] = f"Outbound guard refused to send: {exc}"
         except httpx.HTTPError as exc:
             result["error"] = f"LLM call failed: {type(exc).__name__}"
         else:
+            result["sent"] = True
             result["timings"]["llm_ms"] = round((time.perf_counter() - t0) * 1000, 1)
             vault.history += [{"role": "user", "content": result["outbound"]},
                               {"role": "assistant", "content": reply}]
