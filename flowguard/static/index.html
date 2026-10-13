@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FlowGuard</title>
+<style>
+:root {
+  --bg: #e9edf1;
+  --surface: #ffffff;
+  --ink: #18212c;
+  --muted: #586474;
+  --line: #c9d1da;
+  --pass: #2e7a4c;   --pass-bg: #e3f2e8;
+  --pseudo: #2153a3; --pseudo-bg: #e2ebfa;
+  --gen: #9a5a00;    --gen-bg: #fbeed6;
+  --block: #b0261c;  --block-bg: #fae3e0;
+  --sans: "IBM Plex Sans", "Source Sans 3", "Noto Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+button, select, textarea, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--pseudo); outline-offset: 2px; }
+
+header { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; padding: 14px 24px;
+  background: var(--ink); color: #f3f6f9; }
+header h1 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
+header h1 small { display: block; font-size: 13px; font-weight: 400; color: #aab6c4; letter-spacing: 0; }
+.flow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.flow label { font-size: 13px; color: #aab6c4; }
+.flow select, .seg button { background: #26313e; border: 1px solid #3b4857; border-radius: 6px; padding: 6px 10px; }
+.flow .arrow { color: #6f7f92; font-size: 18px; }
+.seg { display: inline-flex; }
+.seg button { cursor: pointer; border-radius: 0; color: #c8d2dd; }
+.seg button:first-child { border-radius: 6px 0 0 6px; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button[aria-pressed="true"] { background: #f3f6f9; color: var(--ink); border-color: #f3f6f9; font-weight: 600; }
+.status { margin-left: auto; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: #c8d2dd; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4cc27a; margin-right: 6px; }
+.dot.off { background: #ff6b5e; }
+
+.presets { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: #f5f7f9; }
+.preset { display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.preset span { font-size: 13px; color: var(--muted); margin-right: 4px; }
+.preset button { border: 0; background: var(--bg); border-radius: 5px; padding: 3px 8px; cursor: pointer; font-size: 13px; }
+.preset button:hover { background: var(--pseudo-bg); }
+
+main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.25fr) 18px minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 16px 24px 32px; }
+.zone h2 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.zone h2 b { color: var(--ink); font-weight: 600; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+.boundary { position: relative; border-left: 2px dashed var(--ink); margin: 0 auto; width: 0; }
+.boundary span { position: sticky; top: 40%; display: block; transform: translateX(-50%) rotate(-90deg); white-space: nowrap;
+  font-size: 12px; background: var(--bg); padding: 2px 8px; color: var(--ink); font-weight: 600; width: max-content; }
+
+textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: #fbfcfd; }
+.row { display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.primary { background: var(--ink); color: #fff; border: 0; border-radius: 6px; padding: 8px 18px; font-weight: 600; cursor: pointer; }
+.primary:disabled { opacity: .5; cursor: wait; }
+.quiet { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; color: var(--muted); }
+.check { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+
+.text { white-space: pre-wrap; word-wrap: break-word; }
+.payload { font: 14px/1.55 var(--mono); }
+mark { border-radius: 3px; padding: 0 2px; color: inherit; border-bottom: 2px solid; }
+mark.pass { background: var(--pass-bg); border-color: var(--pass); }
+mark.pseudonymize { background: var(--pseudo-bg); border-color: var(--pseudo); }
+mark.generalize { background: var(--gen-bg); border-color: var(--gen); }
+mark.block { background: var(--block-bg); border-color: var(--block); }
+mark sup { font: 600 10px var(--sans); margin-left: 3px; color: var(--muted); }
+
+.verdict { margin-bottom: 12px; padding: 10px 12px; border-radius: 6px; font-weight: 600; border-left: 5px solid; }
+.verdict.ok { background: var(--pass-bg); border-color: var(--pass); }
+.verdict.stop { background: var(--block-bg); border-color: var(--block); }
+.verdict p { margin: 4px 0 0; font-weight: 400; }
+.warn { background: var(--block-bg); border: 1px solid var(--block); color: var(--block); border-radius: 6px; padding: 8px 10px; font-size: 14px; margin-bottom: 10px; }
+
+.spans { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.spans li { border: 1px solid var(--line); border-left: 5px solid; border-radius: 6px; padding: 8px 10px; }
+.spans li.pass { border-left-color: var(--pass); }
+.spans li.pseudonymize { border-left-color: var(--pseudo); }
+.spans li.generalize { border-left-color: var(--gen); }
+.spans li.block { border-left-color: var(--block); }
+.spans li.covered { opacity: .55; }
+.spans .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.spans code { font: 14px var(--mono); }
+.chip { font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 10px; }
+.chip.pass { background: var(--pass-bg); color: var(--pass); }
+.chip.pseudonymize { background: var(--pseudo-bg); color: var(--pseudo); }
+.chip.generalize { background: var(--gen-bg); color: var(--gen); }
+.chip.block { background: var(--block-bg); color: var(--block); }
+.label { font-size: 12px; font-weight: 600; color: var(--ink); background: var(--bg); padding: 1px 7px; border-radius: 10px; }
+.meta { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.meta b { color: var(--ink); font-weight: 600; font-family: var(--mono); font-size: 12px; }
+.arrow-to { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.empty { color: var(--muted); font-size: 14px; }
+.timing { font-size: 12px; color: var(--muted); margin-top: 10px; }
+.history { margin-top: 14px; font-size: 13px; }
+.history button { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid var(--line); background: none; padding: 6px 2px; cursor: pointer; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history button[aria-current="true"] { color: var(--ink); font-weight: 600; }
+details summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+@media (max-width: 1100px) {
+  main { grid-template-columns: 1fr; }
+  .boundary { width: 100%; border-left: 0; border-top: 2px dashed var(--ink); height: 0; margin: 8px 0; }
+  .boundary span { position: static; transform: translateY(-50%); margin: 0 auto; }
+  .status { margin-left: 0; }
+}
+@media (max-width: 600px) { header, .presets, main { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>FlowGuard<small>Sensitivity belongs to the flow, not the data</small></h1>
+  <div class="flow" aria-label="Flow">
+    <label for="role">Sender</label><select id="role"></select>
+    <span class="arrow" aria-hidden="true">›</span>
+    <label>Destination</label>
+    <span class="seg" id="dest" role="group" aria-label="Destination">
+      <button type="button" data-v="internal">Internal model</button><button type="button" data-v="external">External AI</button>
+    </span>
+    <span class="arrow" aria-hidden="true">›</span>
+    <label for="purpose">Purpose</label><select id="purpose"></select>
+  </div>
+  <div class="status">
+    <span id="ctx-status"></span>
+    <span id="ext-status"></span>
+  </div>
+</header>
+
+<nav class="presets" id="presets" aria-label="Demo scenarios"></nav>
+
+<main>
+  <section class="zone" aria-labelledby="h-msg">
+    <h2 id="h-msg"><b>Your message</b>, on this laptop</h2>
+    <div class="card">
+      <form id="form">
+        <textarea id="text" aria-label="Message" placeholder="Type a message, or pick a scenario above"></textarea>
+        <div class="row">
+          <button class="primary" id="send" type="submit">Check and send</button>
+          <label class="check"><input type="checkbox" id="use-ctx" checked> Context check</label>
+          <button class="quiet" id="reset" type="button">New conversation</button>
+        </div>
+      </form>
+      <div id="original"></div>
+      <div class="history" id="history"></div>
+    </div>
+  </section>
+
+  <section class="zone" aria-labelledby="h-dec">
+    <h2 id="h-dec"><b>What was found</b>, and the rule applied</h2>
+    <div class="card" id="decisions"><p class="empty">Detected spans appear here with the rule that decided each one.</p></div>
+  </section>
+
+  <div class="boundary" id="boundary" aria-hidden="true"><span id="boundary-label">Leaves this laptop</span></div>
+
+  <section class="zone" aria-labelledby="h-sent">
+    <h2 id="h-sent"><b>Exactly what was sent</b></h2>
+    <div class="card" id="sent"><p class="empty">The outbound payload appears here, character for character.</p></div>
+  </section>
+
+  <section class="zone" aria-labelledby="h-reply">
+    <h2 id="h-reply"><b>Reply</b>, restored on this laptop</h2>
+    <div class="card" id="reply"><p class="empty">The model's answer comes back here with real names put back.</p></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SEV = { pass: 0, pseudonymize: 1, generalize: 2, block: 3 };
+const ACTION_WORDS = { pass: "sent as is", pseudonymize: "masked, restored in reply", generalize: "made vague for good", block: "withheld" };
+const SOURCE_WORDS = { regex: "pattern + checksum", ner: "name model (GLiNER)", context: "context model" };
+let meta, session = newId(), turns = [], current = -1, dest = "external";
+
+function newId() { return Math.random().toString(36).slice(2); }
+function esc(s) { return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+// strictest, widest span wins an overlap: same rule as the server
+function visible(spans) {
+  const order = [...spans].sort((a, b) => (a.covered - b.covered) || (SEV[b.action] - SEV[a.action]) || ((b.end - b.start) - (a.end - a.start)));
+  const out = [];
+  for (const s of order) if (!out.some((o) => s.start < o.end && o.start < s.end)) out.push(s);
+  return out.sort((a, b) => a.start - b.start);
+}
+
+function highlightOriginal(text, spans) {
+  let html = "", pos = 0;
+  for (const s of visible(spans)) {
+    html += esc(text.slice(pos, s.start)) + `<mark class="${s.action}" title="${s.label}: ${s.action}">${esc(text.slice(s.start, s.end))}<sup>${s.label}</sup></mark>`;
+    pos = s.end;
+  }
+  return html + esc(text.slice(pos));
+}
+
+// rebuild the payload with marks; fall back to plain text if it does not match the server byte for byte
+function highlightSent(r) {
+  let html = "", plain = "", pos = 0;
+  const done = r.spans.filter((s) => !s.covered && s.action !== "pass" && s.replacement);
+  for (const s of visible(done)) {
+    html += esc(r.original.slice(pos, s.start)) + `<mark class="${s.action}">${esc(s.replacement)}</mark>`;
+    plain += r.original.slice(pos, s.start) + s.replacement;
+    pos = s.end;
+  }
+  html += esc(r.original.slice(pos)); plain += r.original.slice(pos);
+  return plain === r.outbound ? html : esc(r.outbound);
+}
+
+function highlightRestored(raw, restored) {
+  const map = {};
+  for (const t of turns) for (const s of t.result.spans) if (s.action === "pseudonymize" && s.replacement) map[s.replacement] = map[s.replacement] || s.text;
+  let html = esc(raw), plain = raw;
+  for (const ph of Object.keys(map).sort((a, b) => b.length - a.length)) {
+    const [label, n] = ph.slice(1, -1).split(/_(?=\d+$)/);
+    const rx = new RegExp(`(?<![A-Za-z])(?:\\[\\s*)?${label}[_ -]?${n}(?!\\d)(?:\\s*\\])?`, "gi");
+    html = html.replace(rx, `<mark class="pseudonymize" title="was ${esc(ph)}">${esc(map[ph])}</mark>`);
+    plain = plain.replace(rx, map[ph]);
+  }
+  return plain === restored ? html : esc(restored);
+}
+
+function renderDecisions(r) {
+  if (!r.spans.length) return `<p class="empty">Nothing sensitive found. The message goes out unchanged.</p>`;
+  const items = [...r.spans].sort((a, b) => a.start - b.start).map((s) => `
+    <li class="${s.action}${s.covered ? " covered" : ""}">
+      <div class="top"><code>${esc(s.text)}</code><span class="label">${s.label}</span><span class="chip ${s.action}">${s.action}</span>
+        ${s.replacement && !s.covered ? `<span class="arrow-to">→ ${esc(s.replacement)}</span>` : ""}</div>
+      <div class="meta">Rule <b>${s.rule}</b>: ${esc(s.why)}</div>
+      <div class="meta">${s.subject === "unknown" ? "" : `Whose: ${s.subject}. `}Found by ${SOURCE_WORDS[s.source]}${s.note ? ` (${esc(s.note)})` : ""}.${s.covered ? " Inside a wider span that wins." : ""}</div>
+    </li>`).join("");
+  return `<ul class="spans">${items}</ul>
+    <div class="legend">${Object.keys(SEV).map((a) => `<span class="chip ${a}">${a}</span> ${ACTION_WORDS[a]}`).join(" ")}</div>`;
+}
+
+function render() {
+  const t = turns[current];
+  $("history").innerHTML = turns.length > 1 ? turns.map((x, i) =>
+    `<button type="button" data-i="${i}" aria-current="${i === current}">${i + 1}. ${esc(x.result.original)}</button>`).join("") : "";
+  if (!t) return;
+  const r = t.result, outside = r.flow.destination === "external";
+  $("boundary-label").textContent = outside ? "Leaves this laptop" : "Stays inside the organisation";
+  $("original").innerHTML = `<details open><summary>What the checks saw</summary><p class="text">${highlightOriginal(r.original, r.spans)}</p></details>`;
+  const warn = r.context_ok ? "" : `<div class="warn">Context check ${r.context_error === "disabled" ? "turned off" : "offline"}. Only IDs and names were checked; health, pay, HR, legal and unpublished results can slip through.</div>`;
+  $("decisions").innerHTML = warn + renderDecisions(r);
+
+  const changed = r.spans.filter((s) => !s.covered && s.action !== "pass").length;
+  if (r.blocked) {
+    $("sent").innerHTML = `<div class="verdict stop">Blocked. Nothing was sent.<p>Rule <b>${r.block_reason.rule}</b>: ${esc(r.block_reason.why)}</p></div>`;
+  } else if (!r.sent) {
+    $("sent").innerHTML = `<div class="verdict stop">Not sent.<p>${esc(r.error || "")}</p></div><p class="text payload">${highlightSent(r)}</p>`;
+  } else {
+    $("sent").innerHTML = `<div class="verdict ok">Sent to ${outside ? "external AI" : "internal model"}.<p>${changed ? `${changed} change${changed > 1 ? "s" : ""}; everything else as typed.` : "No changes needed."}</p></div><p class="text payload">${highlightSent(r)}</p>`;
+  }
+  const tm = r.timings;
+  $("sent").innerHTML += `<div class="timing">Checks took ${Math.round(tm.total_ms)} ms${tm.context_ms ? ` (context model ${Math.round(tm.context_ms)} ms)` : ""}${tm.llm_ms ? `. Model answered in ${(tm.llm_ms / 1000).toFixed(1)} s` : ""}.</div>`;
+
+  if (r.restored) {
+    $("reply").innerHTML = `<p class="text">${highlightRestored(r.reply, r.restored)}</p>
+      <details><summary>Reply as the model wrote it</summary><p class="text payload">${esc(r.reply)}</p></details>`;
+  } else {
+    $("reply").innerHTML = `<p class="empty">${r.blocked ? "No reply: the request never left." : esc(r.error || "No reply.")}</p>`;
+  }
+}
+
+async function send(ev) {
+  ev && ev.preventDefault();
+  const text = $("text").value.trim();
+  if (!text) return;
+  $("send").disabled = true; $("send").textContent = "Checking…";
+  try {
+    const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: session, text, role: $("role").value, destination: dest, purpose: $("purpose").value, use_context: $("use-ctx").checked }) });
+    if (!res.ok) throw new Error(`server said ${res.status}: ${await res.text()}`);
+    const result = await res.json();
+    turns.push({ result }); current = turns.length - 1;
+    $("ctx-status").innerHTML = `<span class="dot${result.context_ok ? "" : " off"}"></span>Context check: ${result.context_ok ? `${meta.context_model}, on this laptop` : "offline"}`;
+    render();
+  } catch (e) {
+    $("sent").innerHTML = `<div class="verdict stop">Could not reach the gateway.<p>${esc(String(e))}. Is <code>uv run python -m flowguard</code> running?</p></div>`;
+  } finally {
+    $("send").disabled = false; $("send").textContent = "Check and send";
+  }
+}
+
+function setDest(v) {
+  dest = v;
+  for (const b of $("dest").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === v));
+  const e = meta.endpoints[v];
+  $("ext-status").textContent = `${v === "external" ? "External AI" : "Internal model"}: ${e.model}${e.simulated ? (v === "external" ? " (simulated, local)" : " (local)") : ` at ${e.host}`}`;
+}
+
+async function reset() {
+  await fetch(`/api/reset/${session}`, { method: "POST" });
+  session = newId(); turns = []; current = -1;
+  for (const id of ["decisions", "sent", "reply"]) $(id).innerHTML = `<p class="empty">New conversation. Placeholders start again from 1.</p>`;
+  $("original").innerHTML = ""; $("history").innerHTML = "";
+}
+
+async function boot() {
+  meta = await (await fetch("/api/meta")).json();
+  $("role").innerHTML = meta.roles.map((r) => `<option>${r}</option>`).join("");
+  $("purpose").innerHTML = meta.purposes.map((p) => `<option value="${p}">${p.replace("_", " ")}</option>`).join("");
+  setDest("external");
+  $("ctx-status").innerHTML = `<span class="dot"></span>Context check: ${meta.context_model}, on this laptop`;
+  const groups = {};
+  for (const s of meta.scenarios) (groups[s.group] = groups[s.group] || []).push(s);
+  $("presets").innerHTML = Object.entries(groups).map(([g, list]) => `<div class="preset"><span>${esc(g)}</span>${list.map((s) =>
+    `<button type="button" data-id="${s.id}" title="${esc(`${s.role}, ${s.destination}, ${s.purpose}`)}">${esc(s.title)}</button>`).join("")}</div>`).join("");
+  const runPreset = (id) => {
+    const s = meta.scenarios.find((x) => x.id === id);
+    if (!s) return;
+    $("text").value = s.text; $("role").value = s.role; $("purpose").value = s.purpose; setDest(s.destination);
+    send();
+  };
+  $("presets").addEventListener("click", (e) => runPreset(e.target.dataset.id));
+  if (location.hash) runPreset(location.hash.slice(1));  // #7 opens scenario 7, handy for recording
+  $("dest").addEventListener("click", (e) => e.target.dataset.v && setDest(e.target.dataset.v));
+  $("history").addEventListener("click", (e) => { if (e.target.dataset.i) { current = +e.target.dataset.i; render(); } });
+  $("form").addEventListener("submit", send);
+  $("text").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send(e); });
+  $("reset").addEventListener("click", reset);
+}
+boot();
+</script>
+</body>
+</html>

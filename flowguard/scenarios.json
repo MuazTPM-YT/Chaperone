@@ -1,9 +1,9 @@
 [
   {"id": "1a", "group": "1. Leave note", "title": "Leave, no detail", "role": "Manager", "destination": "external", "purpose": "scheduling",
-   "text": "Priya is on leave next week, please move her 1:1 with me to Monday.",
+   "text": "Draft a two-line note to the team: Priya is on leave next week, so her Monday 1:1s move to Thursday.",
    "expect": {"blocked": false, "sent_contains": ["Priya"], "sent_excludes": []}},
   {"id": "1b", "group": "1. Leave note", "title": "Leave for chemotherapy", "role": "Manager", "destination": "external", "purpose": "scheduling",
-   "text": "Priya is on leave next week for chemotherapy, please move her 1:1 with me to Monday.",
+   "text": "Draft a two-line note to the team: Priya is on leave next week for chemotherapy, so her Monday 1:1s move to Thursday.",
    "expect": {"blocked": false, "sent_contains": ["Priya"], "sent_excludes": ["chemotherapy"], "labels": ["HEALTH"]}},
   {"id": "2a", "group": "2. Salary", "title": "Internal HR summarizer", "role": "HR", "destination": "internal", "purpose": "hr_summary",
    "text": "Summarise for the file: Vikram Nair's revised salary is ₹14.2 lakh per annum from April.",
