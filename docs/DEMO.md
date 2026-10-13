@@ -20,15 +20,15 @@
 
 | Time | Show | Say |
 |---|---|---|
-| 0:00–0:25 | Title, then the empty UI | Clinics, CA firms and college offices paste client data into AI chatbots. Keyword filters can't tell when the same words are fine or a leak. FlowGuard decides per flow: what it is, whose it is, who sends it, where it goes, why. |
-| 0:25–0:55 | Scenario 1: "Leave, no detail", then "Leave for chemotherapy" | Same scheduling request. The name passes because a scheduler needs it. Add "chemotherapy" and the local model flags a health detail; it leaves only as "[health detail]". Point at the rule id in the middle column. |
+| 0:00–0:25 | Title, then the start screen ("What happens when you press Check and send") | Clinics, CA firms and college offices paste client data into AI chatbots. Keyword filters can't tell when the same words are fine or a leak. FlowGuard decides per flow: what it is, whose it is, who sends it, where it goes, why. |
+| 0:25–0:55 | Scenario 1: "Leave, no detail", then "Leave for chemotherapy" | Same scheduling request. The name passes because a scheduler needs it. Add "chemotherapy" and the local model flags a health detail; it leaves only as "[health detail]". Point at the rule in the Decisions table. |
 | 0:55–1:25 | Scenario 2: "Internal HR summarizer", then "External marketing copilot" | Same sentence. HR on the internal model: salary passes. Sales to an external marketing tool: the whole request is blocked, nothing crosses the dashed line. |
 | 1:25–1:50 | Scenario 3: both PAN buttons | The PAN's 4th letter tells us who holds it. C means company: business data, passes. P means a person: masked as [PAN_1]. Presidio would redact both. |
 | 1:50–2:10 | Scenario 4: both buttons | A valid Aadhaar (checksum) is masked. A 12-digit order number is left alone. Presidio checks the checksum too; our edge is what comes next. |
 | 2:10–2:30 | Scenario 5 | Hinglish: "Rahul ka salary 14 lakh hai". Detected as pay, turned into a salary band. |
 | 2:30–2:55 | Scenario 6: both buttons | Apple's public revenue passes. Our own revenue before Thursday's announcement is unpublished price-sensitive information: blocked. |
-| 2:55–3:30 | Scenario 7 | A patient note goes to an external AI for a discharge summary. Names and phone become placeholders, age and date get coarser, clinical detail stays so the summary is useful. The reply comes back with the real names, put back on this laptop. Open "Reply as the model wrote it" to show the placeholders. |
-| 3:30–3:50 | Untick "Context check", rerun scenario 1b | If the local model is down, the UI says so: IDs and names are still caught, health details are not. No silent failure. |
+| 2:55–3:30 | Scenario 7 | A patient note goes to an external AI for a discharge summary. Names and phone become placeholders, age and date get coarser, clinical detail stays so the summary is useful. The reply comes back with the real names, put back on this laptop. Switch the reply to "As the AI wrote it" to show the AI only ever saw placeholders. |
+| 3:30–3:50 | Untick "Local AI check", click scenario 1b again | If the local model is down, the UI says so: IDs and names are still caught, health details are not. No silent failure. |
 | 3:50–4:00 | Results slide | Dev set: leak rate 2% vs 38% for Presidio with India recognizers on; over-redaction 0% vs 71%. Held-out numbers on the slide. |
 
 ## Facts for questions

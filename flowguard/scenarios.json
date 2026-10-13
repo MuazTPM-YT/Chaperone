@@ -24,7 +24,7 @@
    "text": "Order number 797971147104 was shipped yesterday, draft a delay apology.",
    "expect": {"blocked": false, "sent_contains": ["797971147104"], "sent_excludes": []}},
   {"id": "5", "group": "5. Hinglish", "title": "Rahul ka salary", "role": "Manager", "destination": "external", "purpose": "general",
-   "text": "Rahul ka salary 14 lakh hai, isko appraisal email mein mention karo.",
+   "text": "Rahul ka salary 14 lakh hai. Uske liye ek short appraisal email draft karo.",
    "expect": {"blocked": false, "sent_contains": [], "sent_excludes": ["14 lakh", "Rahul"], "labels": ["COMPENSATION"]}},
   {"id": "6a", "group": "6. Q3 revenue", "title": "Apple's public results", "role": "Manager", "destination": "external", "purpose": "general",
    "text": "Summarise Apple's Q3 revenue trends for a blog post.",

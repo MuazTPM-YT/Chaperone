@@ -6,177 +6,297 @@
 <title>FlowGuard</title>
 <style>
 :root {
-  --bg: #e9edf1;
+  --canvas: #f3f5f8;
   --surface: #ffffff;
-  --ink: #18212c;
-  --muted: #586474;
-  --line: #c9d1da;
-  --pass: #2e7a4c;   --pass-bg: #e3f2e8;
-  --pseudo: #2153a3; --pseudo-bg: #e2ebfa;
-  --gen: #9a5a00;    --gen-bg: #fbeed6;
-  --block: #b0261c;  --block-bg: #fae3e0;
-  --sans: "IBM Plex Sans", "Source Sans 3", "Noto Sans", system-ui, sans-serif;
-  --mono: "IBM Plex Mono", "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  --ink: #142030;
+  --ink-2: #33414f;
+  --muted: #5d6b7a;
+  --line: #dbe1e8;
+  --line-2: #e9edf2;
+  --pass: #23774a;   --pass-bg: #e2f3e8;
+  --pseudo: #1f55a8; --pseudo-bg: #e3ecfb;
+  --gen: #925500;    --gen-bg: #fcefd8;
+  --block: #b42318;  --block-bg: #fde6e3;
+  --sans: "Fira Sans", "Noto Sans", system-ui, sans-serif;
+  --mono: "Fira Code", "DejaVu Sans Mono", ui-monospace, monospace;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { height: 100vh; display: grid; grid-template-rows: auto 1fr; overflow: hidden;
+  background: var(--canvas); color: var(--ink); font: 15px/1.5 var(--sans); }
 button, select, textarea, input { font: inherit; color: inherit; }
-:focus-visible { outline: 3px solid var(--pseudo); outline-offset: 2px; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid #6b9bf0; outline-offset: 2px; }
+code, .mono { font-family: var(--mono); font-size: 0.92em; }
 
-header { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; padding: 14px 24px;
-  background: var(--ink); color: #f3f6f9; }
-header h1 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
-header h1 small { display: block; font-size: 13px; font-weight: 400; color: #aab6c4; letter-spacing: 0; }
-.flow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
-.flow label { font-size: 13px; color: #aab6c4; }
-.flow select, .seg button { background: #26313e; border: 1px solid #3b4857; border-radius: 6px; padding: 6px 10px; }
-.flow .arrow { color: #6f7f92; font-size: 18px; }
-.seg { display: inline-flex; }
-.seg button { cursor: pointer; border-radius: 0; color: #c8d2dd; }
-.seg button:first-child { border-radius: 6px 0 0 6px; }
-.seg button:last-child { border-radius: 0 6px 6px 0; }
-.seg button[aria-pressed="true"] { background: #f3f6f9; color: var(--ink); border-color: #f3f6f9; font-weight: 600; }
-.status { margin-left: auto; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: #c8d2dd; }
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4cc27a; margin-right: 6px; }
+/* header: the flow reads as a sentence */
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; padding: 12px 24px;
+  background: var(--ink); color: #eef2f6; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { flex: none; }
+.brand b { display: block; font-size: 19px; letter-spacing: -0.01em; }
+.brand span { display: block; font-size: 12.5px; color: #9fb0c2; }
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 15px; color: #b9c6d4; }
+.flow select { background: #233244; color: #fff; border: 1px solid #3a4b5f; border-radius: 8px; padding: 6px 30px 6px 10px; }
+.seg { display: inline-flex; padding: 3px; background: #233244; border: 1px solid #3a4b5f; border-radius: 9px; }
+.seg button { border: 0; background: none; color: #b9c6d4; padding: 4px 12px; border-radius: 6px; }
+.seg button[aria-pressed="true"] { background: #fff; color: var(--ink); font-weight: 600; }
+.status { margin-left: auto; font-size: 13px; color: #b9c6d4; display: grid; gap: 2px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; background: #49c27b; }
 .dot.off { background: #ff6b5e; }
 
-.presets { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: #f5f7f9; }
-.preset { display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-.preset span { font-size: 13px; color: var(--muted); margin-right: 4px; }
-.preset button { border: 0; background: var(--bg); border-radius: 5px; padding: 3px 8px; cursor: pointer; font-size: 13px; }
-.preset button:hover { background: var(--pseudo-bg); }
+.workspace { display: grid; grid-template-columns: 296px minmax(0, 1fr); min-height: 0; }
 
-main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.25fr) 18px minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 16px 24px 32px; }
-.zone h2 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--muted); }
-.zone h2 b { color: var(--ink); font-weight: 600; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
-.boundary { position: relative; border-left: 2px dashed var(--ink); margin: 0 auto; width: 0; }
-.boundary span { position: sticky; top: 40%; display: block; transform: translateX(-50%) rotate(-90deg); white-space: nowrap;
-  font-size: 12px; background: var(--bg); padding: 2px 8px; color: var(--ink); font-weight: 600; width: max-content; }
+/* sidebar */
+aside { overflow-y: auto; background: var(--surface); border-right: 1px solid var(--line); padding: 18px 14px 24px; }
+aside h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 8px 8px; }
+.scenario { margin-bottom: 10px; }
+.scenario h3 { display: flex; gap: 8px; align-items: baseline; margin: 0 8px 4px; font-size: 14px; font-weight: 600; }
+.scenario h3 span { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.scenario button { display: block; width: 100%; text-align: left; border: 1px solid transparent; background: none;
+  border-radius: 8px; padding: 6px 10px 6px 26px; line-height: 1.3; }
+.scenario button:hover { background: var(--canvas); }
+.scenario button[aria-current="true"] { background: var(--pseudo-bg); border-color: #b9cdf1; }
+.scenario button small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 1px; }
+.side-block { border-top: 1px solid var(--line-2); margin-top: 14px; padding: 14px 8px 0; }
+.legend { display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.legend div { display: flex; gap: 8px; align-items: center; }
+.history button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 5px 0;
+  font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history button[aria-current="true"] { color: var(--ink); font-weight: 600; }
+.link { border: 0; background: none; padding: 0; color: var(--pseudo); font-size: 13px; text-decoration: underline; }
 
-textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: #fbfcfd; }
-.row { display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
-.primary { background: var(--ink); color: #fff; border: 0; border-radius: 6px; padding: 8px 18px; font-weight: 600; cursor: pointer; }
-.primary:disabled { opacity: .5; cursor: wait; }
-.quiet { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; color: var(--muted); }
-.check { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+/* main */
+main { overflow-y: auto; padding: 20px 28px 40px; display: grid; gap: 16px; align-content: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.card-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 16px 0; }
+.card-h h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.card-h p { margin: 0; font-size: 13px; color: var(--muted); }
+.card-b { padding: 10px 16px 16px; }
 
-.text { white-space: pre-wrap; word-wrap: break-word; }
-.payload { font: 14px/1.55 var(--mono); }
-mark { border-radius: 3px; padding: 0 2px; color: inherit; border-bottom: 2px solid; }
-mark.pass { background: var(--pass-bg); border-color: var(--pass); }
-mark.pseudonymize { background: var(--pseudo-bg); border-color: var(--pseudo); }
-mark.generalize { background: var(--gen-bg); border-color: var(--gen); }
-mark.block { background: var(--block-bg); border-color: var(--block); }
-mark sup { font: 600 10px var(--sans); margin-left: 3px; color: var(--muted); }
+.composer { padding: 14px 16px; }
+.composer textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; background: #fbfcfd; line-height: 1.5; }
+.composer .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 10px; }
+.primary { background: var(--ink); color: #fff; border: 0; border-radius: 8px; padding: 9px 20px; font-weight: 600; }
+.primary:disabled { opacity: .55; cursor: progress; }
+.hint { font-size: 13px; color: var(--muted); }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
+.toggle input { width: 16px; height: 16px; accent-color: var(--ink); }
+.flow-note { font-size: 13px; color: var(--gen); }
 
-.verdict { margin-bottom: 12px; padding: 10px 12px; border-radius: 6px; font-weight: 600; border-left: 5px solid; }
-.verdict.ok { background: var(--pass-bg); border-color: var(--pass); }
-.verdict.stop { background: var(--block-bg); border-color: var(--block); }
-.verdict p { margin: 4px 0 0; font-weight: 400; }
-.warn { background: var(--block-bg); border: 1px solid var(--block); color: var(--block); border-radius: 6px; padding: 8px 10px; font-size: 14px; margin-bottom: 10px; }
+/* verdict */
+.verdict { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: center; padding: 14px 18px;
+  border-radius: 12px; border: 1px solid; }
+.verdict .icon { grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; }
+.verdict strong { font-size: 17px; }
+.verdict p { margin: 0; color: var(--ink-2); font-size: 14px; grid-column: 2; }
+.verdict .time { grid-row: span 2; font-size: 13px; color: var(--muted); text-align: right; }
+.verdict.ok { background: var(--pass-bg); border-color: #b6dcc4; } .verdict.ok .icon { background: var(--pass); }
+.verdict.stop { background: var(--block-bg); border-color: #f2bdb6; } .verdict.stop .icon { background: var(--block); }
+.verdict.busy { background: var(--surface); border-color: var(--line); } .verdict.busy .icon { background: var(--muted); }
+.bar { grid-column: 2; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; }
+.bar::after { content: ""; display: block; width: 30%; height: 100%; background: var(--ink); animation: slide 1.2s ease-in-out infinite; }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+.warn { margin-top: 2px; padding: 9px 14px; border-radius: 10px; background: var(--block-bg); color: var(--block); font-size: 14px; border: 1px solid #f2bdb6; }
 
-.spans { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.spans li { border: 1px solid var(--line); border-left: 5px solid; border-radius: 6px; padding: 8px 10px; }
-.spans li.pass { border-left-color: var(--pass); }
-.spans li.pseudonymize { border-left-color: var(--pseudo); }
-.spans li.generalize { border-left-color: var(--gen); }
-.spans li.block { border-left-color: var(--block); }
-.spans li.covered { opacity: .55; }
-.spans .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.spans code { font: 14px var(--mono); }
-.chip { font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 10px; }
+/* before / after with the boundary between */
+.compare { display: grid; grid-template-columns: minmax(0, 1fr) 54px minmax(0, 1fr); align-items: stretch; }
+.boundary { position: relative; display: grid; place-items: center; }
+.boundary::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; border-left: 2px dashed var(--ink-2); }
+.boundary span { position: relative; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--ink); color: #fff; font-size: 18px; box-shadow: 0 0 0 5px var(--canvas); }
+.boundary.inside span { background: var(--pass); }
+.card-h h2 small { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 6px; }
+.text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.payload { font: 14px/1.65 var(--mono); }
+.nothing { display: grid; place-items: center; min-height: 90px; color: var(--block); font-weight: 600; text-align: center; }
+
+mark { color: inherit; border-radius: 4px; padding: 1px 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+mark.pass { background: var(--pass-bg); box-shadow: inset 0 -2px 0 var(--pass); }
+mark.pseudonymize { background: var(--pseudo-bg); box-shadow: inset 0 -2px 0 var(--pseudo); }
+mark.generalize { background: var(--gen-bg); box-shadow: inset 0 -2px 0 var(--gen); }
+mark.block { background: var(--block-bg); box-shadow: inset 0 -2px 0 var(--block); }
+mark sup { font: 600 10.5px var(--sans); color: var(--muted); margin-left: 3px; vertical-align: super; }
+
+.results { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+
+/* decisions table */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-weight: 600; font-size: 12.5px; color: var(--muted); padding: 0 8px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 9px 8px 0; vertical-align: top; }
+tr.why td { padding-top: 2px; padding-bottom: 9px; border-bottom: 1px solid var(--line-2); font-size: 12.5px; color: var(--muted); }
+tr.why:last-child td { border-bottom: 0; }
+tr.covered td { opacity: .55; }
+td.found { font-family: var(--mono); font-size: 13.5px; overflow-wrap: anywhere; }
+td.becomes { font-family: var(--mono); font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+.chip { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 1px 9px; border-radius: 999px; white-space: nowrap; }
 .chip.pass { background: var(--pass-bg); color: var(--pass); }
 .chip.pseudonymize { background: var(--pseudo-bg); color: var(--pseudo); }
 .chip.generalize { background: var(--gen-bg); color: var(--gen); }
 .chip.block { background: var(--block-bg); color: var(--block); }
-.label { font-size: 12px; font-weight: 600; color: var(--ink); background: var(--bg); padding: 1px 7px; border-radius: 10px; }
-.meta { font-size: 13px; color: var(--muted); margin-top: 3px; }
-.meta b { color: var(--ink); font-weight: 600; font-family: var(--mono); font-size: 12px; }
-.arrow-to { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.tag { display: inline-block; font-size: 12.5px; color: var(--ink-2); background: var(--canvas); border: 1px solid var(--line);
+  padding: 0 7px; border-radius: 6px; white-space: nowrap; }
+.rule { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+.empty { color: var(--muted); font-size: 14px; margin: 0; }
 
-.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; font-size: 12px; color: var(--muted); }
-.empty { color: var(--muted); font-size: 14px; }
-.timing { font-size: 12px; color: var(--muted); margin-top: 10px; }
-.history { margin-top: 14px; font-size: 13px; }
-.history button { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid var(--line); background: none; padding: 6px 2px; cursor: pointer; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history button[aria-current="true"] { color: var(--ink); font-weight: 600; }
-details summary { cursor: pointer; font-size: 13px; color: var(--muted); margin-top: 12px; }
+/* reply */
+.switch { display: inline-flex; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--canvas); }
+.switch button { border: 0; background: none; padding: 2px 10px; border-radius: 6px; font-size: 13px; color: var(--muted); }
+.switch button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+.reply { font-size: 15px; }
+.reply p { margin: 0 0 10px; }
+.reply ul, .reply ol { margin: 0 0 10px; padding-left: 22px; }
+.reply h4 { margin: 4px 0 6px; font-size: 15px; }
+.reply hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+.reply > :last-child { margin-bottom: 0; }
+mark.ph { background: var(--pseudo-bg); font-family: var(--mono); font-size: 13.5px; box-shadow: inset 0 0 0 1px #b9cdf1; }
 
-@media (max-width: 1100px) {
-  main { grid-template-columns: 1fr; }
-  .boundary { width: 100%; border-left: 0; border-top: 2px dashed var(--ink); height: 0; margin: 8px 0; }
-  .boundary span { position: static; transform: translateY(-50%); margin: 0 auto; }
-  .status { margin-left: 0; }
+/* first screen */
+.intro { padding: 22px 24px; }
+.intro h2 { margin: 0 0 4px; font-size: 20px; }
+.intro > p { margin: 0 0 18px; color: var(--ink-2); max-width: 70ch; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.steps li { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: #fbfcfd; }
+.steps b { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.steps b span { width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 13px; }
+.steps p { margin: 0; font-size: 14px; color: var(--ink-2); }
+.intro .start { margin-top: 16px; font-size: 14px; color: var(--muted); }
+
+@media (max-width: 1450px) { .compare .card-h p { display: none; } }
+@media (max-width: 1250px) {
+  .results { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 600px) { header, .presets, main { padding-left: 16px; padding-right: 16px; } }
+@media (max-width: 900px) {
+  body { height: auto; overflow: visible; display: block; }
+  .workspace { display: block; }
+  aside { border-right: 0; border-bottom: 1px solid var(--line); }
+  main { padding: 16px; }
+  .compare { grid-template-columns: 1fr; }
+  .boundary { height: 44px; }
+  .boundary::before { top: 50%; bottom: auto; left: 6px; right: 6px; border-left: 0; border-top: 2px dashed var(--ink-2); }
+  .boundary span { transform: rotate(90deg); }
+  .status { margin-left: 0; }
+  .steps { grid-template-columns: 1fr; }
+  header { padding: 12px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .bar::after { animation: none; width: 100%; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>FlowGuard<small>Sensitivity belongs to the flow, not the data</small></h1>
-  <div class="flow" aria-label="Flow">
-    <label for="role">Sender</label><select id="role"></select>
-    <span class="arrow" aria-hidden="true">›</span>
-    <label>Destination</label>
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 2 4 6v8c0 7 4.6 11.6 11 14 6.4-2.4 11-7 11-14V6L15 2Z" fill="#2b3f56" stroke="#9fb0c2" stroke-width="1.5"/><path d="M9 15h12M17 11l4 4-4 4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div><b>FlowGuard</b><span>Privacy gateway for AI chat</span></div>
+  </div>
+  <div class="flow" role="group" aria-label="Flow">
+    <select id="role" aria-label="Sender role"></select>
+    <span>sends to</span>
     <span class="seg" id="dest" role="group" aria-label="Destination">
       <button type="button" data-v="internal">Internal model</button><button type="button" data-v="external">External AI</button>
     </span>
-    <span class="arrow" aria-hidden="true">›</span>
-    <label for="purpose">Purpose</label><select id="purpose"></select>
+    <span>for</span>
+    <select id="purpose" aria-label="Purpose"></select>
   </div>
   <div class="status">
-    <span id="ctx-status"></span>
-    <span id="ext-status"></span>
+    <span id="ctx-status"><span class="dot"></span>Local AI check: starting</span>
+    <span id="dest-status"></span>
   </div>
 </header>
 
-<nav class="presets" id="presets" aria-label="Demo scenarios"></nav>
-
-<main>
-  <section class="zone" aria-labelledby="h-msg">
-    <h2 id="h-msg"><b>Your message</b>, on this laptop</h2>
-    <div class="card">
-      <form id="form">
-        <textarea id="text" aria-label="Message" placeholder="Type a message, or pick a scenario above"></textarea>
-        <div class="row">
-          <button class="primary" id="send" type="submit">Check and send</button>
-          <label class="check"><input type="checkbox" id="use-ctx" checked> Context check</label>
-          <button class="quiet" id="reset" type="button">New conversation</button>
-        </div>
-      </form>
-      <div id="original"></div>
-      <div class="history" id="history"></div>
+<div class="workspace">
+  <aside aria-label="Demo scenarios">
+    <h2>Demo scenarios</h2>
+    <div id="scenarios"></div>
+    <div class="side-block">
+      <h2 style="margin-left:0">What the actions mean</h2>
+      <div class="legend">
+        <div><span class="chip pass">Allowed</span> sent as typed</div>
+        <div><span class="chip pseudonymize">Masked</span> placeholder, real value put back in the reply</div>
+        <div><span class="chip generalize">Made vague</span> replaced for good by a range or category</div>
+        <div><span class="chip block">Blocked</span> removed, or the whole request stopped</div>
+      </div>
     </div>
-  </section>
+    <div class="side-block" id="history-block" hidden>
+      <h2 style="margin-left:0">This conversation</h2>
+      <div class="history" id="history"></div>
+      <button type="button" class="link" id="reset">Start a new conversation</button>
+    </div>
+  </aside>
 
-  <section class="zone" aria-labelledby="h-dec">
-    <h2 id="h-dec"><b>What was found</b>, and the rule applied</h2>
-    <div class="card" id="decisions"><p class="empty">Detected spans appear here with the rule that decided each one.</p></div>
-  </section>
+  <main>
+    <form class="card composer" id="form">
+      <textarea id="text" aria-label="Message" placeholder="Type a message for the AI, or pick a scenario on the left."></textarea>
+      <div class="row">
+        <button class="primary" id="send" type="submit">Check and send</button>
+        <label class="toggle"><input type="checkbox" id="use-ctx" checked> Local AI check (health, pay, HR, legal, results)</label>
+        <span class="hint">Ctrl + Enter sends</span>
+        <span class="flow-note" id="flow-note" hidden>Flow changed. Press Check and send to see the new decision.</span>
+      </div>
+    </form>
 
-  <div class="boundary" id="boundary" aria-hidden="true"><span id="boundary-label">Leaves this laptop</span></div>
+    <section class="card intro" id="intro">
+      <h2>What happens when you press Check and send</h2>
+      <p>Whether a detail is sensitive depends on the flow: who sends it, where it goes, and why. The same sentence can be
+        fine for an internal tool and a leak to an outside AI.</p>
+      <ol class="steps">
+        <li><b><span>1</span>Detect, on this laptop</b><p>Patterns with checksums find Aadhaar, PAN, GSTIN and phone numbers. A name model finds people and companies. A small local AI spots health, pay, HR, legal and unpublished results.</p></li>
+        <li><b><span>2</span>Decide by flow</b><p>Rules look at the sender, the destination and the purpose. Every decision names the rule that made it.</p></li>
+        <li><b><span>3</span>Send only the safe version</b><p>Names become placeholders, details become vague, or the request is blocked. A last check refuses to send any raw value.</p></li>
+        <li><b><span>4</span>Put the real names back</b><p>The AI answers with placeholders. They are swapped back to real names on this laptop.</p></li>
+      </ol>
+      <p class="start">Pick a scenario on the left to start.</p>
+    </section>
 
-  <section class="zone" aria-labelledby="h-sent">
-    <h2 id="h-sent"><b>Exactly what was sent</b></h2>
-    <div class="card" id="sent"><p class="empty">The outbound payload appears here, character for character.</p></div>
-  </section>
+    <div id="verdict" aria-live="polite"></div>
 
-  <section class="zone" aria-labelledby="h-reply">
-    <h2 id="h-reply"><b>Reply</b>, restored on this laptop</h2>
-    <div class="card" id="reply"><p class="empty">The model's answer comes back here with real names put back.</p></div>
-  </section>
-</main>
+    <section class="compare" id="compare" hidden>
+      <div class="card">
+        <div class="card-h"><h2>Your message <small>on this laptop</small></h2><p>what the checks found</p></div>
+        <div class="card-b"><p class="text" id="original"></p></div>
+      </div>
+      <div class="boundary" id="boundary" aria-hidden="true"><span>→</span></div>
+      <div class="card">
+        <div class="card-h"><h2 id="sent-title">What the AI received</h2><p>exactly, character for character</p></div>
+        <div class="card-b" id="sent"></div>
+      </div>
+    </section>
+
+    <section class="results" id="results" hidden>
+      <div class="card">
+        <div class="card-h"><h2>Decisions</h2><p>one row per detected item</p></div>
+        <div class="card-b" id="decisions"></div>
+      </div>
+      <div class="card">
+        <div class="card-h">
+          <h2>Reply</h2>
+          <span class="switch" id="reply-switch" role="group" aria-label="Reply view">
+            <button type="button" data-v="restored" aria-pressed="true">Real names</button><button type="button" data-v="raw" aria-pressed="false">As the AI wrote it</button>
+          </span>
+        </div>
+        <div class="card-b reply" id="reply"></div>
+      </div>
+    </section>
+  </main>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const SEV = { pass: 0, pseudonymize: 1, generalize: 2, block: 3 };
-const ACTION_WORDS = { pass: "sent as is", pseudonymize: "masked, restored in reply", generalize: "made vague for good", block: "withheld" };
-const SOURCE_WORDS = { regex: "pattern + checksum", ner: "name model (GLiNER)", context: "context model" };
-let meta, session = newId(), turns = [], current = -1, dest = "external";
+const ACTION = { pass: "Allowed", pseudonymize: "Masked", generalize: "Made vague", block: "Blocked" };
+const LABEL = { PERSON: "Name", ORG: "Organisation", LOCATION: "Place", AADHAAR: "Aadhaar", PAN: "PAN", GSTIN: "GSTIN",
+  IFSC: "IFSC", UPI: "UPI ID", PHONE: "Phone", EMAIL: "Email", VEHICLE: "Vehicle no.", AGE: "Age", DATE: "Date",
+  HEALTH: "Health", COMPENSATION: "Pay", MNPI: "Unpublished results", HR: "HR matter", LEGAL: "Legal matter" };
+const SOURCE = { regex: "pattern", ner: "name model", context: "local AI" };
+const DEST = { internal: "the internal model", external: "the external AI" };
+let meta = null, session = newId(), turns = [], current = -1, dest = "external", activePreset = null, replyView = "restored";
 
 function newId() { return Math.random().toString(36).slice(2); }
-function esc(s) { return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]); }
+function secs(ms) { return `${(ms / 1000).toFixed(1)} s`; }
+function label(l) { return LABEL[l] || l; }
 
 // strictest, widest span wins an overlap: same rule as the server
 function visible(spans) {
@@ -186,141 +306,258 @@ function visible(spans) {
   return out.sort((a, b) => a.start - b.start);
 }
 
-function highlightOriginal(text, spans) {
+function highlightOriginal(r) {
   let html = "", pos = 0;
-  for (const s of visible(spans)) {
-    html += esc(text.slice(pos, s.start)) + `<mark class="${s.action}" title="${s.label}: ${s.action}">${esc(text.slice(s.start, s.end))}<sup>${s.label}</sup></mark>`;
+  for (const s of visible(r.spans)) {
+    html += esc(r.original.slice(pos, s.start)) +
+      `<mark class="${s.action}" title="${esc(label(s.label))}: ${ACTION[s.action]}">${esc(r.original.slice(s.start, s.end))}<sup>${esc(label(s.label))}</sup></mark>`;
     pos = s.end;
   }
-  return html + esc(text.slice(pos));
+  return html + esc(r.original.slice(pos));
 }
 
-// rebuild the payload with marks; fall back to plain text if it does not match the server byte for byte
+// rebuild the payload with marks; if it does not match the server byte for byte, show the server's text plain
 function highlightSent(r) {
   let html = "", plain = "", pos = 0;
-  const done = r.spans.filter((s) => !s.covered && s.action !== "pass" && s.replacement);
-  for (const s of visible(done)) {
+  for (const s of visible(r.spans.filter((x) => !x.covered && x.action !== "pass" && x.replacement))) {
     html += esc(r.original.slice(pos, s.start)) + `<mark class="${s.action}">${esc(s.replacement)}</mark>`;
     plain += r.original.slice(pos, s.start) + s.replacement;
     pos = s.end;
   }
-  html += esc(r.original.slice(pos)); plain += r.original.slice(pos);
+  html += esc(r.original.slice(pos));
+  plain += r.original.slice(pos);
   return plain === r.outbound ? html : esc(r.outbound);
 }
 
-function highlightRestored(raw, restored) {
-  const map = {};
-  for (const t of turns) for (const s of t.result.spans) if (s.action === "pseudonymize" && s.replacement) map[s.replacement] = map[s.replacement] || s.text;
-  let html = esc(raw), plain = raw;
-  for (const ph of Object.keys(map).sort((a, b) => b.length - a.length)) {
-    const [label, n] = ph.slice(1, -1).split(/_(?=\d+$)/);
-    const rx = new RegExp(`(?<![A-Za-z])(?:\\[\\s*)?${label}[_ -]?${n}(?!\\d)(?:\\s*\\])?`, "gi");
-    html = html.replace(rx, `<mark class="pseudonymize" title="was ${esc(ph)}">${esc(map[ph])}</mark>`);
-    plain = plain.replace(rx, map[ph]);
+// placeholder -> real value, from this conversation's turns to the same destination
+function placeholderMap(upto) {
+  const map = {}, d = turns[upto].result.flow.destination;
+  for (let i = 0; i <= upto; i++) {
+    const r = turns[i].result;
+    if (r.flow.destination !== d) continue;
+    for (const s of r.spans) if (s.action === "pseudonymize" && s.replacement && !(s.replacement in map)) map[s.replacement] = s.text;
   }
-  return plain === restored ? html : esc(restored);
+  return map;
+}
+
+// tiny markdown: paragraphs, lists, headings, rules, bold, code. Input is already escaped.
+function md(src) {
+  const inline = (s) => s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  let html = "", list = null, para = [];
+  const flush = () => { if (para.length) { html += `<p>${inline(para.join("<br>"))}</p>`; para = []; } };
+  const close = () => { if (list) { html += `</${list}>`; list = null; } };
+  const open = (kind) => { if (list !== kind) { close(); html += `<${kind}>`; list = kind; } };
+  for (const raw of src.split("\n")) {
+    const line = raw.trimEnd();
+    let m;
+    if (!line.trim()) { flush(); close(); }
+    else if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) { flush(); close(); html += "<hr>"; }
+    else if ((m = line.match(/^\s*#{1,6}\s+(.*)$/))) { flush(); close(); html += `<h4>${inline(m[1])}</h4>`; }
+    else if ((m = line.match(/^\s*[-*•]\s+(.*)$/))) { flush(); open("ul"); html += `<li>${inline(m[1])}</li>`; }
+    else if ((m = line.match(/^\s*\d+[.)]\s+(.*)$/))) { flush(); open("ol"); html += `<li>${inline(m[1])}</li>`; }
+    else { close(); para.push(line); }
+  }
+  flush(); close();
+  return html;
+}
+
+function renderReply(r, idx) {
+  const map = placeholderMap(idx), found = [];
+  let t = r.reply;
+  for (const ph of Object.keys(map).sort((a, b) => b.length - a.length)) {
+    const [lab, n] = ph.slice(1, -1).split(/_(?=\d+$)/);
+    const rx = new RegExp(`(?<![A-Za-z])(?:\\[\\s*)?${lab}[_ -]?${n}(?!\\d)(?:\\s*\\])?`, "gi");
+    t = t.replace(rx, (seen) => { found.push({ ph, seen, real: map[ph] }); return `\u0000${found.length - 1}\u0000`; });
+  }
+  const fill = (html, f) => html.replace(/\u0000(\d+)\u0000/g, (_, i) => f(found[+i]));
+  if (replyView === "raw") return fill(md(esc(t)), (x) => `<mark class="ph">${esc(x.seen)}</mark>`);
+  const plain = t.replace(/\u0000(\d+)\u0000/g, (_, i) => found[+i].real);
+  if (plain !== r.restored) return md(esc(r.restored));
+  return fill(md(esc(t)), (x) => `<mark class="pseudonymize" title="The AI saw ${esc(x.ph)}">${esc(x.real)}</mark>`);
 }
 
 function renderDecisions(r) {
-  if (!r.spans.length) return `<p class="empty">Nothing sensitive found. The message goes out unchanged.</p>`;
-  const items = [...r.spans].sort((a, b) => a.start - b.start).map((s) => `
-    <li class="${s.action}${s.covered ? " covered" : ""}">
-      <div class="top"><code>${esc(s.text)}</code><span class="label">${s.label}</span><span class="chip ${s.action}">${s.action}</span>
-        ${s.replacement && !s.covered ? `<span class="arrow-to">→ ${esc(s.replacement)}</span>` : ""}</div>
-      <div class="meta">Rule <b>${s.rule}</b>: ${esc(s.why)}</div>
-      <div class="meta">${s.subject === "unknown" ? "" : `Whose: ${s.subject}. `}Found by ${SOURCE_WORDS[s.source]}${s.note ? ` (${esc(s.note)})` : ""}.${s.covered ? " Inside a wider span that wins." : ""}</div>
-    </li>`).join("");
-  return `<ul class="spans">${items}</ul>
-    <div class="legend">${Object.keys(SEV).map((a) => `<span class="chip ${a}">${a}</span> ${ACTION_WORDS[a]}`).join(" ")}</div>`;
+  if (!r.spans.length) return `<p class="empty">Nothing sensitive found. The message goes out as typed.</p>`;
+  const rows = [...r.spans].sort((a, b) => a.start - b.start).map((s) => {
+    const act = r.blocked ? "block" : s.action;
+    const becomes = r.blocked ? "not sent" : s.covered ? "inside a wider item" : s.action === "pass" ? "as typed" : esc(s.replacement || "");
+    const note = s.note && s.note !== "local LLM" ? ` (${esc(s.note)})` : "";
+    const who = s.subject === "unknown" ? "" : `${s.subject === "business" ? "Business data" : "Personal data"}, `;
+    return `<tr class="${s.covered ? "covered" : ""}">
+        <td class="found">${esc(s.text)}</td>
+        <td><span class="tag">${esc(label(s.label))}</span></td>
+        <td><span class="chip ${act}">${ACTION[act]}</span></td>
+        <td class="becomes">${becomes}</td></tr>
+      <tr class="why ${s.covered ? "covered" : ""}"><td colspan="4">${who}found by ${SOURCE[s.source] || s.source}${note}. Rule <span class="rule">${esc(s.rule)}</span>: ${esc(s.why)}</td></tr>`;
+  }).join("");
+  return `<table><thead><tr><th>Found</th><th>Type</th><th>Action</th><th>Sent as</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function verdictHtml(r) {
+  const tm = r.timings, live = r.spans.filter((s) => !s.covered && s.action !== "pass");
+  const count = (a) => live.filter((s) => s.action === a).length;
+  const parts = [["pseudonymize", "masked"], ["generalize", "made vague"], ["block", "blocked"]]
+    .filter(([a]) => count(a)).map(([a, w]) => `${count(a)} ${w}`);
+  const time = `Checked in ${secs(tm.total_ms)}${tm.llm_ms ? `<br>AI answered in ${secs(tm.llm_ms)}` : ""}`;
+  let cls, icon, title, sub;
+  if (r.blocked) {
+    [cls, icon, title] = ["stop", "✕", "Blocked. Nothing left this laptop."];
+    sub = `Rule <span class="rule">${esc(r.block_reason.rule)}</span>: ${esc(r.block_reason.why)}`;
+  } else if (!r.sent && (r.error || "").startsWith("Outbound guard")) {
+    [cls, icon, title, sub] = ["stop", "✕", "Not sent. The outbound guard stopped it.", esc(r.error)];
+  } else {
+    [cls, icon] = ["ok", "✓"];
+    title = live.length ? `Sent to ${DEST[r.flow.destination]} with ${parts.join(", ")}.` : `Sent to ${DEST[r.flow.destination]} as typed.`;
+    const seen = r.spans.filter((x) => !x.covered).length;
+    sub = live.length ? "Everything else went as typed."
+      : !r.context_ok ? "No IDs or names needed changing. The meaning was not checked."
+      : seen ? `${seen} item${seen > 1 ? "s" : ""} found, all allowed for this flow.` : "Nothing in this message needs protecting.";
+    if (!r.sent) sub += ` The AI did not answer: ${esc(r.error || "unknown error")}.`;
+  }
+  const warn = r.context_ok ? "" : `<div class="warn">Local AI check is ${r.context_error === "disabled" ? "turned off" : "offline"}. Only IDs and names were checked; health, pay, HR, legal details and unpublished results can go through unnoticed.</div>`;
+  return `<div class="verdict ${cls}"><span class="icon" aria-hidden="true">${icon}</span><strong>${title}</strong><span class="time">${time}</span><p>${sub}</p></div>${warn}`;
 }
 
 function render() {
   const t = turns[current];
-  $("history").innerHTML = turns.length > 1 ? turns.map((x, i) =>
-    `<button type="button" data-i="${i}" aria-current="${i === current}">${i + 1}. ${esc(x.result.original)}</button>`).join("") : "";
+  $("history-block").hidden = !turns.length;
+  $("history").innerHTML = turns.map((x, i) =>
+    `<button type="button" data-i="${i}" aria-current="${i === current}" title="${esc(x.result.original)}">${i + 1}. ${esc(x.result.original)}</button>`).join("");
   if (!t) return;
   const r = t.result, outside = r.flow.destination === "external";
-  $("boundary-label").textContent = outside ? "Leaves this laptop" : "Stays inside the organisation";
-  $("original").innerHTML = `<details open><summary>What the checks saw</summary><p class="text">${highlightOriginal(r.original, r.spans)}</p></details>`;
-  const warn = r.context_ok ? "" : `<div class="warn">Context check ${r.context_error === "disabled" ? "turned off" : "offline"}. Only IDs and names were checked; health, pay, HR, legal and unpublished results can slip through.</div>`;
-  $("decisions").innerHTML = warn + renderDecisions(r);
+  $("intro").hidden = true;
+  $("compare").hidden = false;
+  $("results").hidden = false;
+  $("verdict").innerHTML = verdictHtml(r);
+  $("boundary").classList.toggle("inside", !outside);
+  $("boundary").title = outside ? "Leaves this laptop" : "Stays inside the organisation";
+  $("sent-title").innerHTML = outside ? "What the external AI received <small>left this laptop</small>"
+    : "What the internal model received <small>stayed inside the organisation</small>";
+  $("original").innerHTML = highlightOriginal(r);
+  $("sent").innerHTML = r.blocked ? `<div class="nothing">Nothing was sent.</div>` : `<p class="text payload">${highlightSent(r)}</p>`;
+  $("decisions").innerHTML = renderDecisions(r);
+  $("reply-switch").hidden = !r.reply;
+  $("reply").innerHTML = r.reply ? renderReply(r, current)
+    : `<p class="empty">${r.blocked ? "No reply. The request never left." : esc(r.error || "No reply.")}</p>`;
+}
 
-  const changed = r.spans.filter((s) => !s.covered && s.action !== "pass").length;
-  if (r.blocked) {
-    $("sent").innerHTML = `<div class="verdict stop">Blocked. Nothing was sent.<p>Rule <b>${r.block_reason.rule}</b>: ${esc(r.block_reason.why)}</p></div>`;
-  } else if (!r.sent) {
-    $("sent").innerHTML = `<div class="verdict stop">Not sent.<p>${esc(r.error || "")}</p></div><p class="text payload">${highlightSent(r)}</p>`;
-  } else {
-    $("sent").innerHTML = `<div class="verdict ok">Sent to ${outside ? "external AI" : "internal model"}.<p>${changed ? `${changed} change${changed > 1 ? "s" : ""}; everything else as typed.` : "No changes needed."}</p></div><p class="text payload">${highlightSent(r)}</p>`;
-  }
-  const tm = r.timings;
-  $("sent").innerHTML += `<div class="timing">Checks took ${Math.round(tm.total_ms)} ms${tm.context_ms ? ` (context model ${Math.round(tm.context_ms)} ms)` : ""}${tm.llm_ms ? `. Model answered in ${(tm.llm_ms / 1000).toFixed(1)} s` : ""}.</div>`;
-
-  if (r.restored) {
-    $("reply").innerHTML = `<p class="text">${highlightRestored(r.reply, r.restored)}</p>
-      <details><summary>Reply as the model wrote it</summary><p class="text payload">${esc(r.reply)}</p></details>`;
-  } else {
-    $("reply").innerHTML = `<p class="empty">${r.blocked ? "No reply: the request never left." : esc(r.error || "No reply.")}</p>`;
+function setBusy(on) {
+  $("send").disabled = on;
+  $("send").textContent = on ? "Checking…" : "Check and send";
+  if (on) {
+    $("intro").hidden = true;
+    $("verdict").innerHTML = `<div class="verdict busy"><span class="icon" aria-hidden="true">…</span><strong>Checking on this laptop, then asking the AI</strong><span class="time"></span><div class="bar"></div></div>`;
   }
 }
 
 async function send(ev) {
-  ev && ev.preventDefault();
+  if (ev) ev.preventDefault();
   const text = $("text").value.trim();
-  if (!text) return;
-  $("send").disabled = true; $("send").textContent = "Checking…";
+  if (!text || $("send").disabled) return;
+  $("flow-note").hidden = true;
+  setBusy(true);
   try {
     const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: session, text, role: $("role").value, destination: dest, purpose: $("purpose").value, use_context: $("use-ctx").checked }) });
-    if (!res.ok) throw new Error(`server said ${res.status}: ${await res.text()}`);
+      body: JSON.stringify({ session_id: session, text, role: $("role").value, destination: dest,
+        purpose: $("purpose").value, use_context: $("use-ctx").checked }) });
+    if (!res.ok) throw new Error(`the gateway answered ${res.status}`);
     const result = await res.json();
-    turns.push({ result }); current = turns.length - 1;
-    $("ctx-status").innerHTML = `<span class="dot${result.context_ok ? "" : " off"}"></span>Context check: ${result.context_ok ? `${meta.context_model}, on this laptop` : "offline"}`;
+    turns.push({ result });
+    current = turns.length - 1;
+    setCtxStatus(result.context_ok, result.context_error);
     render();
   } catch (e) {
-    $("sent").innerHTML = `<div class="verdict stop">Could not reach the gateway.<p>${esc(String(e))}. Is <code>uv run python -m flowguard</code> running?</p></div>`;
+    $("verdict").innerHTML = `<div class="verdict stop"><span class="icon" aria-hidden="true">!</span><strong>Could not reach the gateway.</strong><span class="time"></span><p>${esc(e.message)}. Start it with <code>uv run --frozen python -m flowguard</code>, then try again.</p></div>`;
   } finally {
-    $("send").disabled = false; $("send").textContent = "Check and send";
+    setBusy(false);
   }
+}
+
+function setCtxStatus(ok, err) {
+  const state = ok ? `${esc(meta.context_model)}, on this laptop` : err === "disabled" ? "turned off" : "offline";
+  $("ctx-status").innerHTML = `<span class="dot${ok ? "" : " off"}"></span>Local AI check: ${state}`;
 }
 
 function setDest(v) {
   dest = v;
   for (const b of $("dest").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.v === v));
   const e = meta.endpoints[v];
-  $("ext-status").textContent = `${v === "external" ? "External AI" : "Internal model"}: ${e.model}${e.simulated ? (v === "external" ? " (simulated, local)" : " (local)") : ` at ${e.host}`}`;
+  const where = e.simulated ? (v === "external" ? "simulated on this laptop" : "on this laptop") : `at ${e.host}`;
+  $("dest-status").textContent = `${v === "external" ? "External AI" : "Internal model"}: ${e.model}, ${where}`;
 }
 
-async function reset() {
-  await fetch(`/api/reset/${session}`, { method: "POST" });
-  session = newId(); turns = []; current = -1;
-  for (const id of ["decisions", "sent", "reply"]) $(id).innerHTML = `<p class="empty">New conversation. Placeholders start again from 1.</p>`;
-  $("original").innerHTML = ""; $("history").innerHTML = "";
+function flowChanged() { if (turns.length) $("flow-note").hidden = false; }
+
+async function newConversation() {
+  fetch(`/api/reset/${session}`, { method: "POST" }).catch(() => {});
+  session = newId();
+  turns = [];
+  current = -1;
 }
+
+async function runPreset(id) {
+  const s = meta.scenarios.find((x) => x.id === id);
+  if (!s) return;
+  activePreset = id;
+  for (const b of $("scenarios").querySelectorAll("button")) b.setAttribute("aria-current", String(b.dataset.id === id));
+  await newConversation();  // each scenario starts clean, so placeholders count from 1
+  $("text").value = s.text;
+  $("role").value = s.role;
+  $("purpose").value = s.purpose;
+  setDest(s.destination);
+  send();
+}
+
+function purposeName(p) { return p.replace("_", " "); }
 
 async function boot() {
-  meta = await (await fetch("/api/meta")).json();
-  $("role").innerHTML = meta.roles.map((r) => `<option>${r}</option>`).join("");
-  $("purpose").innerHTML = meta.purposes.map((p) => `<option value="${p}">${p.replace("_", " ")}</option>`).join("");
+  try {
+    meta = await (await fetch("/api/meta")).json();
+  } catch (e) {
+    $("verdict").innerHTML = `<div class="verdict stop"><span class="icon">!</span><strong>The gateway is not running.</strong><span class="time"></span><p>Start it with <code>uv run --frozen python -m flowguard</code> and reload this page.</p></div>`;
+    return;
+  }
+  $("role").innerHTML = meta.roles.map((r) => `<option>${esc(r)}</option>`).join("");
+  $("purpose").innerHTML = meta.purposes.map((p) => `<option value="${esc(p)}">${esc(purposeName(p))}</option>`).join("");
   setDest("external");
-  $("ctx-status").innerHTML = `<span class="dot"></span>Context check: ${meta.context_model}, on this laptop`;
-  const groups = {};
-  for (const s of meta.scenarios) (groups[s.group] = groups[s.group] || []).push(s);
-  $("presets").innerHTML = Object.entries(groups).map(([g, list]) => `<div class="preset"><span>${esc(g)}</span>${list.map((s) =>
-    `<button type="button" data-id="${s.id}" title="${esc(`${s.role}, ${s.destination}, ${s.purpose}`)}">${esc(s.title)}</button>`).join("")}</div>`).join("");
-  const runPreset = (id) => {
-    const s = meta.scenarios.find((x) => x.id === id);
-    if (!s) return;
-    $("text").value = s.text; $("role").value = s.role; $("purpose").value = s.purpose; setDest(s.destination);
-    send();
-  };
-  $("presets").addEventListener("click", (e) => runPreset(e.target.dataset.id));
-  if (location.hash) runPreset(location.hash.slice(1));  // #7 opens scenario 7, handy for recording
-  $("dest").addEventListener("click", (e) => e.target.dataset.v && setDest(e.target.dataset.v));
-  $("history").addEventListener("click", (e) => { if (e.target.dataset.i) { current = +e.target.dataset.i; render(); } });
+  setCtxStatus(true, "");
+
+  const groups = [];
+  for (const s of meta.scenarios) {
+    let g = groups.find((x) => x.name === s.group);
+    if (!g) groups.push(g = { name: s.group, items: [] });
+    g.items.push(s);
+  }
+  $("scenarios").innerHTML = groups.map((g) => {
+    const [num, ...rest] = g.name.split(". ");
+    return `<div class="scenario"><h3><span>${esc(num)}</span>${esc(rest.join(". "))}</h3>${g.items.map((s) =>
+      `<button type="button" data-id="${esc(s.id)}" aria-current="false">${esc(s.title)}<small>${esc(s.role)} to ${s.destination === "external" ? "external AI" : "internal model"}, ${esc(purposeName(s.purpose))}</small></button>`).join("")}</div>`;
+  }).join("");
+
+  $("scenarios").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) runPreset(b.dataset.id); });
+  $("dest").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && b.dataset.v !== dest) { setDest(b.dataset.v); flowChanged(); } });
+  $("role").addEventListener("change", flowChanged);
+  $("purpose").addEventListener("change", flowChanged);
+  $("history").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { current = +b.dataset.i; render(); } });
+  $("reply-switch").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    replyView = b.dataset.v;
+    for (const x of $("reply-switch").querySelectorAll("button")) x.setAttribute("aria-pressed", String(x === b));
+    render();
+  });
   $("form").addEventListener("submit", send);
   $("text").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send(e); });
-  $("reset").addEventListener("click", reset);
+  $("reset").addEventListener("click", async () => {
+    await newConversation();
+    activePreset = null;
+    for (const b of $("scenarios").querySelectorAll("button")) b.setAttribute("aria-current", "false");
+    $("verdict").innerHTML = "";
+    $("compare").hidden = $("results").hidden = true;
+    $("intro").hidden = false;
+    render();
+  });
+  if (location.hash) runPreset(decodeURIComponent(location.hash.slice(1)));  // #7 runs scenario 7, handy for recording
 }
 boot();
 </script>
