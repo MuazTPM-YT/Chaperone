@@ -142,3 +142,11 @@ def test_compare_runs_one_message_through_several_flows_without_sending(llm):
         "Doctor/internal", "Doctor/external", "Intern/external"]
     assert "Ramesh Rao" in r["runs"][0]["outbound"] and "Ramesh Rao" not in r["runs"][1]["outbound"]
     assert llm.calls == [] and gateway.SESSIONS == {}
+
+
+def test_processing_record_lists_categories_and_no_raw_values(llm):
+    gateway.chat(DISCHARGE, CLINIC, "s-rec", use_context=False)
+    rows = gateway.processing_record().splitlines()
+    assert rows[0].startswith("time_utc,conversation,sender_role") and len(rows) == 2
+    assert "Doctor,external,clinical_summary,default,True,False" in rows[1] and "PERSON" in rows[1]
+    assert "Ramesh" not in rows[1] and "98450" not in rows[1]

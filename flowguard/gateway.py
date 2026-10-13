@@ -1,9 +1,12 @@
+import csv
 import hashlib
 import hmac
+import io
 import json
 import os
 import re
 import time
+from collections import Counter
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
 
@@ -231,6 +234,7 @@ def audit(session_id: str, result: dict) -> None:
         "blocked": result["blocked"],
         "sent": result["sent"],
         "context_ok": result["context_ok"],
+        "attack_rounds": len(result["attack"]["rounds"]),
         "decisions": [{"label": s["label"], "subject": s["subject"], "source": s["source"], "rule": s["rule"],
                        "action": s["action"], "value_hmac": tag(s["text"]),
                        "placeholder": s["replacement"] if s["action"] == "pseudonymize" else None}
@@ -272,3 +276,27 @@ def chat(text: str, flow: Flow, session_id: str, use_context: bool = True, inclu
             _record_exposure(vault, result)
     audit(session_id, result)
     return result
+
+
+SENT_ACTIONS = ("pass", "pseudonymize", "generalize")
+
+
+# W6: one row per request for an organisation's processing records; built from the audit log, so no raw values
+def processing_record() -> str:
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["time_utc", "conversation", "sender_role", "destination", "purpose", "rules", "sent", "blocked",
+                "categories_sent", "categories_withheld", "masked", "made_vague", "blocked_or_omitted",
+                "attacker_rounds", "overrides"])
+    lines = AUDIT_PATH.read_text().splitlines() if AUDIT_PATH.exists() else []
+    for raw in lines:
+        e = json.loads(raw)
+        d, f = e["decisions"], e["flow"]
+        sent = sorted({x["label"] for x in d if x["action"] in SENT_ACTIONS}) if e.get("sent") else []
+        held = sorted({x["label"] for x in d} - set(sent))
+        n = Counter(x["action"] for x in d)
+        w.writerow([e["ts"], e["session"], f["role"], f["destination"], f["purpose"], f.get("pack", "default"),
+                    e.get("sent", False), e["blocked"], " ".join(sent), " ".join(held), n["pseudonymize"],
+                    n["generalize"], n["block"], e.get("attack_rounds", 0), len(e.get("overrides", []))])
+    return out.getvalue()
+

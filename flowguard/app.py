@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from . import gateway
@@ -98,6 +98,12 @@ def compare(body: CompareIn) -> dict:
 def baseline(body: ChatIn) -> dict:
     with LOCK:
         return gateway.baseline(body.text, Flow(body.role, body.destination, body.purpose, _pack(body.pack)))
+
+
+@app.get("/api/records.csv")
+def records() -> Response:
+    return Response(gateway.processing_record(), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="flowguard-processing-record.csv"'})
 
 
 @app.post("/api/reset/{session_id}")
