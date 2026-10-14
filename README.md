@@ -16,7 +16,11 @@ Built for DevHack 2026, problem statement 2.2 (context-aware data privacy). Targ
 firms, college offices and SMEs that paste client data into external AI tools, face DPDP Act obligations, and
 cannot afford enterprise DLP.
 
-![Patient note: names masked, age and date made vague, reply restored](docs/screenshots/s7.png)
+![Patient note: names masked, age and date sent vague and restored exact, wife's phone omitted](docs/screenshots/s7.png)
+
+![No diagnosis written, but "tamoxifen" implies breast cancer: the drug is made vague; names-only masking would leak it](docs/screenshots/s8a.png)
+
+More: [only female cardiologist](docs/screenshots/s8b.png), [same message in three flows](docs/screenshots/s10.png).
 
 ## Quick start
 
@@ -98,9 +102,9 @@ about unrelated messages, it said yes 1 time in 28.
 
 | System | Inference leak rate ↓ | Health proxies | Who-is-it hints | Usefulness ↑ | Refused | Latency p50 / p95 |
 |---|---|---|---|---|---|---|
-| Names and IDs masked only (our ablation) | 100% (23/23) | 100% (16/16) | 100% (9/9) | 94% | 0/32 | 2330 / 3817 ms* |
-| FlowGuard, attacker and purpose off | 74% (17/23) | 69% (11/16) | 67% (6/9) | 88% | 0/32 | 517 / 906 ms |
-| **FlowGuard full** | **39% (9/23)** | **25% (4/16)** | 56% (5/9) | 88% | 2/32 | 3473 / 7323 ms |
+| Names and IDs masked only (our ablation) | 100% (23/23) | 100% (16/16) | 100% (9/9) | 94% | 0/32 | 1979 / 3452 ms* |
+| FlowGuard, attacker and purpose off | 70% (16/23) | 62% (10/16) | 67% (6/9) | 86% | 0/32 | 410 / 778 ms |
+| **FlowGuard full** | **35% (8/23)** | **19% (3/16)** | 56% (5/9) | 81% | 2/32 | 3437 / 6746 ms |
 
 \* This row also runs one attacker pass for the UI panel. GPU at 85–89 °C during the run.
 
@@ -109,7 +113,8 @@ about unrelated messages, it said yes 1 time in 28.
   nothing leaked, nothing was sent.
 - **Read this honestly.** This is the dev set: we fixed a bug found by this run (a second check threw away proxy
   hints; health recall rose from 5/17 to 13/17) and reworded the grader's identity question. Before the fix,
-  FlowGuard full leaked 64%. Who-is-it hints are the weak spot: the 3B attacker often judges "our CA who handles
+  FlowGuard full leaked 64%. Usefulness drops from 94% to 81%: vaguer text means the reply names fewer of the
+  task's details. Who-is-it hints are the weak spot: the 3B attacker often judges "our CA who handles
   the three Goa clients" as more than five people. One graded leak (inf-024) is a grader error; no job title was
   left in the text. Full table and raw outputs: [`eval/results/inference_dev.md`](eval/results/inference_dev.md).
 - CloakLLM and CloakPipe were not run. The first row is our own "names and IDs only" setting, not their code.
@@ -270,6 +275,8 @@ More in [PLAN.md](PLAN.md) and [PLAN-v2.md](PLAN-v2.md).
   needs; "Include anyway" is the way out.
 - The invented-detail check finds ages, dates, amounts, long numbers and names. It does not judge invented clinical
   facts ("patient is now stable").
+- The attacker's own safer wording can carry health back in: "uses a white cane and a screen reader" became "a
+  person with mobility and visual impairments" (inf-004).
 - HIPAA Safe Harbor mode removes identifiers in text. It does not make anyone meet HIPAA.
 - All results are on our own dev sets. The held-out sets are empty until teammates fill them; do not quote dev
   numbers as final.
