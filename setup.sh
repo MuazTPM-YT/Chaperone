@@ -16,4 +16,4 @@ if [ ! -f .env ]; then
   sed "s/^AUDIT_HMAC_KEY=.*/AUDIT_HMAC_KEY=$key/" .env.example > .env
   echo "wrote .env with a new audit key"
 fi
-echo "done. start with: uv run flowguard"
+echo "done. start with: uv run --frozen python -m flowguard"
