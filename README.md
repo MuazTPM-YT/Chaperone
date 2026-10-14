@@ -84,8 +84,8 @@ flowchart LR
 7. **Restore and check.** Placeholders in the reply are swapped back on the laptop, tolerating `PERSON_1`,
    `Person 1`, `[person_1]`. Then a local check marks ages, dates, amounts, long numbers and names in the reply
    that the source never said: the external model sometimes invents them ("the 62-year-old patient").
-8. **Audit.** `data/audit.jsonl` stores rule ids, actions, placeholders and HMAC-SHA256 tags of values. Never raw
-   values.
+8. **Audit.** `data/audit.jsonl` stores rule ids, actions, placeholders, the recipient (endpoint host and model)
+   and HMAC-SHA256 tags of values. Never raw values. Every line is sealed; see [Accountability](#accountability).
 
 If the local LLM is down, detection falls back to patterns and names, and the UI says so in red. Health, pay, HR,
 legal and MNPI details are not caught in that mode.
@@ -211,6 +211,9 @@ What FlowGuard adds on top of that work:
 4. **Conversation memory.** The attacker reads earlier messages to the same destination, so details split across
    turns are caught; the exposure ledger lists what the external model could already infer about each person.
 5. **Purpose minimisation and an audit trail** with hashed values and logged "Include anyway" reasons.
+6. **Per-person accountability without a store of personal data.** A person report lists every request that carried
+   one person's name or ID, and the log is sealed against edits. The tools in the table above protect a message;
+   none that we read answers "where did this person's data go?".
 
 ## HIPAA Safe Harbor mode
 
@@ -225,6 +228,26 @@ actual knowledge that the rest identifies the person.
 
 India's DPDP Act asks for a specified purpose and data minimisation. In FlowGuard the purpose is part of every flow,
 and the purpose step above drops identifiers the purpose does not need.
+
+## Accountability
+
+**Person report.** Type a full name or an ID in the sidebar (or `POST /api/person-report {"value": ...}`). FlowGuard
+computes the keyed tag of that value on this laptop and lists every logged request that carried it: when, which flow,
+which endpoint and model received it, and what happened to the value (sent as typed, as a placeholder, made vague,
+left out, withheld). The log holds only tags, so it is not itself a copy of the personal data, and the value asked
+about is not stored. This is the record a data principal can ask for under the DPDP Act (right to information about
+processing). Values are tagged in canonical form, so `7260 1815 9082` finds `726018159082`; a first name used alone
+after a full name is tagged as the full name.
+
+**Sealed log.** Each audit line carries an HMAC over its content and the previous line's seal. `GET /api/audit/verify`
+(or "Check the audit log seal") walks the chain and names the first line that was edited, added, removed or moved.
+Two processes (the web app and the MCP server) can write at once; a file lock keeps the chain in order.
+
+Limits: lines cut off the end are caught only by comparing the head value with a copy kept elsewhere. Anyone with
+`AUDIT_HMAC_KEY` can rewrite the whole log, so keep the key away from people who can edit the file. Lines written
+before this version have no seal and are reported as "older lines"; their tags use the value as typed, so the person
+report finds them only when the value is typed the same way. A name typed differently from the message ("Priya"
+for "Priya Sharma") is not found.
 
 ## Agents (MCP)
 
@@ -292,7 +315,7 @@ More in [PLAN.md](PLAN.md) and [PLAN-v2.md](PLAN-v2.md).
 | `flowguard/attack.py` | Local attacker, evidence check, safer wording |
 | `flowguard/purpose.py` | Purpose minimisation |
 | `flowguard/verify.py` | Flags invented ages, dates, amounts and names in replies |
-| `flowguard/gateway.py` | Pipeline, the single LLM call path, audit log, processing record |
+| `flowguard/gateway.py` | Pipeline, the single LLM call path, sealed audit log, person report, processing record |
 | `flowguard/mcp_server.py` | MCP tools for agents |
 | `flowguard/app.py`, `static/index.html` | API and UI |
 | `flowguard/scenarios.json` | The demo scenarios, used by the UI and the tests |
@@ -301,7 +324,7 @@ More in [PLAN.md](PLAN.md) and [PLAN-v2.md](PLAN-v2.md).
 | `docs/DEMO.md` | Demo video runbook |
 
 ```sh
-uv run --frozen pytest                              # 66 tests; scenario tests need Ollama running
+uv run --frozen pytest                              # 71 tests; scenario tests need Ollama running
 uv run --frozen python eval/run_eval.py --split dev # or --split heldout
 uv run --frozen python eval/run_inference.py --split dev   # inference leaks; needs llama3.1:8b as the grader
 uv run --frozen python eval/add_case.py             # add a held-out case
