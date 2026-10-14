@@ -2,11 +2,11 @@ from dataclasses import replace
 
 import pytest
 
-from flowguard import attack, gateway
-from flowguard.attack import Inference, _verified
-from flowguard.detect import detect
-from flowguard.policy import Flow
-from flowguard.transform import Vault
+from chaperone import attack, gateway
+from chaperone.attack import Inference, _verified
+from chaperone.detect import detect
+from chaperone.policy import Flow
+from chaperone.transform import Vault
 
 TEAM = Flow("Manager", "external", "general")
 NOTE = "Draft a note to the team: Priya is on leave for three weeks, she has started letrozole and will be back soon."

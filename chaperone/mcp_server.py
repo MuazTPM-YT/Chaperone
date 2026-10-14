@@ -1,6 +1,6 @@
-# E3: FlowGuard as an MCP tool server over stdio, so any agent routes outbound text through the same checks.
+# E3: Chaperone as an MCP tool server over stdio, so any agent routes outbound text through the same checks.
 # JSON-RPC 2.0, one message per line (MCP stdio transport). No SDK: three methods are all we need.
-#   uv run --frozen python -m flowguard.mcp_server
+#   uv run --frozen python -m chaperone.mcp_server
 import json
 import sys
 
@@ -21,12 +21,12 @@ FLOW_ARGS = {
 }
 REQUIRED = ["text", "role", "destination", "purpose"]
 TOOLS = [
-    {"name": "flowguard_check",
+    {"name": "chaperone_check",
      "description": "Dry run. Shows what would leave for this flow (placeholders, vague wording, omitted identifiers) and "
                     "what a local attacker could still infer. Nothing is sent anywhere.",
      "inputSchema": {"type": "object", "properties": FLOW_ARGS, "required": REQUIRED}},
-    {"name": "flowguard_send",
-     "description": "Send through FlowGuard: the protected text goes to the flow's model, the reply comes back with real "
+    {"name": "chaperone_send",
+     "description": "Send through Chaperone: the protected text goes to the flow's model, the reply comes back with real "
                     "values restored locally. Refuses to send if the local attacker is not cleared.",
      "inputSchema": {"type": "object", "properties": FLOW_ARGS, "required": REQUIRED}},
 ]
@@ -68,11 +68,11 @@ def _summary(r: dict) -> dict:
 
 def call(name: str, args: dict) -> dict:
     flow, session = _flow(args), str(args.get("session_id") or "mcp")
-    if name == "flowguard_check":
+    if name == "chaperone_check":
         r = gateway.analyze(args["text"], flow, gateway.Vault())
         r.pop("protected")
         return _summary(r)
-    if name == "flowguard_send":
+    if name == "chaperone_send":
         r = gateway.chat(args["text"], flow, f"mcp:{session}")
         return {**_summary(r), "sent": r["sent"], "error": r["error"], "reply": r["restored"],
                 "flags": [{"text": f["text"], "reason": f["reason"]} for f in r["flags"]]}
@@ -85,7 +85,7 @@ def handle(msg: dict) -> dict | None:
         return None  # a notification, e.g. notifications/initialized
     if method == "initialize":
         result: dict = {"protocolVersion": msg.get("params", {}).get("protocolVersion", PROTOCOL),
-                        "capabilities": {"tools": {}}, "serverInfo": {"name": "flowguard", "version": "2.0"}}
+                        "capabilities": {"tools": {}}, "serverInfo": {"name": "chaperone", "version": "2.0"}}
     elif method == "ping":
         result = {}
     elif method == "tools/list":

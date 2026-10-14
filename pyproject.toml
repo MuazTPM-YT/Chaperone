@@ -1,5 +1,5 @@
 [project]
-name = "flowguard"
+name = "chaperone"
 version = "0.1.0"
 description = "Context-aware privacy gateway for LLMs"
 requires-python = "~=3.12.0"

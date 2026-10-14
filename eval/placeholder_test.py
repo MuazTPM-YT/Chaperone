@@ -9,9 +9,9 @@ sys.path.insert(0, str(ROOT))
 
 from run_eval import load
 
-from flowguard.gateway import analyze, send, system_prompt
-from flowguard.policy import Flow
-from flowguard.transform import Vault, restore
+from chaperone.gateway import analyze, send, system_prompt
+from chaperone.policy import Flow
+from chaperone.transform import Vault, restore
 
 LEFTOVER = re.compile(r"\b[A-Z]{3,}_\d+\b")
 

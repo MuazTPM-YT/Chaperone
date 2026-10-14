@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from flowguard import gateway
-from flowguard.policy import Flow
-from flowguard.transform import OutboundLeak, Vault, guard, restore
+from chaperone import gateway
+from chaperone.policy import Flow
+from chaperone.transform import OutboundLeak, Vault, guard, restore
 
 EXTERNAL = Flow("Manager", "external", "general")
 AADHAAR = "7260 1815 9082"
@@ -105,7 +105,7 @@ def test_placeholders_follow_reading_order(llm):
 def test_message_length_is_bounded():
     from fastapi.testclient import TestClient
 
-    from flowguard.app import MAX_TEXT, app
+    from chaperone.app import MAX_TEXT, app
 
     client = TestClient(app)
     body = {"session_id": "s", "role": "Manager", "destination": "external", "purpose": "general"}
@@ -146,7 +146,7 @@ def test_include_anyway_needs_a_reason_and_is_logged_without_raw_values(llm):
 def test_compare_runs_one_message_through_several_flows_without_sending(llm):
     from fastapi.testclient import TestClient
 
-    from flowguard.app import app
+    from chaperone.app import app
 
     r = TestClient(app).post("/api/compare", json={"text": DISCHARGE, "use_context": False}).json()
     assert [x["flow"]["role"] + "/" + x["flow"]["destination"] for x in r["runs"]] == [

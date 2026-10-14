@@ -1,6 +1,6 @@
 import pytest
 
-from flowguard import gateway
+from chaperone import gateway
 
 
 @pytest.fixture(autouse=True)

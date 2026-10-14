@@ -1,7 +1,7 @@
 # Evaluation data
 
 - `dev.jsonl`: written by the builder, used for tuning. Numbers on it are optimistic.
-- `heldout.jsonl`: written by teammates **without reading `flowguard/`**. Never tune on it. Its numbers go on the slides.
+- `heldout.jsonl`: written by teammates **without reading `chaperone/`**. Never tune on it. Its numbers go on the slides.
 
 ## Add a held-out case
 
@@ -64,7 +64,7 @@ span that gets a stricter action takes that stricter action.
 ## Inference set (what a reader can work out, not just what is written)
 
 - `inference_dev.jsonl`: written by the builder. Never copied into the attacker's examples. Numbers are optimistic.
-- `inference_heldout.jsonl`: empty. Teammates fill it **without reading `flowguard/attack.py`** or the dev set.
+- `inference_heldout.jsonl`: empty. Teammates fill it **without reading `chaperone/attack.py`** or the dev set.
 
 One JSON object per line:
 

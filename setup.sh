@@ -9,11 +9,11 @@ command -v ollama >/dev/null || { echo "need ollama: https://ollama.com (Arch: p
 uv sync
 ollama pull qwen2.5:3b
 # warm the NER model cache so the demo runs offline
-uv run python -c "from flowguard.detect import _gliner; _gliner()"
+uv run python -c "from chaperone.detect import _gliner; _gliner()"
 
 if [ ! -f .env ]; then
   key=$(uv run python -c "import secrets; print(secrets.token_hex(32))")
   sed "s/^AUDIT_HMAC_KEY=.*/AUDIT_HMAC_KEY=$key/" .env.example > .env
   echo "wrote .env with a new audit key"
 fi
-echo "done. start with: uv run --frozen python -m flowguard"
+echo "done. start with: uv run --frozen python -m chaperone"

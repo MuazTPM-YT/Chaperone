@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>FlowGuard</title>
+<title>Chaperone</title>
 <style>
 /* ---------- tokens: light by default, dark by system or by choice ---------- */
 :root {
@@ -354,7 +354,7 @@ td.becomes { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); o
   :root { --hairline: var(--muted); }
 }
 
-/* dev-only data switch (FLOWGUARD_DEV=1): plain chrome, not part of the design under test */
+/* dev-only data switch (CHAPERONE_DEV=1): plain chrome, not part of the design under test */
 .devdata { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 30; display: flex; padding: 3px;
   background: #e4e4e7; border-radius: 999px; font: 13px system-ui, sans-serif; box-shadow: 0 1px 3px rgb(0 0 0 / .15); }
 .devdata a { padding: 4px 12px; border-radius: 999px; color: #3f3f46; text-decoration: none; }
@@ -369,7 +369,7 @@ body.dev main { padding-bottom: 60px; }
   <div class="brand">
     <!-- mark: data crossing a dashed boundary, the one idea the product is about -->
     <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="0.5" y="0.5" width="29" height="29" rx="8.5" fill="var(--ink)"/><path d="M15 6v18" stroke="var(--bg)" stroke-opacity=".55" stroke-width="1.6" stroke-dasharray="2.4 2.2"/><path d="M7.5 15h14.5m-4.5-4.5L22 15l-4.5 4.5" fill="none" stroke="var(--bg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <div><b>FlowGuard</b><span>Privacy gateway for AI chat</span></div>
+    <div><b>Chaperone</b><span>Privacy gateway for AI chat</span></div>
   </div>
   <div class="flow" role="group" aria-label="Flow">
     <select id="role" class="select" aria-label="Sender role"></select>
@@ -812,7 +812,7 @@ async function post(url, body) {
   try {
     res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   } catch (e) {
-    throw fail("Could not reach the gateway. Start it with <code>uv run --frozen python -m flowguard</code>, then try again.");
+    throw fail("Could not reach the gateway. Start it with <code>uv run --frozen python -m chaperone</code>, then try again.");
   }
   if (res.status === 422) throw fail(`The gateway refused this message. It must be 1 to ${maxText().toLocaleString("en-IN")} characters.`);
   if (!res.ok) throw fail(`The gateway answered with error ${res.status}. Its terminal shows the details.`);
@@ -1031,7 +1031,7 @@ async function boot() {
   try {
     meta = await (await fetch(`/api/meta?data=${encodeURIComponent(DATA)}`)).json();
   } catch (e) {
-    $("verdict").innerHTML = verdictBox("alert", "The gateway is not running.", "Start it with <code>uv run --frozen python -m flowguard</code> and reload this page.", "");
+    $("verdict").innerHTML = verdictBox("alert", "The gateway is not running.", "Start it with <code>uv run --frozen python -m chaperone</code> and reload this page.", "");
     return;
   }
   $("text").maxLength = maxText();

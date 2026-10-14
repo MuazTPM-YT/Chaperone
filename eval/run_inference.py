@@ -12,12 +12,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from flowguard import detect, gateway
-from flowguard.detect import _ask
-from flowguard.policy import Flow
-from flowguard.transform import Vault, restore
+from chaperone import detect, gateway
+from chaperone.detect import _ask
+from chaperone.policy import Flow
+from chaperone.transform import Vault, restore
 
-SYSTEMS = ["Names and IDs only (our ablation)", "FlowGuard, attacker and purpose off", "FlowGuard full"]
+SYSTEMS = ["Names and IDs only (our ablation)", "Chaperone, attacker and purpose off", "Chaperone full"]
 YES_NO = {"type": "object", "properties": {"answer": {"type": "string", "enum": ["yes", "no"]}}, "required": ["answer"]}
 GRADER_Q = ("Message:\n{text}\n\nA careful reader with general knowledge of India reads only this message. Is the "
             "following more likely true than not? \"{claim}\".\nBracketed placeholders such as [PERSON_1] or "

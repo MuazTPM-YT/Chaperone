@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from flowguard import gateway
-from flowguard.policy import Flow
+from chaperone import gateway
+from chaperone.policy import Flow
 
 SCENARIOS = json.loads((Path(gateway.__file__).parent / "scenarios.json").read_text())
 

@@ -21,7 +21,7 @@ outgoing message, and the conversation so far, and we tighten until it can no lo
 
 - **E1 Conversation mosaic check.** Each message can be harmless alone; together they identify someone. The attacker reads every message already sent to this destination plus the new one. Evidence in old messages cannot be pulled back, so the UI says "already disclosed earlier".
 - **E2 Exposure ledger.** Per person, what the external AI could infer so far in this conversation. Updated every turn.
-- **E3 Agent gateway over MCP.** A small stdio MCP server (no SDK dependency) exposing `flowguard_check` and `flowguard_send`, so any MCP agent sends outbound text through the same checks. Built only after W0 to W5.
+- **E3 Agent gateway over MCP.** A small stdio MCP server (no SDK dependency) exposing `chaperone_check` and `chaperone_send`, so any MCP agent sends outbound text through the same checks. Built only after W0 to W5.
 
 ## Decisions (section 6) with measured numbers
 

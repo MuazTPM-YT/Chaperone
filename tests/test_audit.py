@@ -2,9 +2,9 @@ import json
 
 from fastapi.testclient import TestClient
 
-from flowguard import gateway
-from flowguard.app import app
-from flowguard.policy import Flow
+from chaperone import gateway
+from chaperone.app import app
+from chaperone.policy import Flow
 
 EXTERNAL = Flow("Manager", "external", "general")
 INTERNAL = Flow("Manager", "internal", "general")

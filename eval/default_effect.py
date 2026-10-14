@@ -6,9 +6,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from flowguard import gateway
-from flowguard.policy import Decision, Flow, decide
-from flowguard.transform import Vault, restore
+from chaperone import gateway
+from chaperone.policy import Decision, Flow, decide
+from chaperone.transform import Vault, restore
 
 BROAD = {"sensitive-need-to-know", "personal-ids-external", "default-cautious"}
 CASES = [
@@ -43,7 +43,7 @@ def main() -> None:
         out += [f"### {case[3]}", ""]
         for mode in ("pass", "ours", "block"):
             sent, reply = run(mode, *case)
-            label = {"pass": "Pass by default (leaks)", "ours": "FlowGuard default",
+            label = {"pass": "Pass by default (leaks)", "ours": "Chaperone default",
                      "block": "Block by default"}[mode]
             out += [f"**{label}**", "", f"- Sent: `{sent}`", f"- Reply (restored): {reply.strip()[:400]}", ""]
     md = "\n".join(out)

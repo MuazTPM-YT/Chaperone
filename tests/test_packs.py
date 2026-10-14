@@ -1,10 +1,10 @@
 import subprocess
 from pathlib import Path
 
-from flowguard import gateway
-from flowguard.detect import deterministic
-from flowguard.policy import Flow, decide, load
-from flowguard.transform import Vault
+from chaperone import gateway
+from chaperone.detect import deterministic
+from chaperone.policy import Flow, decide, load
+from chaperone.transform import Vault
 
 NOTE = ("Patient Ramesh Rao, 54-year-old male from Udupi, admitted on 12 March 2026, MRN: KMC-88213. "
         "His father, aged 93, visited. Records at https://records.example.com/p/88213 from 10.0.4.17.")
@@ -22,7 +22,7 @@ def test_safe_harbor_dates_to_year_ages_over_89_grouped():
 
 
 def test_pack_runs_first_and_falls_through_to_the_base_rules():
-    rules = [r["id"] for r in load(Path(__file__).parent.parent / "flowguard" / "policies_safe_harbor.yaml")]
+    rules = [r["id"] for r in load(Path(__file__).parent.parent / "chaperone" / "policies_safe_harbor.yaml")]
     assert rules[0] == "hipaa-a-names" and rules[-1] == "default-cautious"
     assert decide("MNPI", "individual", Flow("Manager", "external", "general", "safe_harbor")).rule == "mnpi-never-external"
 

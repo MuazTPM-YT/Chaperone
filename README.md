@@ -1,4 +1,4 @@
-# FlowGuard
+# Chaperone
 
 A local privacy gateway that sits between office staff and an AI chatbot. It decides what may leave based on the
 **flow** (what the data is, whose it is, who sends it, where it goes, and why), not on keywords.
@@ -6,10 +6,10 @@ A local privacy gateway that sits between office staff and an AI chatbot. It dec
 > "Priya is on leave next week" is fine for a scheduling assistant.
 > "Priya is on leave next week for chemotherapy" is not; the medical detail is made vague before it leaves.
 
-Masking names and IDs is the floor; many tools do it (see [Prior art](#prior-art-and-whats-different)). FlowGuard
+Masking names and IDs is the floor; many tools do it (see [Prior art](#prior-art-and-whats-different)). Chaperone
 adds a step after masking: a **local attacker model reads every outgoing message**, and the conversation so far,
 and asks what it could work out. "Meena is on tamoxifen" has no diagnosis in it, but a reader can infer breast
-cancer. If the flow forbids that inference, FlowGuard makes the evidence vaguer and asks again. If two rounds do not
+cancer. If the flow forbids that inference, Chaperone makes the evidence vaguer and asks again. If two rounds do not
 clear it, the message is not sent.
 
 Built for DevHack 2026, problem statement 2.2 (context-aware data privacy). Target users: small Indian clinics, CA
@@ -29,7 +29,7 @@ GPU is enough; CPU works but the context check is slower. These commands work in
 
 ```sh
 ./setup.sh                              # deps, qwen2.5:3b, NER model, .env with a fresh audit key
-uv run --frozen python -m flowguard     # then open http://127.0.0.1:8000
+uv run --frozen python -m chaperone     # then open http://127.0.0.1:8000
 ```
 
 After setup nothing needs the internet. `--frozen` stops uv from re-checking the lockfile online.
@@ -63,7 +63,7 @@ flowchart LR
    Long text is read in sentence-sized windows (about 250 characters): on a 1,274-character paste the 3B model
    found nothing at all when given the whole thing. A full name found once also masks its first name used
    alone later ("Rohan wants…"), with the same placeholder.
-2. **Decide per flow.** `flowguard/policies.yaml` holds 18 ordered rules over category, data subject (person or
+2. **Decide per flow.** `chaperone/policies.yaml` holds 18 ordered rules over category, data subject (person or
    business), sender role, destination and purpose. The first match wins, and every decision records its rule id
    and a plain reason.
 3. **Transform.** `pass` sends as is. `pseudonymize` swaps in `[PERSON_1]`, the same in every turn of the
@@ -103,8 +103,8 @@ about unrelated messages, it said yes 1 time in 28.
 | System | Inference leak rate ↓ | Health proxies | Who-is-it hints | Usefulness ↑ | Refused | Latency p50 / p95 |
 |---|---|---|---|---|---|---|
 | Names and IDs masked only (our ablation) | 100% (23/23) | 100% (16/16) | 100% (9/9) | 94% | 0/32 | 1979 / 3452 ms* |
-| FlowGuard, attacker and purpose off | 70% (16/23) | 62% (10/16) | 67% (6/9) | 86% | 0/32 | 410 / 778 ms |
-| **FlowGuard full** | **35% (8/23)** | **19% (3/16)** | 56% (5/9) | 81% | 2/32 | 3437 / 6746 ms |
+| Chaperone, attacker and purpose off | 70% (16/23) | 62% (10/16) | 67% (6/9) | 86% | 0/32 | 410 / 778 ms |
+| **Chaperone full** | **35% (8/23)** | **19% (3/16)** | 56% (5/9) | 81% | 2/32 | 3437 / 6746 ms |
 
 \* This row also runs one attacker pass for the UI panel. GPU at 85–89 °C during the run.
 
@@ -113,7 +113,7 @@ about unrelated messages, it said yes 1 time in 28.
   nothing leaked, nothing was sent.
 - **Read this honestly.** This is the dev set: we fixed a bug found by this run (a second check threw away proxy
   hints; health recall rose from 5/17 to 13/17) and reworded the grader's identity question. Before the fix,
-  FlowGuard full leaked 64%. Usefulness drops from 94% to 81%: vaguer text means the reply names fewer of the
+  Chaperone full leaked 64%. Usefulness drops from 94% to 81%: vaguer text means the reply names fewer of the
   task's details. Who-is-it hints are the weak spot: the 3B attacker often judges "our CA who handles
   the three Goa clients" as more than five people. One graded leak (inf-024) is a grader error; no job title was
   left in the text. Full table and raw outputs: [`eval/results/inference_dev.md`](eval/results/inference_dev.md).
@@ -128,8 +128,8 @@ will replace these.
 
 | System | Leak rate ↓ | Over-redaction ↓ | Request blocks (TP/FP/FN) | Latency p50 / p95 |
 |---|---|---|---|---|
-| FlowGuard (full, with attacker and purpose steps) | 2.0% (2/102) | 3.0% (2/67) | 5/0/0 | 1985 / 13131 ms* |
-| FlowGuard, context layer off | 38.2% (39/102) | 0.0% (0/67) | 0/0/5 | 40 / 52 ms |
+| Chaperone (full, with attacker and purpose steps) | 2.0% (2/102) | 3.0% (2/67) | 5/0/0 | 1985 / 13131 ms* |
+| Chaperone, context layer off | 38.2% (39/102) | 0.0% (0/67) | 0/0/5 | 40 / 52 ms |
 | Presidio + India recognizers | 37.3% (38/102) | 70.1% (47/67) | 0/0/5 | 6 / 9 ms |
 
 \* GPU at 85–89 °C and throttling after hours of runs; the slow tail is long messages that need attacker rounds.
@@ -139,7 +139,7 @@ Results move by about one span between runs because the 3B model is not fully de
 - **Over-redaction**: spans that should have passed (company PAN, a colleague's name for scheduling) but were
   altered. It measures broken answers.
 
-| Detection F1 | FlowGuard | Presidio + India recognizers |
+| Detection F1 | Chaperone | Presidio + India recognizers |
 |---|---|---|
 | Identifiers and entities | 0.98 | 0.74 |
 | Only the labels Presidio supports | 0.98 | 0.82 |
@@ -189,7 +189,7 @@ prompt now mentions placeholders or vague phrases only when the outbound message
 What we read before building v2, from each project's own documentation (October 2026). We did not run CloakLLM or
 CloakPipe; nothing below is a measured comparison with them.
 
-| Project | What it does | Overlap with FlowGuard |
+| Project | What it does | Overlap with Chaperone |
 |---|---|---|
 | [Presidio](https://github.com/microsoft/presidio) | Detects and anonymises PII with patterns, checksums and NER | Our detection baseline; measured above |
 | [LLM Guard](https://github.com/protectai/llm-guard) | Input and output scanners for LLM apps, including an anonymiser with a reversible vault | Mask and restore |
@@ -199,7 +199,7 @@ CloakPipe; nothing below is a measured comparison with them.
 | Staab et al., *Beyond Memorization*, ICLR 2024 ([arXiv 2310.07298](https://arxiv.org/abs/2310.07298)) | Shows LLMs infer personal attributes (location, age, health) from text with no explicit PII | The threat our attacker step tests for |
 | Staab et al., *Language Models are Advanced Anonymizers*, ICLR 2025 ([arXiv 2402.13846](https://arxiv.org/abs/2402.13846)) | Adversarial anonymisation: an LLM attacker and an LLM anonymiser take turns until the attacker fails | **The closest idea to our attack-and-tighten loop.** We did not invent it. |
 
-What FlowGuard adds on top of that work:
+What Chaperone adds on top of that work:
 
 1. **The flow decides what counts as a leak.** The same inference (cancer from "tamoxifen") is forbidden for a
    manager writing to an external chatbot and allowed for a doctor's clinical summary. Forbidden means: our policy
@@ -217,7 +217,7 @@ What FlowGuard adds on top of that work:
 
 ## HIPAA Safe Harbor mode
 
-`flowguard/policies_safe_harbor.yaml` is a policy pack that follows the 18 identifier types in the HIPAA Safe
+`chaperone/policies_safe_harbor.yaml` is a policy pack that follows the 18 identifier types in the HIPAA Safe
 Harbor list (45 CFR 164.514(b)(2)) where text can carry them: names, places smaller than a state (all places, since
 we have no gazetteer), all date parts except the year, ages over 89, contact details, record, account and ID
 numbers, vehicle IDs, URLs and IP addresses. Aadhaar, personal PAN, hospital UHIDs, UPI handles and a sole
@@ -226,12 +226,12 @@ device serials, biometrics and photos are not detected. This mode helps a person
 remove identifiers; it does not make anyone meet HIPAA, and Safe Harbor also needs the sender to have no
 actual knowledge that the rest identifies the person.
 
-India's DPDP Act asks for a specified purpose and data minimisation. In FlowGuard the purpose is part of every flow,
+India's DPDP Act asks for a specified purpose and data minimisation. In Chaperone the purpose is part of every flow,
 and the purpose step above drops identifiers the purpose does not need.
 
 ## Accountability
 
-**Person report.** Type a full name or an ID in the sidebar (or `POST /api/person-report {"value": ...}`). FlowGuard
+**Person report.** Type a full name or an ID in the sidebar (or `POST /api/person-report {"value": ...}`). Chaperone
 computes the keyed tag of that value on this laptop and lists every logged request that carried it: when, which flow,
 which endpoint and model received it, and what happened to the value (sent as typed, as a placeholder, made vague,
 left out, withheld). The log holds only tags, so it is not itself a copy of the personal data, and the value asked
@@ -251,13 +251,13 @@ for "Priya Sharma") is not found.
 
 ## Agents (MCP)
 
-`uv run --frozen python -m flowguard.mcp_server` starts a stdio MCP server with two tools. `flowguard_check` is a
-dry run: it returns what would leave and what the attacker could still infer. `flowguard_send` sends through the
+`uv run --frozen python -m chaperone.mcp_server` starts a stdio MCP server with two tools. `chaperone_check` is a
+dry run: it returns what would leave and what the attacker could still infer. `chaperone_send` sends through the
 same pipeline and returns the restored reply plus any invented-detail flags. Results never echo masked raw values
 back to the agent. Example client entry:
 
 ```json
-{"mcpServers": {"flowguard": {"command": "uv", "args": ["run", "--frozen", "python", "-m", "flowguard.mcp_server"],
+{"mcpServers": {"chaperone": {"command": "uv", "args": ["run", "--frozen", "python", "-m", "chaperone.mcp_server"],
                               "cwd": "/path/to/DevHack2026"}}}
 ```
 
@@ -308,18 +308,18 @@ More in [PLAN.md](PLAN.md) and [PLAN-v2.md](PLAN-v2.md).
 
 | Path | What |
 |---|---|
-| `flowguard/detect.py` | Three detection layers |
-| `flowguard/policies.yaml`, `policy.py` | Flow rules and matcher |
-| `flowguard/policies_safe_harbor.yaml` | HIPAA Safe Harbor policy pack |
-| `flowguard/transform.py` | Actions, placeholder vault, outbound guard, restore |
-| `flowguard/attack.py` | Local attacker, evidence check, safer wording |
-| `flowguard/purpose.py` | Purpose minimisation |
-| `flowguard/verify.py` | Flags invented ages, dates, amounts and names in replies |
-| `flowguard/gateway.py` | Pipeline, the single LLM call path, sealed audit log, person report, processing record |
-| `flowguard/mcp_server.py` | MCP tools for agents |
-| `flowguard/app.py`, `static/index.html` | API and UI |
-| `flowguard/scenarios.json` | The demo scenarios, used by the UI and the tests |
-| `flowguard/scenarios_worst.json` | Stress-test messages (long names, scripts, emoji, a long paste); dev only |
+| `chaperone/detect.py` | Three detection layers |
+| `chaperone/policies.yaml`, `policy.py` | Flow rules and matcher |
+| `chaperone/policies_safe_harbor.yaml` | HIPAA Safe Harbor policy pack |
+| `chaperone/transform.py` | Actions, placeholder vault, outbound guard, restore |
+| `chaperone/attack.py` | Local attacker, evidence check, safer wording |
+| `chaperone/purpose.py` | Purpose minimisation |
+| `chaperone/verify.py` | Flags invented ages, dates, amounts and names in replies |
+| `chaperone/gateway.py` | Pipeline, the single LLM call path, sealed audit log, person report, processing record |
+| `chaperone/mcp_server.py` | MCP tools for agents |
+| `chaperone/app.py`, `static/index.html` | API and UI |
+| `chaperone/scenarios.json` | The demo scenarios, used by the UI and the tests |
+| `chaperone/scenarios_worst.json` | Stress-test messages (long names, scripts, emoji, a long paste); dev only |
 | `eval/` | Datasets, harness, baseline, model and placeholder tests ([guide](eval/README.md)) |
 | `docs/DEMO.md` | Demo video runbook |
 
@@ -330,7 +330,7 @@ uv run --frozen python eval/run_inference.py --split dev   # inference leaks; ne
 uv run --frozen python eval/add_case.py             # add a held-out case
 ```
 
-UI stress test: start with `FLOWGUARD_DEV=1 uv run --frozen python -m flowguard` and use the "Demo data / Worst case"
+UI stress test: start with `CHAPERONE_DEV=1 uv run --frozen python -m chaperone` and use the "Demo data / Worst case"
 switch at the bottom of the page. Without that variable the switch and the stress data are not served.
 
 ## License

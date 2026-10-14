@@ -1,5 +1,5 @@
-from flowguard import detect as detect_mod
-from flowguard.detect import Span, _mask, _to_orig, deterministic, rupees
+from chaperone import detect as detect_mod
+from chaperone.detect import Span, _mask, _to_orig, deterministic, rupees
 
 
 def labels(text):

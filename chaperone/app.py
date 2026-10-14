@@ -18,9 +18,9 @@ PURPOSES = ["general", "scheduling", "hr_summary", "marketing", "clinical_summar
 # ponytail: one request at a time; vaults and GLiNER are not shared safely across threads
 LOCK = threading.Lock()
 # dev-only: worst-case scenarios behind a toggle, never shown in a normal run
-DEV = os.environ.get("FLOWGUARD_DEV") == "1"
+DEV = os.environ.get("CHAPERONE_DEV") == "1"
 
-app = FastAPI(title="FlowGuard")
+app = FastAPI(title="Chaperone")
 
 
 MAX_TEXT = 4000  # about a page; keeps the local model's 4k-token window safe
@@ -95,7 +95,7 @@ def baseline(body: ChatIn) -> dict:
 @app.get("/api/records.csv")
 def records() -> Response:
     return Response(gateway.processing_record(), media_type="text/csv",
-                    headers={"Content-Disposition": 'attachment; filename="flowguard-processing-record.csv"'})
+                    headers={"Content-Disposition": 'attachment; filename="chaperone-processing-record.csv"'})
 
 
 @app.post("/api/reset/{session_id}")

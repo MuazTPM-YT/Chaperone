@@ -9,7 +9,7 @@ Broad rules (`sensitive-need-to-know`, `personal-ids-external`) swapped for pass
 - Sent: `Rahul ka salary 14 lakh hai, isko appraisal email mein mention karo.`
 - Reply (restored): Rahul ka salary 14 lakh hai, isko appraisal email mein mention karo.
 
-**FlowGuard default**
+**Chaperone default**
 
 - Sent: `[PERSON_1] ka salary [senior salary band (₹10–30 lakh/yr)] hai, isko appraisal email mein mention karo.`
 - Reply (restored): Rahul, ka salary [senior salary band (₹10–30 lakh/yr/yr)] hai, isko appraisal email mein mention karo.
@@ -27,7 +27,7 @@ Broad rules (`sensitive-need-to-know`, `personal-ids-external`) swapped for pass
 - Reply (restored): [Team member name],  
 I wanted to inform you that Arjun will be working half days this month due to his diagnosis of depression. Please be advised that his availability and workload may be impacted during this period. If you have any tasks or projects that require his immediate attention, please coordinate with him as soon as possible. Your understanding and support are greatly appreciated.
 
-**FlowGuard default**
+**Chaperone default**
 
 - Sent: `[PERSON_1] has been diagnosed with [health detail] and will work half days this month. Draft a note to the team.`
 - Reply (restored): To Arjun,  
@@ -59,7 +59,7 @@ We, [Your Company Name], hereby acknowledge the payment of ₹45,000 for printin
 
 Please find attached the invoice for your records. If you have any questions or need further inf
 
-**FlowGuard default**
+**Chaperone default**
 
 - Sent: `Draft an invoice to [PERSON_1], PAN [PAN_1], for [entry-level salary band (under ₹3 lakh/yr)] of printing work.`
 - Reply (restored): I understand the request for a draft invoice, but the specific details such as Suresh Kumar, ABKPS7312M, and [entry-level salary band (under ₹3 lakh/yr)] are placeholders and not actual information. Without the actual names, PAN numbers, and salary bands, I cannot draft an accurate invoice. Could you please provide the actual details so I can assist you further?

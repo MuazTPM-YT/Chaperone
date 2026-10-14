@@ -121,6 +121,63 @@ wheels = [
 ]
 
 [[package]]
+name = "chaperone"
+version = "0.1.0"
+source = { virtual = "." }
+default-groups = ["baseline", "dev"]
+dependencies = [
+    { name = "fastapi" },
+    { name = "gliner" },
+    { name = "httpx" },
+    { name = "protobuf" },
+    { name = "python-stdnum" },
+    { name = "pyyaml" },
+    { name = "sentencepiece" },
+    { name = "torch", version = "2.14.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+baseline = [
+    { name = "en-core-web-lg" },
+    { name = "presidio-analyzer" },
+    { name = "spacy" },
+]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "types-pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = "~=0.141.1" },
+    { name = "gliner", specifier = "~=0.2.29" },
+    { name = "httpx", specifier = "~=0.28.1" },
+    { name = "protobuf", specifier = "~=7.36.2" },
+    { name = "python-stdnum", specifier = "~=2.2.0" },
+    { name = "pyyaml", specifier = "~=6.0.3" },
+    { name = "sentencepiece", specifier = "~=0.2.1" },
+    { name = "torch", specifier = "~=2.14.0", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "uvicorn", specifier = "~=0.54.0" },
+]
+
+[package.metadata.requires-dev]
+baseline = [
+    { name = "en-core-web-lg", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl" },
+    { name = "presidio-analyzer", specifier = "~=2.2.364" },
+    { name = "spacy", specifier = "~=3.8.16" },
+]
+dev = [
+    { name = "mypy", specifier = "~=2.3.1" },
+    { name = "pytest", specifier = "~=9.1.1" },
+    { name = "ruff", specifier = "~=0.16.9" },
+    { name = "types-pyyaml", specifier = "~=6.0.12" },
+]
+
+[[package]]
 name = "charset-normalizer"
 version = "3.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -244,63 +301,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/2b/2d/5cb7a5ac017031e96a63173f3d57a8a5162ce36f9ff461e62bc6da4d88ab/filelock-4.0.6.tar.gz", hash = "sha256:323fab3b2fb22d889b29fa83774f60029addddb4b6a1bcfa1e73066eabffb5f2", size = 248237, upload-time = "2026-09-28T22:16:16.257Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/3b/b74ae9db2f78f1354278731372ae89870626be7b86cbb46b8d707acd1a98/filelock-4.0.6-py3-none-any.whl", hash = "sha256:9b139fb93b2ac5807f7feaf63aa4546fbd74074a2d3f554c040f40a4694d7b9f", size = 109077, upload-time = "2026-09-28T22:16:14.731Z" },
-]
-
-[[package]]
-name = "flowguard"
-version = "0.1.0"
-source = { virtual = "." }
-default-groups = ["baseline", "dev"]
-dependencies = [
-    { name = "fastapi" },
-    { name = "gliner" },
-    { name = "httpx" },
-    { name = "protobuf" },
-    { name = "python-stdnum" },
-    { name = "pyyaml" },
-    { name = "sentencepiece" },
-    { name = "torch", version = "2.14.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
-    { name = "torch", version = "2.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
-    { name = "uvicorn" },
-]
-
-[package.dev-dependencies]
-baseline = [
-    { name = "en-core-web-lg" },
-    { name = "presidio-analyzer" },
-    { name = "spacy" },
-]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "types-pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", specifier = "~=0.141.1" },
-    { name = "gliner", specifier = "~=0.2.29" },
-    { name = "httpx", specifier = "~=0.28.1" },
-    { name = "protobuf", specifier = "~=7.36.2" },
-    { name = "python-stdnum", specifier = "~=2.2.0" },
-    { name = "pyyaml", specifier = "~=6.0.3" },
-    { name = "sentencepiece", specifier = "~=0.2.1" },
-    { name = "torch", specifier = "~=2.14.0", index = "https://download.pytorch.org/whl/cpu" },
-    { name = "uvicorn", specifier = "~=0.54.0" },
-]
-
-[package.metadata.requires-dev]
-baseline = [
-    { name = "en-core-web-lg", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl" },
-    { name = "presidio-analyzer", specifier = "~=2.2.364" },
-    { name = "spacy", specifier = "~=3.8.16" },
-]
-dev = [
-    { name = "mypy", specifier = "~=2.3.1" },
-    { name = "pytest", specifier = "~=9.1.1" },
-    { name = "ruff", specifier = "~=0.16.9" },
-    { name = "types-pyyaml", specifier = "~=6.0.12" },
 ]
 
 [[package]]

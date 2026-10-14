@@ -1,5 +1,5 @@
-from flowguard.transform import Vault, restore_marked
-from flowguard.verify import check
+from chaperone.transform import Vault, restore_marked
+from chaperone.verify import check
 
 SOURCE = ["Patient Ramesh Rao, 54-year-old male, admitted on 12 March 2026 with chest pain. Fee ₹45,000."]
 

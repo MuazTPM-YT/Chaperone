@@ -1,4 +1,4 @@
-# score FlowGuard and a Presidio baseline on one labelled JSONL split
+# score Chaperone and a Presidio baseline on one labelled JSONL split
 #   uv run python eval/run_eval.py --split dev
 #   uv run python eval/run_eval.py --split dev --models qwen2.5:3b,qwen3:1.7b,gemma3:1b
 import argparse
@@ -13,9 +13,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from flowguard.gateway import analyze
-from flowguard.policy import Flow
-from flowguard.transform import value_pattern
+from chaperone.gateway import analyze
+from chaperone.policy import Flow
+from chaperone.transform import value_pattern
 
 LABELS = ["AADHAAR", "PAN", "GSTIN", "IFSC", "UPI", "PHONE", "EMAIL", "VEHICLE", "PERSON", "ORG", "LOCATION",
           "AGE", "DATE", "HEALTH", "COMPENSATION", "MNPI", "HR", "LEGAL"]
@@ -69,7 +69,7 @@ def overlaps(a: dict, b: dict) -> bool:
 # ---------- systems: each returns spans [{start,end,label,action}], outbound, ms ----------
 
 def run_ours(ex: dict, use_context: bool, model: str | None) -> dict:
-    from flowguard.transform import Vault
+    from chaperone.transform import Vault
 
     flow = Flow(ex["role"], ex["destination"], ex["purpose"])
     r = analyze(ex["text"], flow, Vault(), use_context=use_context, model=model)
@@ -279,8 +279,8 @@ def main() -> None:
         print(md)
         return
     run_ours(examples[0], True, None)  # warm-up
-    results = {"FlowGuard (full)": score(examples, [run_ours(ex, True, None) for ex in examples]),
-               "FlowGuard (no context layer)": score(examples, [run_ours(ex, False, None) for ex in examples])}
+    results = {"Chaperone (full)": score(examples, [run_ours(ex, True, None) for ex in examples]),
+               "Chaperone (no context layer)": score(examples, [run_ours(ex, False, None) for ex in examples])}
     if not args.no_presidio:
         run_presidio(examples[0])
         results["Presidio + India recognizers"] = score(examples, [run_presidio(ex) for ex in examples])
