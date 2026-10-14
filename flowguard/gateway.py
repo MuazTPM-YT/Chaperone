@@ -1,4 +1,5 @@
 import csv
+import fcntl
 import hashlib
 import hmac
 import io
@@ -9,6 +10,8 @@ import time
 from collections import Counter
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
+from typing import BinaryIO
+from urllib.parse import urlparse
 
 import httpx
 
@@ -223,33 +226,131 @@ def mask_reason(reason: str) -> str:
     return out
 
 
-def audit(session_id: str, result: dict) -> None:
+def _audit_key() -> bytes:
     secret = need("AUDIT_HMAC_KEY")
     if secret == "change-me":
         raise RuntimeError("AUDIT_HMAC_KEY still has the example value; run ./setup.sh or set a random key")
-    key = secret.encode()
+    return secret.encode()
 
-    def tag(v: str) -> str:
-        return hmac.new(key, v.encode(), hashlib.sha256).hexdigest()[:16]
+
+def _tag(key: bytes, value: str) -> str:
+    return hmac.new(key, value.encode(), hashlib.sha256).hexdigest()[:16]
+
+
+# each line's seal covers the seal before it, so an edited, added, removed or reordered line breaks the chain
+def _seal(key: bytes, prev: str, line: dict) -> str:
+    body = prev + json.dumps(line, ensure_ascii=False, sort_keys=True)
+    return hmac.new(key, body.encode(), hashlib.sha256).hexdigest()
+
+
+# last line of the log without reading the whole file
+def _last_line(f: BinaryIO) -> str:
+    size = f.seek(0, os.SEEK_END)
+    back = min(size, 65536)
+    while True:
+        f.seek(size - back)
+        lines = f.read(back).rstrip(b"\n").split(b"\n")
+        if len(lines) > 1 or back == size:
+            return lines[-1].decode()
+        back = min(size, back * 4)
+
+
+# who received a request: endpoint host and model, as configured when it was sent
+def recipient(destination: str) -> dict:
+    prefix = destination.upper()
+    host = urlparse(os.environ.get(f"{prefix}_LLM_BASE_URL", "")).hostname or ""
+    return {"model": os.environ.get(f"{prefix}_LLM_MODEL", ""), "host": host, "simulated": host in ("127.0.0.1", "localhost")}
+
+
+def audit(session_id: str, result: dict) -> None:
+    key = _audit_key()
+
+    # values are tagged in canonical form, so a person report finds "7260 1815 9082" and "726018159082" alike
+    def tag(label: str, v: str) -> str:
+        return _tag(key, canonical(label, v))
 
     line = {
         "ts": datetime.now(UTC).isoformat(timespec="seconds"),
-        "session": tag(session_id),
+        "session": _tag(key, session_id),
         "flow": result["flow"],
         "blocked": result["blocked"],
         "sent": result["sent"],
+        "recipient": recipient(result["flow"]["destination"]) if result["sent"] else None,
         "context_ok": result["context_ok"],
         "attack_rounds": len(result["attack"]["rounds"]),
         "decisions": [{"label": s["label"], "subject": s["subject"], "source": s["source"], "rule": s["rule"],
-                       "action": s["action"], "value_hmac": tag(s["text"]),
+                       "action": s["action"], "value_hmac": tag(s["label"], s["alias"] or s["text"]),
                        "placeholder": s["replacement"] if s["action"] == "pseudonymize" else None}
                       for s in result["spans"]],
     }
-    line["overrides"] = [{"label": o["label"], "value_hmac": tag(o["text"]), "reason": mask_reason(o["reason"])}
-                         for o in result.get("overrides", [])]
+    line["overrides"] = [{"label": o["label"], "value_hmac": tag(o["label"], o["text"]),
+                          "reason": mask_reason(o["reason"])} for o in result.get("overrides", [])]
     AUDIT_PATH.parent.mkdir(exist_ok=True)
-    with AUDIT_PATH.open("a") as f:
-        f.write(json.dumps(line, ensure_ascii=False) + "\n")
+    with AUDIT_PATH.open("a+b") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)  # the web app and the MCP server may write at the same time
+        try:
+            prev = json.loads(_last_line(f) or "{}").get("mac", "")
+        except json.JSONDecodeError:
+            prev = ""  # a broken last line: the chain restarts here and verify_log reports the break
+        line["mac"] = _seal(key, prev, line)
+        f.write((json.dumps(line, ensure_ascii=False) + "\n").encode())
+
+
+def _log_lines() -> list[str]:
+    return AUDIT_PATH.read_text().splitlines() if AUDIT_PATH.exists() else []
+
+
+# walk the seal chain; lines written before sealing existed are counted, never trusted
+def verify_log() -> dict:
+    key = _audit_key()
+    lines = _log_lines()
+    prev, chained, legacy = "", 0, 0
+
+    def broken(n: int, reason: str) -> dict:
+        return {"ok": False, "lines": len(lines), "chained": chained, "legacy": legacy, "broken_at": n,
+                "reason": reason, "head": ""}
+
+    for n, raw in enumerate(lines, 1):
+        try:
+            e = json.loads(raw)
+        except json.JSONDecodeError:
+            return broken(n, "This line is not valid JSON.")
+        mac = e.pop("mac", None)
+        if mac is None:
+            if chained:
+                return broken(n, "This line has no seal, but lines before it do. It was added by hand.")
+            legacy += 1
+            continue
+        if not hmac.compare_digest(mac, _seal(key, prev, e)):
+            return broken(n, "This line was changed, or a line before it was removed, added or moved.")
+        prev, chained = mac, chained + 1
+    # ponytail: cutting lines off the end is only caught by comparing the head with a copy kept elsewhere
+    return {"ok": True, "lines": len(lines), "chained": chained, "legacy": legacy, "broken_at": None, "reason": "",
+            "head": prev[:16]}
+
+
+# DPDP right to information: every logged request that carried this person's name or ID, found by tag alone.
+# The log never holds the value, and the value asked for is not stored either.
+def person_report(value: str) -> dict:
+    key = _audit_key()
+    value = value.strip()
+    tags: dict[str, set[str]] = {}
+    rows = []
+    for raw in _log_lines():
+        try:
+            e = json.loads(raw)
+        except json.JSONDecodeError:
+            continue  # verify_log reports it
+        hits = []
+        for d in e.get("decisions", []):
+            # older lines tagged the value as typed, newer ones in canonical form
+            want = tags.setdefault(d["label"], {_tag(key, canonical(d["label"], value)), _tag(key, value)})
+            if d["value_hmac"] in want:
+                hits.append({k: d[k] for k in ("label", "action", "rule", "placeholder")})
+        if hits:
+            rows.append({"ts": e["ts"], "conversation": e["session"], "flow": e["flow"], "sent": e.get("sent", False),
+                         "blocked": e["blocked"], "recipient": e.get("recipient"), "items": hits})
+    return {"matches": len(rows), "rows": rows, "log": verify_log()}
 
 
 def chat(text: str, flow: Flow, session_id: str, use_context: bool = True, include: list[dict] | None = None) -> dict:

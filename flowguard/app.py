@@ -2,7 +2,6 @@ import json
 import os
 import threading
 from pathlib import Path
-from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, Response
@@ -38,13 +37,6 @@ class ChatIn(BaseModel):
     pack: str = "default"  # policy pack: "default" or "safe_harbor"
 
 
-def _endpoint(dest: str) -> dict:
-    base = os.environ.get(f"{dest}_LLM_BASE_URL", "")
-    host = urlparse(base).hostname or ""
-    return {"model": os.environ.get(f"{dest}_LLM_MODEL", ""), "host": host,
-            "simulated": host in ("127.0.0.1", "localhost")}
-
-
 def _pack(name: str) -> str:
     return name if name in PACKS else "default"
 
@@ -61,7 +53,7 @@ def meta(data: str = "") -> dict:
             "scenarios": json.loads((HERE / fixture).read_text()), "dev": DEV, "max_text": MAX_TEXT,
             "packs": [{"id": "default", "name": "Standard rules"}, {"id": "safe_harbor", "name": "HIPAA Safe Harbor mode"}],
             "context_model": CONTEXT_MODEL,
-            "endpoints": {"internal": _endpoint("INTERNAL"), "external": _endpoint("EXTERNAL")}}
+            "endpoints": {"internal": gateway.recipient("internal"), "external": gateway.recipient("external")}}
 
 
 @app.post("/api/chat")
@@ -110,3 +102,20 @@ def records() -> Response:
 def reset(session_id: str) -> dict:
     gateway.SESSIONS.pop(session_id, None)
     return {"ok": True}
+
+
+class PersonIn(BaseModel):
+    value: str = Field(min_length=2, max_length=200)
+
+
+# POST, not GET: the name or ID asked about stays out of URLs and server logs
+@app.post("/api/person-report")
+def person_report(body: PersonIn) -> dict:
+    with LOCK:
+        return gateway.person_report(body.value)
+
+
+@app.get("/api/audit/verify")
+def verify_audit() -> dict:
+    with LOCK:
+        return gateway.verify_log()
