@@ -132,6 +132,10 @@ main { display: grid; gap: 16px; min-width: 0; }
 .history button[aria-current="true"] { color: var(--ink); font-weight: 600; }
 .link { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12.5px; text-decoration: none; font-weight: 500; }
 .link:hover { text-decoration: underline; }
+.person-form { display: flex; gap: 6px; }
+.person-form input { flex: 1; min-width: 0; border: 0; border-radius: 10px; padding: 8px 10px; background: var(--fill-2); color: var(--ink); font-size: 13.5px; }
+.person-form input:focus { outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 0; }
+.person-form .btn { padding: 8px 12px; font-size: 13.5px; }
 
 /* ---------- composer ---------- */
 .composer { padding: 14px; }
@@ -168,7 +172,7 @@ main { display: grid; gap: 16px; min-width: 0; }
 .spin { animation: spin 650ms linear infinite; transform-origin: center; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .warn { margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: var(--block-bg); color: var(--block); font-size: 13.5px; }
-#single, #compare-view { display: grid; gap: 16px; transition: opacity 160ms ease; }
+#single, #compare-view, #person-view { display: grid; gap: 16px; transition: opacity 160ms ease; }
 main.stale #single, main.stale #compare-view { opacity: .45; }
 
 /* ---------- hero: message | boundary | sent | attacker ---------- */
@@ -411,6 +415,15 @@ body.dev main { padding-bottom: 60px; }
       <a class="link" href="/api/records.csv" download>Download processing record (CSV)</a>
       <p class="hint" style="margin:4px 0 0">One row per request: purpose, destination, categories, actions. No personal values.</p>
     </div>
+    <div class="side-block">
+      <p class="side-title">Person report</p>
+      <form class="person-form" id="person-form">
+        <input id="person-q" type="text" minlength="2" maxlength="200" required autocomplete="off" placeholder="Full name, Aadhaar, phone…" aria-label="Name or ID of the person">
+        <button class="btn btn-quiet" id="person-go" type="submit">Find</button>
+      </form>
+      <p class="hint" style="margin:4px 0 8px">Every request that carried this person's data, where it went and what was hidden. Found by keyed hash; what you type is not stored.</p>
+      <button type="button" class="link" id="verify">Check the audit log seal</button>
+    </div>
   </aside>
 
   <main id="main">
@@ -483,6 +496,14 @@ body.dev main { padding-bottom: 60px; }
         <button type="button" class="btn btn-quiet" id="back">Back to one flow</button>
       </div>
       <div class="cmp-grid" id="cmp-grid"></div>
+    </section>
+
+    <section id="person-view" hidden>
+      <div class="glass cmp-head">
+        <div><h2 id="person-title">Person report</h2><p>Matched by keyed hash, so the log never holds the value. Type a name in full; IDs match however they are spaced.</p></div>
+        <button type="button" class="btn btn-quiet" id="person-back">Back</button>
+      </div>
+      <div class="glass"><div class="card-b decisions" id="person-rows"></div></div>
     </section>
   </main>
 </div>
@@ -742,6 +763,7 @@ function render() {
   const r = t.result, outside = r.flow.destination === "external";
   $("intro").hidden = true;
   $("compare-view").hidden = true;
+  $("person-view").hidden = true;
   $("single").hidden = false;
   $("verdict").innerHTML = verdictHtml(r);
   $("boundary").classList.toggle("inside", !outside);
@@ -865,6 +887,7 @@ function renderCompare(out) {
   $("verdict").innerHTML = "";
   $("intro").hidden = true;
   $("single").hidden = true;
+  $("person-view").hidden = true;
   $("compare-view").hidden = false;
   $("cmp-grid").innerHTML = out.runs.map((r) => {
     const f = r.flow, a = r.attack;
@@ -904,6 +927,63 @@ function setDest(v) {
   $("dest-status").textContent = `${v === "external" ? "External AI" : "Internal model"}: ${e.model}, ${where}`;
 }
 function setPack(v) { pack = v; setSeg("pack", v); }
+
+// ---------- person report and log seal ----------
+function personItem(it, row) {
+  if (!row.sent) return row.blocked ? "not sent, the request was stopped" : "not sent";
+  if (it.action === "block") return it.rule === "purpose-minimisation" ? "left out, the purpose did not need it" : "withheld";
+  if (it.action === "pseudonymize") return `sent as placeholder <code>${esc(it.placeholder)}</code>`;
+  return it.action === "generalize" ? "sent in a vaguer form" : "sent as typed";
+}
+
+function sealText(log) {
+  if (!log.ok) return `The audit log seal is broken at line ${log.broken_at}. ${esc(log.reason)}`;
+  const old = log.legacy ? ` ${log.legacy} older lines were written before sealing and cannot be checked.` : "";
+  return log.chained ? `Seal intact over ${log.chained} line${log.chained === 1 ? "" : "s"}. Head <code>${esc(log.head)}</code>: keep a copy, so lines cut from the end show up.${old}`
+    : `No sealed lines yet.${old}`;
+}
+
+function renderPerson(out) {
+  $("verdict").innerHTML = out.log.ok ? "" : verdictBox("alert", "This report may be incomplete.", sealText(out.log), "");
+  $("intro").hidden = $("single").hidden = $("compare-view").hidden = true;
+  $("person-view").hidden = false;
+  $("person-title").textContent = `Person report: ${out.matches} request${out.matches === 1 ? "" : "s"}`;
+  const seal = `<p class="hint" style="margin:10px 0 0">${sealText(out.log)}</p>`;
+  if (!out.rows.length) { $("person-rows").innerHTML = `<p class="empty">No logged request carried this value. A name must be typed in full, as the message wrote it.</p>${seal}`; return; }
+  const rows = out.rows.map((r) => {
+    const f = r.flow, to = r.recipient ? `${esc(r.recipient.model)}${r.recipient.simulated ? ", on this laptop" : ` at ${esc(r.recipient.host)}`}`
+      : r.sent ? `${DEST[f.destination] || esc(f.destination)} (model not recorded in older lines)` : "nobody, not sent";
+    return `<tr><td class="found">${esc(new Date(r.ts).toLocaleString("en-IN"))}</td>
+      <td>${esc(f.role)} to ${DEST[f.destination] || esc(f.destination)}, ${esc(purposeName(f.purpose))}</td>
+      <td>${to}</td>
+      <td>${r.items.map((it) => `${esc(label(it.label))}: ${personItem(it, r)}`).join("<br>")}</td></tr>`;
+  }).join("");
+  $("person-rows").innerHTML = `<table><thead><tr><th>When</th><th>Flow</th><th>Received by</th><th>What happened</th></tr></thead><tbody>${rows}</tbody></table>${seal}`;
+}
+
+async function personReport(ev) {
+  ev.preventDefault();
+  const value = $("person-q").value.trim();
+  if (value.length < 2 || busy) return;
+  $("person-go").disabled = true;
+  try {
+    renderPerson(await post("/api/person-report", { value }));
+  } catch (e) {
+    $("verdict").innerHTML = verdictBox("alert", "The report did not run.", e.safe ? e.message : esc(e.message), "");
+  }
+  $("person-go").disabled = false;
+}
+
+async function verifyLog() {
+  try {
+    const res = await fetch("/api/audit/verify");
+    if (!res.ok) throw new Error(`The gateway answered with error ${res.status}.`);
+    const log = await res.json();
+    $("verdict").innerHTML = verdictBox(log.ok ? "ok" : "alert", log.ok ? "Audit log seal intact." : "Audit log seal broken.", sealText(log), "");
+  } catch (e) {
+    $("verdict").innerHTML = verdictBox("alert", "The seal check did not run.", esc(e.message), "");
+  }
+}
 
 function flowChanged() { if (turns.length) $("flow-note").hidden = false; setPurposeLine(); }
 
@@ -1008,6 +1088,9 @@ async function boot() {
     send();
   });
   $("form").addEventListener("submit", send);
+  $("person-form").addEventListener("submit", personReport);
+  $("verify").addEventListener("click", verifyLog);
+  $("person-back").addEventListener("click", () => { $("person-view").hidden = true; $("verdict").innerHTML = ""; if (turns.length) render(); else $("intro").hidden = false; });
   $("compare").addEventListener("click", () => runCompare(null));
   $("back").addEventListener("click", () => { if (turns.length) render(); else { $("compare-view").hidden = true; $("intro").hidden = false; } });
   $("text").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send(e); });
@@ -1015,7 +1098,7 @@ async function boot() {
     newConversation();
     for (const b of $("scenarios").querySelectorAll("button")) b.setAttribute("aria-current", "false");
     $("verdict").innerHTML = "";
-    $("single").hidden = $("compare-view").hidden = true;
+    $("single").hidden = $("compare-view").hidden = $("person-view").hidden = true;
     $("intro").hidden = false;
     render();
   });
