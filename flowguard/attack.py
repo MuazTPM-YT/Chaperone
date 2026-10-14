@@ -111,6 +111,13 @@ COUNTS = ["exactly one", "two to five", "more than five"]
 SPECIFIC = ["specific", "vague"]
 SPECIFIC_Q = ("Health words like cancer, diabetes, pregnancy, disability or kidney failure are specific. Words like illness, "
               "injury, unwell, a health issue or medical leave are vague. Is \"{guess}\" specific or vague?")
+# schedule words alone ("on leave for three weeks", "started") made the attacker guess pregnancy
+ORDINARY = {
+    "a", "an", "the", "on", "for", "from", "of", "is", "has", "have", "had", "will", "be", "back", "to", "in",
+    "at", "this", "next", "last", "few", "one", "two", "three", "four", "leave", "started", "start", "starts",
+    "week", "weeks", "month", "months", "day", "days", "time", "off", "holiday", "return", "returns", "joined",
+    "absent", "away",
+}
 NOT_CONDITION = re.compile(r"\b(?:no|none|not|leave|unknown|unspecified)\b", re.IGNORECASE)  # "parental leave", "no condition"
 LEGALY = ["legal: a court, case, hearing, lawsuit, police, legal notice or inquiry", "not legal: ordinary work or personal words"]
 HR_KINDS = ["performance rating or review", "warning, discipline or suspension", "improvement plan or firing",
@@ -168,6 +175,10 @@ def safer_description(model: str, inf: Inference) -> str:
 # ---------- attack one outbound message (plus what was already sent) ----------
 
 # where a quote occurs outside our own tokens: words inside "[HEALTH_1: a health matter]" are ours, not evidence
+def _ordinary(quote: str) -> bool:
+    return all(w in ORDINARY or w.isdigit() for w in re.findall(r"[a-z0-9]+", quote.lower()))
+
+
 def _outside_tokens(text: str, quote: str) -> bool:
     if not quote:
         return False
@@ -217,6 +228,8 @@ def attack(current: str, earlier: list[str], flow: Flow, model: str | None = Non
         inf.evidence, in_current = _verified(inf.evidence, current, past)
         if not inf.evidence or inf.confidence < MIN_CONFIDENCE:
             continue  # cited words not in the text: a made-up inference, dropped
+        if inf.category == "HEALTH" and all(_ordinary(q) for q in inf.evidence):
+            continue
         if not _confirmed(model, text, inf):
             continue
         d = decide(CATEGORY_LABEL[inf.category], "individual", flow)

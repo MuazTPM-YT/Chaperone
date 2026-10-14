@@ -65,3 +65,8 @@ def test_health_proxy_is_not_dropped_by_a_word_check(monkeypatch):
     assert attack._confirmed("m", text, Inference("HEALTH", "HIV", 0.8, ["ART centre"]))
     assert not attack._confirmed("m", text, Inference("HEALTH", "parental leave", 0.8, ["leave"]))
     assert not attack._confirmed("m", text, Inference("HEALTH", "no specific health condition", 0.8, ["refill"]))
+
+
+def test_schedule_words_alone_are_not_health_evidence():
+    assert attack._ordinary("on leave for three weeks") and attack._ordinary("started")
+    assert not attack._ordinary("ART centre") and not attack._ordinary("every Saturday at NIMHANS")
