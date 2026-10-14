@@ -33,6 +33,17 @@ def test_session_history_is_guarded_too(llm):
     assert "[AADHAAR_1]" in sent and "7260" not in sent
 
 
+def test_flow_change_mid_conversation_does_not_stall_it(llm):
+    # scheduling sends the name as typed; the next flow masks it. The raw name already sits in the history,
+    # so re-guarding the history against it used to refuse every later message.
+    gateway.chat("Book a call with Priya Sharma on Friday.", Flow("Manager", "external", "scheduling"), "s1",
+                 use_context=False)
+    b = gateway.chat("Write a thank-you note to Priya Sharma.", EXTERNAL, "s1", use_context=False)
+    c = gateway.chat("Make it shorter.", EXTERNAL, "s1", use_context=False)
+    assert b["outbound"] == "Write a thank-you note to [PERSON_1]."
+    assert b["sent"] and c["sent"] and len(llm.calls) == 3
+
+
 def test_pseudonyms_are_consistent_and_sticky_per_destination(llm):
     a = gateway.chat(f"Aadhaar {AADHAAR} is wrong.", EXTERNAL, "s1", use_context=False)
     b = gateway.chat("Recheck 726018159082 please.", EXTERNAL, "s1", use_context=False)

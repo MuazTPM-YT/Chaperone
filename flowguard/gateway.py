@@ -15,7 +15,7 @@ import httpx
 from . import ROOT, attack, purpose, verify
 from .detect import SEMANTIC, Span, detect_cached
 from .policy import Decision, Flow, decide
-from .transform import OutboundLeak, Vault, apply, canonical, guard, restore_marked
+from .transform import OutboundLeak, Vault, apply, canonical, guard, restore_marked, value_pattern
 
 AUDIT_PATH = ROOT / "data" / "audit.jsonl"
 BASE_PROMPT = ("You are a workplace assistant for a small Indian organisation. Do the task the user asks for: "
@@ -187,8 +187,13 @@ def _tighten(text: str, live: list, spans: list[Span], decisions: list[Decision]
 
 # the only door to an LLM: guard runs first, every time
 def send(destination: str, messages: list[dict], protected: list[str]) -> str:
-    guard(json.dumps(messages, ensure_ascii=False), protected)
-    guard("\n".join(m["content"] for m in messages), protected)
+    # a value sent as typed in an earlier turn (the flow changed since) is already out; re-checking the history
+    # for it would refuse every later message. The new message is still checked for every value.
+    earlier = "\n".join(m["content"] for m in messages[1:-1])
+    fresh = [v for v in protected if not (earlier and value_pattern(v).search(earlier))]
+    guard(json.dumps(messages, ensure_ascii=False), fresh)
+    guard("\n".join(m["content"] for m in messages), fresh)
+    guard(messages[-1]["content"], protected)
     prefix = destination.upper()
     base, model = need(f"{prefix}_LLM_BASE_URL"), need(f"{prefix}_LLM_MODEL")
     key = os.environ.get(f"{prefix}_LLM_API_KEY", "")
