@@ -301,7 +301,7 @@ More in [PLAN.md](PLAN.md) and [PLAN-v2.md](PLAN-v2.md).
 | `docs/DEMO.md` | Demo video runbook |
 
 ```sh
-uv run --frozen pytest                              # 64 tests; scenario tests need Ollama running
+uv run --frozen pytest                              # 65 tests; scenario tests need Ollama running
 uv run --frozen python eval/run_eval.py --split dev # or --split heldout
 uv run --frozen python eval/run_inference.py --split dev   # inference leaks; needs llama3.1:8b as the grader
 uv run --frozen python eval/add_case.py             # add a held-out case
