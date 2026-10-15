@@ -276,7 +276,7 @@ back to the agent. Example client entry:
 | Attacker vs. a second "anonymiser" model | One attacker; tightening reuses our own generalize and block | Staab et al. let an LLM rewrite freely. A free rewrite can drop task facts and cannot be restored. |
 | Purpose needs | Declared per purpose in `policies.yaml` | Asked per message, qwen2.5:3b said "needed" for almost every identifier. |
 
-More in [PLAN.md](PLAN.md) and [PLAN-v2.md](PLAN-v2.md).
+More in [docs/PLAN.md](docs/PLAN.md) and [docs/PLAN-v2.md](docs/PLAN-v2.md).
 
 ## Limitations
 
