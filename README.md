@@ -1,5 +1,7 @@
 # Chaperone
 
+[![CI](https://github.com/MuazTPM-YT/devhack2026-round1/actions/workflows/ci.yml/badge.svg)](https://github.com/MuazTPM-YT/devhack2026-round1/actions/workflows/ci.yml)
+
 A local privacy gateway that sits between office staff and an AI chatbot. It decides what may leave based on the
 **flow** (what the data is, whose it is, who sends it, where it goes, and why), not on keywords.
 
@@ -22,19 +24,101 @@ cannot afford enterprise DLP.
 
 More: [only female cardiologist](docs/screenshots/s8b.png), [same message in three flows](docs/screenshots/s10.png).
 
-## Quick start
+## Contents
 
-Needs Linux or macOS, [uv](https://docs.astral.sh/uv/), [Ollama](https://ollama.com), about 6 GB disk. A 4 GB
-GPU is enough; CPU works but the context check is slower. These commands work in bash and fish.
+[Install](#install) · [Use the app](#use-the-app) · [How it works](#how-it-works) · [Configuration](#configuration) ·
+[HTTP API](#http-api) · [Agents (MCP)](#agents-mcp) · [Results](#results) · [Limitations](#limitations) ·
+[Development](#development) · [Troubleshooting](#troubleshooting) · [Security](#security)
 
-```sh
-./setup.sh                              # deps, qwen2.5:3b, NER model, .env with a fresh audit key
-uv run --frozen python -m chaperone     # then open http://127.0.0.1:8000
-```
+## Install
 
-After setup nothing needs the internet. `--frozen` stops uv from re-checking the lockfile online.
+### Requirements
 
-Click a scenario on the start screen or in the side rail, or open `http://127.0.0.1:8000/#7` to run scenario 7 directly.
+| Need | Notes |
+|---|---|
+| Linux or macOS | Windows is not supported: the audit log uses `fcntl`. WSL2 may work but is not tested. |
+| [uv](https://docs.astral.sh/uv/) | Installs Python 3.12 and every package from the lockfile. |
+| [Ollama](https://ollama.com) | Runs the local model `qwen2.5:3b` (about 2 GB). |
+| About 6 GB of disk | Python packages, the local model, the name model. |
+| A GPU is optional | A 4 GB GPU is enough. On CPU the checks are slower. |
+
+### Steps
+
+The commands work in bash, zsh and fish.
+
+1. **Install uv** (skip if `uv --version` works):
+
+   ```sh
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. **Install Ollama** (skip if `ollama --version` works):
+
+   ```sh
+   curl -fsSL https://ollama.com/install.sh | sh     # Linux
+   sudo pacman -S ollama                             # Arch Linux (ollama-cuda for NVIDIA GPUs)
+   ```
+
+   On macOS, download the app from [ollama.com/download](https://ollama.com/download).
+
+3. **Start Ollama** and check that it answers:
+
+   ```sh
+   sudo systemctl enable --now ollama   # Linux with the systemd service (the installer adds it)
+   ollama serve                         # or: in its own terminal, if there is no service
+   ollama list                          # must print a table, not "could not connect"
+   ```
+
+   On macOS, open the Ollama app.
+
+4. **Get the code and run setup** (once):
+
+   ```sh
+   git clone https://github.com/MuazTPM-YT/devhack2026-round1.git
+   cd devhack2026-round1
+   ./setup.sh
+   ```
+
+   `setup.sh` installs the Python packages, pulls `qwen2.5:3b`, downloads the name model, and writes `.env` with a
+   fresh random audit key. It stops with a clear message if uv or Ollama is missing or not running.
+
+5. **Start Chaperone**:
+
+   ```sh
+   uv run --frozen python -m chaperone
+   ```
+
+   Wait for `context layer ok`, then open <http://127.0.0.1:8000>. If it prints `context layer OFFLINE`, see
+   [Troubleshooting](#troubleshooting).
+
+After setup nothing needs the internet. `--frozen` stops uv from checking the lockfile online.
+
+## Use the app
+
+The page is a chat with three lanes, so you see both ends of every message:
+
+| Lane | What it shows |
+|---|---|
+| **You** (left) | Your message with every finding highlighted, and the reply with the real names and values put back. |
+| **Chaperone** (middle) | Each check as it runs: find, apply the rules, try to infer, final check, put the values back. |
+| **External AI** (right, hatched) | Exactly what the AI received and what it wrote, placeholders included. The dashed line is the edge of this laptop. |
+
+1. **Pick a scenario** on the start screen or in the side rail, or type your own message.
+2. **Set the flow** in the top bar: who sends it, to the internal model or the external AI, for which purpose, and
+   under which rules (Standard or HIPAA Safe Harbor). The flow decides what may leave.
+3. **Send** with Enter. Shift + Enter adds a new line.
+4. Open **Details** under a step to see each decision, its rule and the reason, what the attacker inferred, and what
+   masking names alone would have leaked.
+5. A value left out for the purpose has **Include anyway**. It asks for a reason, which the audit log keeps with names
+   removed.
+6. **Copy** above your reply copies it with the real values.
+7. **Compare three flows** (under the message box) runs the same message through three flows as a dry run. Nothing
+   is sent.
+8. The side rail also has **Person report**, **Check the audit log seal**, and **Download processing record (CSV)**.
+   See [Accountability](#accountability).
+
+Open `http://127.0.0.1:8000/#7` to run scenario 7 at once (any scenario id works). The theme button cycles automatic,
+light and dark. Below 1360 px wide the side rail opens from the menu button; on phones the lanes stack in order.
 
 ## How it works
 
@@ -89,6 +173,107 @@ flowchart LR
 
 If the local LLM is down, detection falls back to patterns and names, and the UI says so in red. Health, pay, HR,
 legal and MNPI details are not caught in that mode.
+
+## Configuration
+
+Settings live in `.env` (see `.env.example`). `setup.sh` writes it; it is not committed. Values already set in the
+environment win over `.env`. A missing required value stops the app at start with the variable's name.
+
+| Variable | Required | Default in `.env.example` | What it does |
+|---|---|---|---|
+| `INTERNAL_LLM_BASE_URL` | yes | `http://127.0.0.1:11434/v1` | OpenAI-compatible endpoint of the organisation's own model |
+| `INTERNAL_LLM_MODEL` | yes | `qwen2.5:3b` | Model name at that endpoint |
+| `INTERNAL_LLM_API_KEY` | no | empty | Bearer key, if the endpoint needs one |
+| `EXTERNAL_LLM_BASE_URL` | yes | `http://127.0.0.1:11434/v1` | The "external AI". The default is local Ollama standing in for a third party |
+| `EXTERNAL_LLM_MODEL` | yes | `qwen2.5:3b` | Model name at that endpoint |
+| `EXTERNAL_LLM_API_KEY` | no | empty | Bearer key for a real hosted API |
+| `AUDIT_HMAC_KEY` | yes | `change-me` (refused) | Secret for the audit log's tags and seals. `setup.sh` generates one |
+| `OLLAMA_URL` | no | `http://127.0.0.1:11434` | Where the local checks reach Ollama |
+| `CONTEXT_MODEL` | no | `qwen2.5:3b` | Local model for meaning and for the attacker |
+| `CONTEXT_TIMEOUT` | no | `20` | Seconds before a local model call gives up |
+| `CONTEXT_CHUNK` | no | `250` | Characters per window when long text is read |
+| `NER_MODEL` | no | `urchade/gliner_small-v2.1` | Name, organisation and place model |
+| `ATTACK_CATEGORIES` | no | `IDENTITY,HEALTH` | What the attacker looks for; add `COMPENSATION,HR,LEGAL` to widen it |
+| `ATTACK_MAX_ROUNDS` | no | `2` | Tightening rounds before a message is refused |
+| `ATTACK_MIN_CONFIDENCE` | no | `0.7` | Lowest attacker confidence that counts |
+| `PORT` | no | `8000` | Port of the web app (always bound to `127.0.0.1`) |
+| `CHAPERONE_DEV` | no | empty | `1` shows a "Demo data / Worst case" switch with stress-test messages |
+
+To use a real hosted AI as the external destination, set three lines and restart. No code changes:
+
+```sh
+EXTERNAL_LLM_BASE_URL=https://api.openai.com/v1
+EXTERNAL_LLM_MODEL=gpt-4o-mini
+EXTERNAL_LLM_API_KEY=sk-...
+```
+
+## HTTP API
+
+All endpoints are on `http://127.0.0.1:8000`. Bodies are JSON.
+
+| Method and path | What it does |
+|---|---|
+| `GET /api/meta` | Roles, purposes, rule packs, scenarios, configured models |
+| `POST /api/chat` | Check, send, restore. Answers once with the full result |
+| `POST /api/chat/stream` | Same as `/api/chat`, as [JSON lines](#live-steps), one per step |
+| `POST /api/compare` | Dry run of one message in up to 4 flows. Nothing is sent |
+| `POST /api/baseline` | What masking names and IDs alone would send, and what the attacker infers from it |
+| `POST /api/reset/{session_id}` | Forget one conversation's placeholder map |
+| `POST /api/person-report` | `{"value": "Ramesh Rao"}`: every logged request that carried this name or ID |
+| `GET /api/audit/verify` | Check the audit log's seal chain |
+| `GET /api/records.csv` | One row per request: purpose, destination, categories, actions. No personal values |
+
+A chat request:
+
+```sh
+curl -s http://127.0.0.1:8000/api/chat -H 'Content-Type: application/json' -d '{
+  "session_id": "demo-1",
+  "text": "Draft an invoice to Suresh Kumar, PAN ABKPS7312M, for ₹45,000 of printing work.",
+  "role": "Accountant", "destination": "external", "purpose": "invoicing",
+  "pack": "default", "use_context": true
+}'
+```
+
+| Field | Values |
+|---|---|
+| `text` | 1 to 4,000 characters |
+| `role` | `Manager`, `HR`, `Sales`, `Intern`, `Doctor`, `Accountant` |
+| `destination` | `internal`, `external` |
+| `purpose` | `general`, `scheduling`, `hr_summary`, `marketing`, `clinical_summary`, `invoicing` |
+| `pack` | `default`, `safe_harbor` |
+| `use_context` | `false` turns off the local model checks (IDs and names only) |
+| `include` | Optional: `[{"label": "PHONE", "text": "98450 12345", "reason": "..."}]` for "Include anyway" |
+
+### Live steps
+
+`/api/chat/stream` sends one JSON object per line as each step finishes, then the full result:
+
+```json
+{"step": "detect", "items": [{"label": "PERSON", "text": "Suresh Kumar", "source": "ner"}], "context_ok": true, "ms": 412.3}
+{"step": "decide", "counts": {"pseudonymize": 2}, "blocked": false, "ms": 3.1}
+{"step": "attack", "round": 0, "ms": 1180.4, "found": [], "skipped": ""}
+{"step": "ready", "outbound": "Draft an invoice to [PERSON_1], PAN [PAN_1], for ₹45,000 of printing work.", "blocked": false, "ms": 1610.2}
+{"step": "guard", "checked": 4}
+{"step": "reply", "reply": "...", "ms": 980.0}
+{"step": "restore", "restored": "...", "stats": {"exact": 2, "fuzzy": 0}, "flags": 0}
+{"step": "result", "result": {"...": "same object as /api/chat"}}
+```
+
+`attack` comes once per round, or once with `round: null` and a `skipped` reason. A blocked request, or one the final
+check refuses, goes from `ready` straight to `result`, and the result says why. A server fault sends
+`{"step": "error", "error": "<type>"}` instead of `result`; details go to the terminal.
+
+## Agents (MCP)
+
+`uv run --frozen python -m chaperone.mcp_server` starts a stdio MCP server with two tools. `chaperone_check` is a
+dry run: it returns what would leave and what the attacker could still infer. `chaperone_send` sends through the
+same pipeline and returns the restored reply plus any invented-detail flags. Results never echo masked raw values
+back to the agent. Example client entry:
+
+```json
+{"mcpServers": {"chaperone": {"command": "uv", "args": ["run", "--frozen", "python", "-m", "chaperone.mcp_server"],
+                              "cwd": "/path/to/DevHack2026"}}}
+```
 
 ## Results
 
@@ -249,18 +434,6 @@ before this version have no seal and are reported as "older lines"; their tags u
 report finds them only when the value is typed the same way. A name typed differently from the message ("Priya"
 for "Priya Sharma") is not found.
 
-## Agents (MCP)
-
-`uv run --frozen python -m chaperone.mcp_server` starts a stdio MCP server with two tools. `chaperone_check` is a
-dry run: it returns what would leave and what the attacker could still infer. `chaperone_send` sends through the
-same pipeline and returns the restored reply plus any invented-detail flags. Results never echo masked raw values
-back to the agent. Example client entry:
-
-```json
-{"mcpServers": {"chaperone": {"command": "uv", "args": ["run", "--frozen", "python", "-m", "chaperone.mcp_server"],
-                              "cwd": "/path/to/DevHack2026"}}}
-```
-
 ## Design decisions
 
 | Question | Choice | Cost |
@@ -272,7 +445,6 @@ back to the agent. Example client entry:
 | Same value in later turns | Stays masked for that destination | Internal and external conversations keep separate maps. |
 | Frontend | One HTML file, no build, no CDN; fonts (Inter, JetBrains Mono, OFL) ship in `chaperone/static/fonts` | Works offline in the demo. |
 | Live steps | `POST /api/chat/stream` sends one JSON line per step (find, rules, each attack round, final check, reply, restore), then the full result | The page shows each check as it finishes. `/api/chat` still answers once, for scripts and tests. |
-
 | Attacker vs. a second "anonymiser" model | One attacker; tightening reuses our own generalize and block | Staab et al. let an LLM rewrite freely. A free rewrite can drop task facts and cannot be restored. |
 | Purpose needs | Declared per purpose in `policies.yaml` | Asked per message, qwen2.5:3b said "needed" for almost every identifier. |
 
@@ -305,7 +477,28 @@ More in [docs/PLAN.md](docs/PLAN.md) and [docs/PLAN-v2.md](docs/PLAN-v2.md).
 - All results are on our own dev sets. The held-out sets are empty until teammates fill them; do not quote dev
   numbers as final.
 
-## Repository
+## Development
+
+```sh
+uv run --frozen pytest                     # all 76 tests; 20 scenario tests need Ollama running
+uv run --frozen pytest -m "not ollama"     # the 56 that run anywhere (what CI runs)
+uv run --frozen ruff check chaperone tests eval
+uv run --frozen mypy chaperone
+```
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs ruff, mypy and the tests without Ollama on every
+push to `main` and every pull request.
+
+Evaluation:
+
+```sh
+uv run --frozen python eval/run_eval.py --split dev          # or --split heldout
+uv run --frozen python eval/run_inference.py --split dev     # inference leaks; needs llama3.1:8b as the grader
+uv run --frozen python eval/add_case.py                      # add a held-out case
+```
+
+UI stress test: start with `CHAPERONE_DEV=1 uv run --frozen python -m chaperone` and use the "Demo data / Worst case"
+switch at the bottom of the page. Without that variable the switch and the stress data are not served.
 
 | Path | What |
 |---|---|
@@ -316,25 +509,44 @@ More in [docs/PLAN.md](docs/PLAN.md) and [docs/PLAN-v2.md](docs/PLAN-v2.md).
 | `chaperone/attack.py` | Local attacker, evidence check, safer wording |
 | `chaperone/purpose.py` | Purpose minimisation |
 | `chaperone/verify.py` | Flags invented ages, dates, amounts and names in replies |
-| `chaperone/gateway.py` | Pipeline, the single LLM call path, sealed audit log, person report, processing record |
+| `chaperone/gateway.py` | Pipeline, live step events, the single LLM call path, sealed audit log, person report, processing record |
+| `chaperone/app.py` | HTTP API, including the live step stream |
+| `chaperone/static/index.html` | The whole UI: one file, no build step |
+| `chaperone/static/fonts/` | Inter and JetBrains Mono (SIL Open Font License), so the UI works offline |
 | `chaperone/mcp_server.py` | MCP tools for agents |
-| `chaperone/app.py`, `static/index.html` | API and UI |
 | `chaperone/scenarios.json` | The demo scenarios, used by the UI and the tests |
 | `chaperone/scenarios_worst.json` | Stress-test messages (long names, scripts, emoji, a long paste); dev only |
 | `eval/` | Datasets, harness, baseline, model and placeholder tests ([guide](eval/README.md)) |
+| `tests/` | Unit and end-to-end tests |
 | `docs/DEMO.md` | Demo video runbook |
+| `docs/PLAN.md`, `docs/PLAN-v2.md` | Build plans |
 
-```sh
-uv run --frozen pytest                              # 76 tests; scenario tests need Ollama running
-uv run --frozen python eval/run_eval.py --split dev # or --split heldout
-uv run --frozen python eval/run_inference.py --split dev   # inference leaks; needs llama3.1:8b as the grader
-uv run --frozen python eval/add_case.py             # add a held-out case
-```
+## Troubleshooting
 
-UI stress test: start with `CHAPERONE_DEV=1 uv run --frozen python -m chaperone` and use the "Demo data / Worst case"
-switch at the bottom of the page. Without that variable the switch and the stress data are not served.
+| What you see | Cause and fix |
+|---|---|
+| Start prints `context layer OFFLINE`; the page says "Local AI check: offline" | Ollama is not running, or the model is missing. Run `ollama list`; start Ollama ([step 3](#steps)); run `ollama pull qwen2.5:3b`. Without it only IDs and names are checked. |
+| `ollama`: `could not connect to ollama server` | The server is not running. Start it ([step 3](#steps)). |
+| `ollama list` is empty although the model was pulled | `ollama serve` run as your user looks in `~/.ollama`, but the system service keeps models in `/var/lib/ollama`. Stop it and use `sudo systemctl start ollama`. |
+| `missing required env var ...` | There is no `.env`. Run `./setup.sh`, or copy `.env.example` to `.env` and fill it in. |
+| `AUDIT_HMAC_KEY still has the example value` | Run `./setup.sh`, or set a random key: `uv run --frozen python -c "import secrets; print(secrets.token_hex(32))"`. |
+| `address already in use` | Port 8000 is taken. Start on another one: `PORT=8001 uv run --frozen python -m chaperone`. |
+| The first message is slow | The models load on first use. Later messages are faster. A cold start can take 2 to 3 s. |
+| A scenario gives a different result now and then | The 3B local model is not fully deterministic. Send it again. |
+| 20 tests fail with `context_ok` errors | Those tests need Ollama. Start it, or run `pytest -m "not ollama"`. |
+
+## Security
+
+- The app listens on `127.0.0.1` only and has no login. Do not expose it to a network.
+- Detection, policy, the attacker and restore all run on this machine. Only the final, checked text goes to the
+  configured LLM endpoint, and a final guard refuses to send it if any masked raw value is still in it.
+- `data/audit.jsonl` holds HMAC tags of values, never the values. Keep `AUDIT_HMAC_KEY` secret: anyone with it can
+  rewrite the log (see [Accountability](#accountability)).
+- `.env` holds the keys and is in `.gitignore`. Never commit it.
+- Conversations are kept in memory only and are gone when the app stops.
 
 ## License
 
 MIT. Uses open-source libraries: FastAPI, GLiNER (`urchade/gliner_small-v2.1`, Apache-2.0), python-stdnum,
-Ollama with Qwen2.5-3B, Llama 3.1 8B as the evaluation grader only, and Presidio for the baseline.
+Ollama with Qwen2.5-3B, Llama 3.1 8B as the evaluation grader only, and Presidio for the baseline. The Inter and
+JetBrains Mono fonts are under the SIL Open Font License; the licence texts are in `chaperone/static/fonts/`.
