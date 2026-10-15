@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fcfcfd">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1115">
 <meta name="color-scheme" content="light dark">
 <title>Chaperone</title>
 <link rel="preload" href="/static/fonts/inter-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -80,11 +82,14 @@
 /* ---------- base ---------- */
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; height: 100%; }
+html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; height: 100%; }
 body { margin: 0; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink);
   font: 400 15px/1.5 var(--sans); font-optical-sizing: auto; -webkit-font-smoothing: antialiased; letter-spacing: -0.006em; }
 button, select, textarea, input { font: inherit; color: inherit; letter-spacing: inherit; }
-button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+/* controls answer on press and never select their own label; content text stays selectable */
+button, a, summary, label, .chip, .seg { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+@media (pointer: coarse) { input, textarea, select { font-size: 16px !important; } }
 a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 code { font-family: var(--mono); font-size: .88em; }
@@ -108,10 +113,10 @@ h1, h2, h3, p { margin: 0; }
 .body { display: grid; grid-template-columns: 284px minmax(0, 1fr); min-height: 0; }
 
 /* header */
-.topbar { display: flex; align-items: center; gap: 12px 22px; padding: 10px 18px; border-bottom: 1px solid var(--line); background: var(--paper); position: relative; z-index: 30; flex-wrap: wrap; }
+.topbar { display: flex; align-items: center; gap: 12px 22px; padding: max(10px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 10px max(18px, env(safe-area-inset-left)); border-bottom: 1px solid var(--line); background: var(--paper); position: relative; z-index: 30; flex-wrap: nowrap; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
 .brand b { font-size: 16.5px; font-weight: 680; letter-spacing: -0.025em; }
-.flow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; font-size: 14px; color: var(--muted); }
+.flow { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; font-size: 14px; color: var(--muted); }
 .select { appearance: none; -webkit-appearance: none; border: 0; border-radius: 9px; padding: 6px 28px 6px 11px; font-weight: 560; color: var(--ink);
   background: var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23878d99' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center; }
 .seg { position: relative; display: inline-flex; padding: 2px; background: var(--fill); border-radius: 10px; isolation: isolate; }
@@ -119,7 +124,7 @@ h1, h2, h3, p { margin: 0; }
   box-shadow: 0 1px 3px rgba(0, 0, 0, .12); z-index: -1; transition: transform 320ms var(--ease), width 320ms var(--ease); }
 .seg button { border: 0; background: none; padding: 5px 11px; border-radius: 8px; font-size: 13.5px; font-weight: 520; color: var(--muted); white-space: nowrap; }
 .seg button[aria-pressed="true"] { color: var(--ink); font-weight: 620; }
-.status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.status { flex: none; margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
 .status .txt { margin-right: 6px; }
 .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--pass); margin-right: 7px; vertical-align: 1px; box-shadow: 0 0 0 3px var(--pass-bg); }
 .dot.off { background: var(--block); box-shadow: 0 0 0 3px var(--block-bg); }
@@ -146,22 +151,23 @@ h1, h2, h3, p { margin: 0; }
 .legend { display: grid; gap: 7px; padding: 2px 8px; font-size: 12.5px; color: var(--ink-2); }
 .legend div { display: grid; grid-template-columns: 82px 1fr; gap: 8px; align-items: baseline; }
 .scrim { display: none; }
+.rail-side:focus { outline: none; }
 
 /* ---------- the stage: two ends and a middle ---------- */
-.stage-wrap { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; min-width: 0; }
-.stage { overflow-y: auto; scrollbar-gutter: stable both-edges; overscroll-behavior: contain; background: var(--paper); }
-/* lanes are symmetric, so the laptop edge sits half a gap right of the middle column */
-.lanes { --edge: calc(50% + var(--mid) / 2 + var(--g) / 2); position: relative; display: grid; grid-template-columns: minmax(0, 1fr) var(--mid) minmax(0, 1fr);
-  column-gap: var(--g); padding: 0 22px 28px; min-height: 100%; align-content: start;
-  background: linear-gradient(90deg, var(--paper) var(--edge), transparent var(--edge)), repeating-linear-gradient(-45deg, var(--hatch) 0 1px, transparent 1px 11px), var(--outside); }
-.lanes.is-empty { background: var(--paper); }
-.lanes.is-empty::after { display: none; }
-.lanes.is-empty .lane-heads { background: color-mix(in srgb, var(--paper) 88%, transparent); }
+/* lanes are symmetric and centred, so the laptop edge sits half a gap right of the middle column, at the same x on every box */
+.stage-wrap { --edge: calc(50% + var(--mid) / 2 + var(--g) / 2); --outside-bg: repeating-linear-gradient(-45deg, var(--hatch) 0 1px, transparent 1px 11px), var(--outside);
+  position: relative; min-height: 0; min-width: 0; }
+.stage { position: absolute; inset: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; overscroll-behavior: contain;
+  background: linear-gradient(90deg, var(--paper) var(--edge), transparent var(--edge)) local, var(--outside-bg); background-attachment: local; }
+.lanes { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) var(--mid) minmax(0, 1fr); max-width: 1680px; margin: 0 auto;
+  column-gap: var(--g); padding: 0 22px calc(var(--composer-h, 130px) + 20px); min-height: 100%; align-content: start; }
+.stage-wrap.is-empty .stage, .stage-wrap.is-empty .composer::before { background: var(--paper); }
+.stage-wrap.is-empty .lanes::after { display: none; }
+.stage-wrap.is-empty .lane-heads { background: var(--paper); }
 .lanes::after { content: ""; position: absolute; top: 0; bottom: 0; left: calc(var(--edge) - 0.75px); width: 1.5px; pointer-events: none;
   background: repeating-linear-gradient(to bottom, var(--line-2) 0 6px, transparent 6px 12px); }
 .lane-heads { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; position: sticky; top: 0; z-index: 5; padding: 14px 0 12px; margin-bottom: 6px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--paper) 88%, transparent) var(--edge), color-mix(in srgb, var(--outside) 88%, transparent) var(--edge));
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); margin-inline: -22px; padding-inline: 22px; border-bottom: 1px solid var(--line); }
+  background: linear-gradient(90deg, var(--paper) var(--edge), var(--outside) var(--edge)); margin-inline: -22px; padding-inline: 22px; border-bottom: 1px solid var(--line); }
 .lane-head h2 { font-size: 15px; font-weight: 680; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
 .lane-head p { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
 .lane-head.mid { text-align: center; }
@@ -211,6 +217,9 @@ h1, h2, h3, p { margin: 0; }
 .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 .waiting { font-size: 13px; color: var(--muted); padding: 10px 4px; }
+.cap-row { display: flex; align-items: baseline; gap: 10px; }
+.copy { border: 0; background: none; padding: 2px 4px; border-radius: 6px; font-size: 12px; font-weight: 560; color: var(--accent); transition: transform 140ms var(--press); }
+.copy:active { transform: scale(0.95); }
 
 /* markdown inside a reply */
 .md p { margin: 0 0 9px; }
@@ -309,15 +318,20 @@ details.more[open] > summary svg { transform: rotate(90deg); }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
 /* the one motion moment: text crossing the edge, each way */
-.enter-r { animation: cross-r 520ms var(--ease) both; }
-.enter-l { animation: cross-l 520ms var(--ease) both; }
+.enter-r { animation: cross-r 420ms var(--ease) both; }
+.enter-l { animation: cross-l 420ms var(--ease) both; }
 .enter { animation: rise 320ms var(--ease) both; }
 @keyframes cross-r { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
 @keyframes cross-l { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* ---------- composer ---------- */
-.composer { position: relative; z-index: 6; padding: 10px 22px 14px; background: linear-gradient(to top, var(--paper) 70%, color-mix(in srgb, var(--paper) 0%, transparent)); }
+/* the composer floats over the lanes; its backdrop repeats them and fades out upward, so there is no seam */
+.composer { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; padding: 26px 22px max(14px, env(safe-area-inset-bottom)); pointer-events: none; isolation: isolate; }
+.composer > * { pointer-events: auto; }
+.composer::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, var(--paper) var(--edge), transparent var(--edge)), var(--outside-bg);
+  -webkit-mask-image: linear-gradient(to top, #000 62%, transparent); mask-image: linear-gradient(to top, #000 62%, transparent); }
 .box { width: min(100%, 880px); margin: 0 auto; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-2); padding: 10px 10px 10px 16px; transition: box-shadow 200ms ease; }
 .box:focus-within { box-shadow: var(--shadow-2), 0 0 0 3px var(--accent-soft); }
 .box textarea { display: block; width: 100%; border: 0; outline: 0; resize: none; background: none; padding: 6px 0; min-height: 28px; max-height: 32vh;
@@ -365,7 +379,7 @@ dialog[open] { animation: pop 260ms var(--ease); }
 .prow .when { color: var(--muted); font-variant-numeric: tabular-nums; }
 .seal { margin-top: 14px; font-size: 12.5px; color: var(--muted); }
 .empty { color: var(--muted); font-size: 13.5px; }
-.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 60; width: max-content; max-width: min(560px, calc(100vw - 32px));
+.toast { position: fixed; left: 0; right: 0; margin: 0 auto; bottom: max(22px, calc(env(safe-area-inset-bottom) + 12px)); z-index: 60; width: max-content; max-width: min(560px, calc(100vw - 32px));
   display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--ink); color: var(--paper); font-size: 13.5px; line-height: 1.45;
   box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .45); animation: rise 260ms var(--ease) both; }
 .toast code { color: inherit; }
@@ -382,27 +396,31 @@ dialog[open] { animation: pop 260ms var(--ease); }
 }
 
 /* ---------- responsive ---------- */
-@media (max-width: 1180px) {
+@media (max-width: 1360px) {
   .body { grid-template-columns: minmax(0, 1fr); }
   #rail-open { display: grid; }
   .rail-side { position: fixed; z-index: 50; top: 0; bottom: 0; left: 0; width: min(320px, 88vw); box-shadow: 0 0 60px rgba(0, 0, 0, .25);
     transform: translateX(-102%); transition: transform 320ms var(--ease); visibility: hidden; padding-top: max(14px, env(safe-area-inset-top)); }
   .rail-side.open { transform: none; visibility: visible; }
-  .scrim { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(10, 12, 18, .35); opacity: 0; pointer-events: none; transition: opacity 240ms ease; }
+  .scrim { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(10, 12, 18, .5); opacity: 0; pointer-events: none; transition: opacity 240ms ease; }
   .scrim.open { opacity: 1; pointer-events: auto; }
 }
-@media (max-width: 1360px) { .status .txt { display: none; } }
-@media (max-width: 860px) {
-  :root { --g: 0px; }
-  .topbar { padding: 10px 14px; gap: 10px; }
-  .flow { order: 3; min-width: 0; width: calc(100% + 28px); margin: 0 -14px; padding: 2px 14px; font-size: 13px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+@media (max-width: 1440px) { .status .txt { display: none; } }
+@media (max-width: 1180px) {
+  .topbar { flex-wrap: wrap; padding-inline: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right)); gap: 10px; }
+  .flow { order: 3; min-width: 0; width: calc(100% + 28px); margin: 0 -14px; padding: 2px 14px; font-size: 13px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; white-space: nowrap;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent); }
   .flow::-webkit-scrollbar { display: none; }
   .flow > * { flex: none; }
+}
+@media (max-width: 860px) {
+  :root { --g: 0px; }
   .box-row { flex-wrap: nowrap; gap: 6px; }
   .box-row .btn-ghost { padding: 7px 6px; }
   .wide { display: none; }
   .stage { scrollbar-gutter: auto; }
-  .lanes { grid-template-columns: minmax(0, 1fr); padding: 0 14px 20px; background: var(--paper); }
+  .stage, .composer::before { background: var(--paper); }
+  .lanes { grid-template-columns: minmax(0, 1fr); padding: 0 max(14px, env(safe-area-inset-right)) calc(var(--composer-h, 120px) + 12px) max(14px, env(safe-area-inset-left)); }
   .lanes::after { display: none; }
   .lane-heads { display: none; }
   .turn { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
@@ -417,20 +435,40 @@ dialog[open] { animation: pop 260ms var(--ease); }
   .row.back .mid-col::before { content: "Back on this laptop"; }
   .cell.ai { padding: 12px; border-radius: 16px; background: var(--outside) repeating-linear-gradient(-45deg, var(--hatch) 0 1px, transparent 1px 11px); }
   .bubble { max-width: 100%; }
-  .composer { padding: 8px 10px max(10px, env(safe-area-inset-bottom)); }
+  .composer { padding: 18px 10px max(10px, env(safe-area-inset-bottom)); }
   .hints .keys { display: none; }
   .prow { grid-template-columns: 1fr; }
 }
+/* short screens: the start screen must fit above the message box */
+@media (max-height: 860px) and (min-width: 861px) {
+  .hero { padding-top: clamp(16px, 4vh, 40px); }
+  .hero h1 { font-size: clamp(30px, 3.4vw, 48px); }
+  .hero > p { margin-top: 12px; font-size: 15px; }
+  .picks { margin-top: 22px; }
+  .hero .how { display: none; }
+}
+/* phones: dialogs become bottom sheets */
+@media (max-width: 600px) {
+  dialog, dialog.narrow { width: 100%; max-width: 100%; margin: auto 0 0; max-height: calc(100dvh - max(24px, env(safe-area-inset-top))); border-radius: 20px 20px 0 0; }
+  dialog[open] { animation: sheet 300ms var(--ease); }
+  .dlg-h { padding: 16px 16px 12px; }
+  .dlg-b { padding: 16px 16px max(20px, env(safe-area-inset-bottom)); }
+}
+@keyframes sheet { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (max-width: 520px) {
   .hero h1 { font-size: 34px; }
   .seg button { padding: 5px 9px; font-size: 13px; }
 }
 
 /* ---------- accessibility preferences ---------- */
+/* reduced motion: fades stay, nothing slides, scales or spins */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
-  .step.active .node::after { display: none; }
+  .enter, .enter-r, .enter-l, dialog[open], .toast { animation: fade 200ms ease both; }
+  .step.active .node::after, .shimmer, .send[aria-busy="true"] svg { animation: none; }
+  .rail-side, .seg .thumb, .switch::after, details.more > summary svg { transition-duration: 1ms !important; }
+  .btn:active, .icon-btn:active, .pick:active, .pick:hover { transform: none !important; }
 }
+@keyframes fade { from { opacity: 0; } }
 @media (prefers-contrast: more) {
   :root { --line: var(--muted); --line-2: var(--ink-2); }
 }
@@ -470,7 +508,7 @@ dialog[open] { animation: pop 260ms var(--ease); }
   </header>
 
   <div class="body">
-    <aside class="rail-side" id="rail" aria-label="Scenarios and tools">
+    <aside class="rail-side" id="rail" aria-label="Scenarios and tools" tabindex="-1">
       <button type="button" class="btn btn-quiet new-chat" id="reset">
         <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>New chat</button>
       <h2>Demo scenarios</h2>
@@ -496,9 +534,9 @@ dialog[open] { animation: pop 260ms var(--ease); }
     </aside>
     <div class="scrim" id="scrim"></div>
 
-    <main class="stage-wrap" id="main">
+    <main class="stage-wrap is-empty" id="main">
       <div class="stage" id="stage">
-        <div class="lanes is-empty" id="lanes">
+        <div class="lanes" id="lanes">
           <div class="lane-heads">
             <div class="lane-head you"><h2><span class="glyph" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="4" r="2.3" fill="currentColor"/><path d="M1.8 11a4.2 4.2 0 0 1 8.4 0" fill="currentColor"/></svg></span>You</h2><p>Real names and values, on this laptop</p></div>
             <div class="lane-head mid"><h2><span class="glyph" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M6 1 10.5 2.8v3.1C10.5 8.6 8.6 10.4 6 11 3.4 10.4 1.5 8.6 1.5 5.9V2.8Z" fill="currentColor"/></svg></span>Chaperone</h2><p>Checks on this laptop</p></div>
@@ -515,7 +553,7 @@ dialog[open] { animation: pop 260ms var(--ease); }
 
       <form class="composer" id="form">
         <div class="box">
-          <textarea id="text" rows="1" maxlength="4000" aria-label="Message" placeholder="Message the AI. Chaperone checks it first."></textarea>
+          <textarea id="text" rows="1" maxlength="4000" enterkeyhint="send" aria-label="Message" placeholder="Message the AI. Chaperone checks it first."></textarea>
           <div class="box-row">
             <label class="toggle"><input type="checkbox" class="switch" id="use-ctx" checked> <span><span class="wide">Local </span>AI checks</span></label>
             <button class="btn btn-ghost" id="compare" type="button" disabled><span>Compare<span class="wide"> three</span> flows</span></button>
@@ -685,10 +723,13 @@ function markedMarkdown(text, ranges) {
   return md(esc(t)).replace(/\u0000(\d+)\u0000/g, (_, i) => keep[+i].html(esc(text.slice(keep[+i].start, keep[+i].end))));
 }
 
+// our own token shapes: [PERSON_1], [AGE_1: in their 50s], [PHONE omitted], [PAY withheld]
+const TOKEN = /\[[A-Z]+(?:_\d+(?::[^\]\n]*)?| withheld| omitted)\]/g;
+function tokenKind(t) { return t.endsWith(" omitted]") ? "omit" : t.endsWith(" withheld]") ? "block" : t.includes(":") ? "generalize" : "pseudonymize"; }
+
 // placeholders the way the AI wrote them, before they are put back
 function rawReply(text) {
-  const ranges = [...text.matchAll(/\[[A-Z]+_\d+(?::[^\]\n]*)?\]/g)].map((m) => ({ start: m.index, end: m.index + m[0].length,
-    html: (x) => `<mark class="${m[0].includes(":") ? "generalize" : "pseudonymize"}">${x}</mark>` }));
+  const ranges = [...text.matchAll(TOKEN)].map((m) => ({ start: m.index, end: m.index + m[0].length, html: (x) => `<mark class="${tokenKind(m[0])}">${x}</mark>` }));
   return markedMarkdown(text, ranges);
 }
 
@@ -696,6 +737,9 @@ function restoredReply(r) {
   const ranges = [
     ...(r.flags || []).map((f) => ({ start: f.start, end: f.end, html: (x) => `<mark class="flag" title="${esc(f.reason)}">${x}</mark>` })),
     ...(r.restore_marks || []).map((m) => ({ start: m.start, end: m.end, html: (x) => `<mark class="pseudonymize" title="The AI saw ${esc(m.seen)}">${x}</mark>` })),
+    // what never left stays visibly missing in the reply
+    ...[...r.restored.matchAll(/\[[A-Z]+ (?:omitted|withheld)\]/g)].map((m) => ({ start: m.index, end: m.index + m[0].length,
+      html: (x) => `<mark class="${m[0].includes("omitted") ? "omit" : "block"}">${x}</mark>` })),
   ];
   return markedMarkdown(r.restored, ranges);
 }
@@ -703,9 +747,8 @@ function restoredReply(r) {
 // the outbound text before the final result: marks come from our own token shapes
 function tokenMarks(text) {
   let html = "", pos = 0;
-  for (const m of text.matchAll(/\[[A-Z]+(?:_\d+(?::[^\]\n]*)?| withheld| omitted)\]/g)) {
-    const k = m[0].endsWith(" omitted]") ? "omit" : m[0].endsWith(" withheld]") ? "block" : m[0].includes(":") ? "generalize" : "pseudonymize";
-    html += esc(text.slice(pos, m.index)) + `<mark class="${k}">${esc(m[0])}</mark>`;
+  for (const m of text.matchAll(TOKEN)) {
+    html += esc(text.slice(pos, m.index)) + `<mark class="${tokenKind(m[0])}">${esc(m[0])}</mark>`;
     pos = m.index + m[0].length;
   }
   return html + esc(text.slice(pos));
@@ -811,8 +854,16 @@ function outSteps(t, i) {
   if (st.detect) {
     const items = [], keys = new Set();
     for (const it of st.detect.items) { const k = `${it.label}|${it.text}`; if (!keys.has(k)) { keys.add(k); items.push(it); } }
-    const chips = r ? visible(r.spans).filter((s) => !s.covered).map((s) => `<span class="chip ${act(s, r.blocked)}" title="${esc(ACTION[act(s, r.blocked)])}">${esc(label(s.label))}</span>`)
-      : items.map((it) => `<span class="chip plain">${esc(label(it.label))}</span>`);
+    // one chip per kind and outcome, with a count: "Health ×3", not three chips
+    const kinds = new Map();
+    // words the attacker flagged later belong to the attack step, not to what was found here
+    const own = r ? visible(r.spans.filter((s) => s.source !== "attacker")).filter((s) => !s.covered) : null;
+    for (const [k, l] of own ? own.map((s) => [act(s, r.blocked), s.label]) : items.map((it) => ["plain", it.label])) {
+      const key = `${k}|${l}`;
+      kinds.set(key, { k, l, n: (kinds.get(key)?.n || 0) + 1 });
+    }
+    const chips = [...kinds.values()].map(({ k, l, n }) =>
+      `<span class="chip ${k}"${ACTION[k] ? ` title="${esc(ACTION[k])}"` : ""}>${esc(label(l))}${n > 1 ? ` ×${n}` : ""}</span>`);
     // the full warning once per chat; later turns get the short form
     const said = turns.slice(0, i).some((x) => x.steps.detect && !x.steps.detect.context_ok);
     const off = t.flow.use_context ? "offline" : "turned off";
@@ -911,7 +962,7 @@ function turnHtml(t, i) {
       mid = stepLi(st.restore.flags ? "warn" : "done", "Put the real values back",
         (n ? `${plural(n, "placeholder", "placeholders")} replaced with the real value.` : "No placeholders to replace.") + flagged, null,
         r ? details(t, "restore", restoreDetail(r)) : "");
-      mine = `<span class="cap">You get back</span><div class="bubble mine back${once(t, "restored", "enter-l")}"><div class="md">${r ? restoredReply(r) : esc(st.restore.restored)}</div></div>`;
+      mine = `<div class="cap-row">${r && r.restored ? `<button type="button" class="copy" data-copy="${i}">Copy</button>` : ""}<span class="cap">You get back</span></div><div class="bubble mine back${once(t, "restored", "enter-l")}"><div class="md">${r ? restoredReply(r) : esc(st.restore.restored)}</div></div>`;
     } else if (st.reply) {
       mid = stepLi("active", "Put the real values back", "Swapping placeholders for real values…");
       mine = "";
@@ -958,7 +1009,7 @@ function renderLedger() {
 
 function renderAll() {
   $("hero").hidden = turns.length > 0;
-  $("lanes").classList.toggle("is-empty", !turns.length);
+  $("main").classList.toggle("is-empty", !turns.length);
   for (const el of [...$("lanes").querySelectorAll(".turn")]) el.remove();
   turns.forEach((_, i) => mountTurn(i));
   renderLedger();
@@ -1034,7 +1085,7 @@ async function send(ev) {
   includes = [];
   syncSend();
   $("hero").hidden = true;
-  $("lanes").classList.remove("is-empty");
+  $("main").classList.remove("is-empty");
   mountTurn(i);
   scrollDown();
   try {
@@ -1226,9 +1277,9 @@ function runPreset(id) {
 }
 
 // ---------- rail as a drawer on narrow screens ----------
-const narrow = matchMedia("(max-width: 1180px)");
+const narrow = matchMedia("(max-width: 1360px)");
 function railInert() { $("rail").inert = narrow.matches && !$("rail").classList.contains("open"); }
-function openRail() { $("rail").classList.add("open"); $("scrim").classList.add("open"); $("rail-open").setAttribute("aria-expanded", "true"); railInert(); $("rail").querySelector("button").focus(); }
+function openRail() { $("rail").classList.add("open"); $("scrim").classList.add("open"); $("rail-open").setAttribute("aria-expanded", "true"); railInert(); $("rail").focus({ preventScroll: true }); }
 function closeRail() {
   if (!$("rail").classList.contains("open")) return;
   $("rail").classList.remove("open"); $("scrim").classList.remove("open"); $("rail-open").setAttribute("aria-expanded", "false"); railInert();
@@ -1243,6 +1294,11 @@ function applyTheme(t) {
   $("theme").innerHTML = ICON[t === "auto" ? "auto" : t === "light" ? "sun" : "moon"];
   $("theme").setAttribute("aria-label", `Theme: ${name}`);
   $("theme").title = `Theme: ${name}`;
+  // the browser bar matches the page: per scheme when automatic, the chosen colour otherwise
+  for (const m of document.querySelectorAll('meta[name="theme-color"]')) {
+    const dark = m.media.includes("dark");
+    m.content = t === "auto" ? (dark ? "#0f1115" : "#fcfcfd") : t === "dark" ? "#0f1115" : "#fcfcfd";
+  }
 }
 
 async function boot() {
@@ -1253,6 +1309,7 @@ async function boot() {
     try { localStorage.setItem("fg-theme", theme); } catch (e) { /* private mode: the choice lasts this page only */ }
     applyTheme(theme);
   });
+  new ResizeObserver(() => $("main").style.setProperty("--composer-h", `${$("form").offsetHeight}px`)).observe($("form"));
   railInert();
   narrow.addEventListener("change", () => { if (!narrow.matches) closeRail(); railInert(); });
   try {
@@ -1314,6 +1371,17 @@ async function boot() {
     const t = turns[+el.id.slice(5)];
     if (d.open) t.open.add(d.dataset.k); else t.open.delete(d.dataset.k);
   }, true);
+  $("lanes").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-copy]");
+    if (!b) return;
+    try {
+      await navigator.clipboard.writeText(turns[+b.dataset.copy].result.restored);
+      b.textContent = "Copied";
+      setTimeout(() => { b.textContent = "Copy"; }, 1600);
+    } catch (err) {
+      toast("Could not copy. Select the reply text and copy it instead.");
+    }
+  });
   // "Include anyway": open the reason box, then send the same message again with the override
   $("lanes").addEventListener("click", (e) => {
     const b = e.target.closest("[data-inc]");
