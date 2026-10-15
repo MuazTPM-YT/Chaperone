@@ -1,8 +1,12 @@
 import json
+from dataclasses import replace
 
+import httpx
 import pytest
 
+from chaperone import detect as detect_mod
 from chaperone import gateway
+from chaperone.detect import detect
 from chaperone.policy import Flow
 from chaperone.transform import OutboundLeak, Vault, guard, restore
 
@@ -214,3 +218,50 @@ def test_page_is_revalidated_so_an_update_is_never_stale():
     from chaperone.app import app
 
     assert TestClient(app, base_url="http://127.0.0.1").get("/").headers["cache-control"] == "no-cache"
+
+
+# ---------- local checks offline: external sends stop, internal ones go out with a warning ----------
+
+OFFLINE_NOTE = "Priya is on leave, she’s started tamoxifen."
+
+
+@pytest.fixture
+def local_model_down(monkeypatch):
+    monkeypatch.setattr(detect_mod, "OLLAMA_URL", "http://127.0.0.1:9")  # nothing listens here
+    detect_mod._CACHE.clear()
+
+
+@pytest.fixture
+def context_up(monkeypatch):
+    monkeypatch.setattr(gateway, "detect_cached", lambda text, use_context=True, model=None:
+                        replace(detect(text, use_context=False), context_ok=True))
+
+
+def test_external_is_refused_when_local_checks_are_offline(llm, local_model_down):
+    r = gateway.chat(OFFLINE_NOTE, EXTERNAL, "s1")
+    assert r["blocked"] and not r["sent"] and llm.calls == []
+    assert r["block_reason"]["rule"] == "local-checks-offline"
+    line = json.loads(gateway.AUDIT_PATH.read_text())
+    assert line["blocked"] and not line["sent"] and line["block_rule"] == "local-checks-offline"
+
+
+def test_internal_still_goes_out_with_the_offline_warning(llm, local_model_down):
+    r = gateway.chat(OFFLINE_NOTE, Flow("Manager", "internal", "general"), "s1")
+    assert r["sent"] and not r["blocked"] and len(llm.calls) == 1
+    assert r["context_ok"] is False and r["attack"]["skipped"] == "local AI unavailable"
+
+
+def test_attacker_failing_mid_check_refuses_external(monkeypatch, llm, context_up):
+    def down(*a, **k):
+        raise httpx.ConnectError("connection refused")
+
+    monkeypatch.setattr(gateway.attack, "timed_attack", down)
+    r = gateway.chat(OFFLINE_NOTE, EXTERNAL, "s1")
+    assert r["blocked"] and r["block_reason"]["rule"] == "local-checks-offline" and llm.calls == []
+
+
+def test_online_checks_send_external_as_before(monkeypatch, llm, context_up):
+    monkeypatch.setattr(gateway.attack, "attack", lambda *a, **k: [])
+    r = gateway.chat(OFFLINE_NOTE, EXTERNAL, "s1")
+    assert r["sent"] and not r["blocked"] and r["attack"]["ran"] and len(llm.calls) == 1
+    assert "[PERSON_1]" in llm.calls[0]["messages"][-1]["content"]

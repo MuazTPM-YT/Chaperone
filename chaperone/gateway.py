@@ -120,7 +120,11 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
         for rnd in range(attack.MAX_ROUNDS + 1):
             if outbound is None:
                 break
-            r, infs = attack.timed_attack(outbound, earlier, flow, rnd, model)
+            try:
+                r, infs = attack.timed_attack(outbound, earlier, flow, rnd, model)
+            except (httpx.HTTPError, json.JSONDecodeError, KeyError):
+                skipped = "local AI unavailable"  # the model went away mid-check
+                break
             rounds.append(r)
             live = [inf for inf in infs if inf.forbidden and not inf.disclosed]
             on_step("attack", {"round": rnd, "ms": r.ms, "found": [inf.guess for inf in live], "skipped": ""})
@@ -137,7 +141,13 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
     if skipped:
         on_step("attack", {"round": None, "ms": 0, "found": [], "skipped": skipped})
     blocker: Decision | None
-    if unresolved:
+    # without the local checks only IDs and names were looked at: fail closed for anything leaving the organisation
+    checks_down = use_context and (not det.context_ok or skipped == "local AI unavailable")
+    if checks_down and flow.destination == "external" and outbound is not None:
+        outbound = None
+        blocker = Decision("block", "local-checks-offline",
+                           "Local checks are offline, so nothing goes to an external AI.", "request")
+    elif unresolved:
         outbound = None
         guesses = "; ".join(sorted({inf.guess for inf in unresolved}))
         blocker = Decision("block", "attacker-not-cleared",
@@ -297,6 +307,7 @@ def audit(session_id: str, result: dict) -> None:
         "session": _tag(key, session_id),
         "flow": result["flow"],
         "blocked": result["blocked"],
+        "block_rule": result["block_reason"]["rule"] if result["block_reason"] else None,
         "sent": result["sent"],
         "recipient": recipient(result["flow"]["destination"]) if result["sent"] else None,
         "context_ok": result["context_ok"],
