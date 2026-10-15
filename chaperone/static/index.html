@@ -157,7 +157,7 @@ h1, h2, h3, p { margin: 0; }
 /* lanes are symmetric and centred, so the laptop edge sits half a gap right of the middle column, at the same x on every box */
 .stage-wrap { --edge: calc(50% + var(--mid) / 2 + var(--g) / 2); --outside-bg: repeating-linear-gradient(-45deg, var(--hatch) 0 1px, transparent 1px 11px), var(--outside);
   position: relative; min-height: 0; min-width: 0; }
-.stage { position: absolute; inset: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; overscroll-behavior: contain;
+.stage { position: absolute; inset: 0; overflow-y: auto; scrollbar-gutter: stable; overscroll-behavior: contain;
   background: linear-gradient(90deg, var(--paper) var(--edge), transparent var(--edge)) local, var(--outside-bg); background-attachment: local; }
 .lanes { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) var(--mid) minmax(0, 1fr); max-width: 1680px; margin: 0 auto;
   column-gap: var(--g); padding: 0 22px calc(var(--composer-h, 130px) + 20px); min-height: 100%; align-content: start; }
@@ -229,7 +229,8 @@ h1, h2, h3, p { margin: 0; }
 .md > :last-child { margin-bottom: 0; }
 
 /* marks */
-mark { color: inherit; border-radius: 5px; padding: 1px 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; unicode-bidi: isolate; }
+/* negative margin cancels the padding, so "Priya's" keeps its spacing with the highlight on */
+mark { color: inherit; border-radius: 5px; padding: 1px 3px; margin: 0 -2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; unicode-bidi: isolate; }
 mark.pass { background: var(--pass-bg); }
 mark.pseudonymize { background: var(--pseudo-bg); }
 mark.generalize { background: var(--gen-bg); }
@@ -327,7 +328,8 @@ details.more[open] > summary svg { transform: rotate(90deg); }
 
 /* ---------- composer ---------- */
 /* the composer floats over the lanes; its backdrop repeats them and fades out upward, so there is no seam */
-.composer { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; padding: 26px 22px max(14px, env(safe-area-inset-bottom)); pointer-events: none; isolation: isolate; }
+/* stops at the scrollbar (--sb), so the scrollbar stays usable and both share the lanes' centre */
+.composer { position: absolute; left: 0; right: var(--sb, 0px); bottom: 0; z-index: 6; padding: 26px 22px max(14px, env(safe-area-inset-bottom)); pointer-events: none; isolation: isolate; }
 .composer > * { pointer-events: auto; }
 .composer::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: linear-gradient(90deg, var(--paper) var(--edge), transparent var(--edge)), var(--outside-bg);
@@ -361,7 +363,8 @@ dialog[open] { animation: pop 260ms var(--ease); }
 .dlg-h { position: sticky; top: 0; z-index: 2; display: flex; align-items: flex-start; gap: 16px; padding: 18px 20px 14px; background: var(--paper); border-bottom: 1px solid var(--line); }
 .dlg-h h2 { font-size: 18px; font-weight: 690; letter-spacing: -0.025em; }
 .dlg-h p { font-size: 13px; color: var(--muted); margin-top: 3px; max-width: 70ch; }
-.dlg-h .icon-btn { margin-left: auto; flex: none; background: var(--fill); }
+.dlg-h > form { margin-left: auto; flex: none; }
+.dlg-h .icon-btn { background: var(--fill); }
 .dlg-b { padding: 18px 20px 22px; }
 .cmp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 .cmp-col { border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-1); padding: 14px 16px 16px; display: grid; gap: 12px; align-content: start; }
@@ -991,13 +994,20 @@ function mountTurn(i) {
     el.setAttribute("aria-label", `Message ${i + 1}`);
     $("lanes").append(el);
   }
-  const stick = nearBottom();
   el.innerHTML = turnHtml(t, i);
-  if (stick) scrollDown();
+  if (t.follow) follow(el);
 }
 
-function nearBottom() { const s = $("stage"); return s.scrollHeight - s.scrollTop - s.clientHeight < 160; }
-function scrollDown() { const s = $("stage"); requestAnimationFrame(() => s.scrollTo({ top: s.scrollHeight, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })); }
+// keep a live turn in view: all of it while it fits, its start once it is taller than the screen, so the steps are never scrolled past
+function follow(el) {
+  const s = $("stage");
+  requestAnimationFrame(() => {
+    const top = el.offsetTop - document.querySelector(".lane-heads").offsetHeight - 8, end = s.scrollHeight - s.clientHeight;
+    s.scrollTo({ top: Math.max(0, Math.min(top, end)), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  });
+}
+// the reader scrolled: stop following
+function stopFollow() { for (const t of turns) t.follow = false; }
 
 function renderLedger() {
   const t = [...turns].reverse().find((x) => x.result);
@@ -1077,7 +1087,7 @@ async function send(ev) {
   if (busy || !text) return;
   const body = flowBody(text);
   const t = { text, flow: { role: body.role, destination: body.destination, purpose: body.purpose, pack: body.pack, use_context: body.use_context },
-    steps: { attack: [] }, result: null, error: "", baseline: undefined, seen: new Set(), open: new Set() };
+    steps: { attack: [] }, result: null, error: "", baseline: undefined, seen: new Set(), open: new Set(), follow: true };
   turns.push(t);
   const i = turns.length - 1;
   busy = true;
@@ -1086,8 +1096,9 @@ async function send(ev) {
   syncSend();
   $("hero").hidden = true;
   $("main").classList.remove("is-empty");
+  stopFollow();
+  t.follow = true;
   mountTurn(i);
-  scrollDown();
   try {
     await stream("/api/chat/stream", body, (e) => {
       if (e.step === "attack") t.steps.attack.push(e);
@@ -1309,7 +1320,14 @@ async function boot() {
     try { localStorage.setItem("fg-theme", theme); } catch (e) { /* private mode: the choice lasts this page only */ }
     applyTheme(theme);
   });
-  new ResizeObserver(() => $("main").style.setProperty("--composer-h", `${$("form").offsetHeight}px`)).observe($("form"));
+  const measure = () => {
+    $("main").style.setProperty("--composer-h", `${$("form").offsetHeight}px`);
+    $("main").style.setProperty("--sb", `${$("stage").offsetWidth - $("stage").clientWidth}px`);
+  };
+  new ResizeObserver(measure).observe($("form"));
+  new ResizeObserver(measure).observe($("stage"));
+  for (const ev of ["wheel", "touchmove"]) $("stage").addEventListener(ev, stopFollow, { passive: true });
+  $("stage").addEventListener("keydown", stopFollow);
   railInert();
   narrow.addEventListener("change", () => { if (!narrow.matches) closeRail(); railInert(); });
   try {
