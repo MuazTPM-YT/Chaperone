@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import gateway
@@ -23,6 +24,8 @@ LOCK = threading.Lock()
 DEV = os.environ.get("CHAPERONE_DEV") == "1"
 
 app = FastAPI(title="Chaperone")
+# fonts ship with the app, so the page needs no internet
+app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
 
 MAX_TEXT = 4000  # about a page; keeps the local model's 4k-token window safe

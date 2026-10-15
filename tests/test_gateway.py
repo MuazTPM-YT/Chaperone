@@ -197,3 +197,12 @@ def test_stream_endpoint_sends_steps_then_the_full_result(llm):
     assert [e["step"] for e in events] == ["detect", "decide", "attack", "ready", "guard", "reply", "restore", "result"]
     result = events[-1]["result"]
     assert result["sent"] and "98450" not in result["outbound"] and result["spans"]
+
+
+def test_bundled_fonts_are_served_for_offline_use():
+    from fastapi.testclient import TestClient
+
+    from chaperone.app import app
+
+    res = TestClient(app).get("/static/fonts/inter-latin-opsz-normal.woff2")
+    assert res.status_code == 200 and res.content[:4] == b"wOF2"
