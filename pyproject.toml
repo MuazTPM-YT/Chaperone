@@ -53,3 +53,5 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# `pytest -m "not ollama"` runs everything that works without a local model
+markers = ["ollama: needs Ollama running with qwen2.5:3b"]

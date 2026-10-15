@@ -9,6 +9,7 @@ from chaperone import gateway
 from chaperone.policy import Flow
 
 SCENARIOS = json.loads((Path(gateway.__file__).parent / "scenarios.json").read_text())
+pytestmark = pytest.mark.ollama
 
 
 @pytest.mark.parametrize("sc", SCENARIOS, ids=[s["id"] for s in SCENARIOS])
