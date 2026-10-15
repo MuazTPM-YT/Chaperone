@@ -87,7 +87,7 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
     overrides: list[dict] = []
     if use_purpose and outbound is not None:
         wanted = {(i["label"], canonical(i["label"], i["text"])): i.get("reason", "") for i in include or []}
-        task = purpose.TASKS.get(flow.purpose, flow.purpose)
+        task = purpose.task(flow.purpose)
         for k, a in enumerate(applied):
             if a.decision.action not in ("pass", "pseudonymize", "generalize") or not purpose.omits(flow.purpose, a.span.label):
                 continue
@@ -308,6 +308,15 @@ def audit(session_id: str, result: dict) -> None:
     }
     line["overrides"] = [{"label": o["label"], "value_hmac": tag(o["label"], o["text"]),
                           "reason": mask_reason(o["reason"])} for o in result.get("overrides", [])]
+    _append(key, line)
+
+
+# something other than a request, e.g. a rule change: sealed into the same chain, so it cannot be quietly removed
+def audit_event(event: str, data: dict) -> None:
+    _append(_audit_key(), {"ts": datetime.now(UTC).isoformat(timespec="seconds"), "event": event, **data})
+
+
+def _append(key: bytes, line: dict) -> None:
     AUDIT_PATH.parent.mkdir(exist_ok=True)
     with AUDIT_PATH.open("a+b") as f:
         fcntl.flock(f, fcntl.LOCK_EX)  # the web app and the MCP server may write at the same time
@@ -424,6 +433,8 @@ def processing_record() -> str:
     lines = AUDIT_PATH.read_text().splitlines() if AUDIT_PATH.exists() else []
     for raw in lines:
         e = json.loads(raw)
+        if "decisions" not in e:
+            continue  # a rule change or other event, not a request
         d, f = e["decisions"], e["flow"]
         sent = sorted({x["label"] for x in d if x["action"] in SENT_ACTIONS}) if e.get("sent") else []
         held = sorted({x["label"] for x in d} - set(sent))

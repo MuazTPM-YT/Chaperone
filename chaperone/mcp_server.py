@@ -4,32 +4,37 @@
 import json
 import sys
 
-from . import gateway
-from .app import MAX_TEXT, PURPOSES, ROLES
-from .policy import PACKS, Flow
+from . import gateway, policy
+from .app import MAX_TEXT
+from .policy import Flow
 
 PROTOCOL = "2025-06-18"
-FLOW_ARGS = {
-    "text": {"type": "string", "maxLength": MAX_TEXT, "description": "The message the agent wants to send."},
-    "role": {"type": "string", "enum": ROLES, "description": "Who in the organisation is sending it."},
-    "destination": {"type": "string", "enum": ["internal", "external"],
-                    "description": "internal = the organisation's own model; external = a third-party AI service."},
-    "purpose": {"type": "string", "enum": PURPOSES, "description": "What the message is for."},
-    "pack": {"type": "string", "enum": list(PACKS), "default": "default"},
-    "session_id": {"type": "string", "default": "mcp",
-                   "description": "Same id across calls keeps placeholders stable and lets the attacker see earlier messages."},
-}
 REQUIRED = ["text", "role", "destination", "purpose"]
-TOOLS = [
-    {"name": "chaperone_check",
-     "description": "Dry run. Shows what would leave for this flow (placeholders, vague wording, omitted identifiers) and "
-                    "what a local attacker could still infer. Nothing is sent anywhere.",
-     "inputSchema": {"type": "object", "properties": FLOW_ARGS, "required": REQUIRED}},
-    {"name": "chaperone_send",
-     "description": "Send through Chaperone: the protected text goes to the flow's model, the reply comes back with real "
-                    "values restored locally. Refuses to send if the local attacker is not cleared.",
-     "inputSchema": {"type": "object", "properties": FLOW_ARGS, "required": REQUIRED}},
-]
+
+
+# built per call: roles, purposes and rule packs come from the rule files, which can change while the server runs
+def tools() -> list[dict]:
+    p = policy.current()
+    args = {
+        "text": {"type": "string", "maxLength": MAX_TEXT, "description": "The message the agent wants to send."},
+        "role": {"type": "string", "enum": list(p.roles), "description": "Who in the organisation is sending it."},
+        "destination": {"type": "string", "enum": list(policy.DESTINATIONS),
+                        "description": "internal = the organisation's own model; external = a third-party AI service."},
+        "purpose": {"type": "string", "enum": list(p.purposes), "description": "What the message is for."},
+        "pack": {"type": "string", "enum": list(p.packs), "default": "default"},
+        "session_id": {"type": "string", "default": "mcp",
+                       "description": "Same id across calls keeps placeholders stable and lets the attacker see earlier messages."},
+    }
+    return [
+        {"name": "chaperone_check",
+         "description": "Dry run. Shows what would leave for this flow (placeholders, vague wording, omitted identifiers) "
+                        "and what a local attacker could still infer. Nothing is sent anywhere.",
+         "inputSchema": {"type": "object", "properties": args, "required": REQUIRED}},
+        {"name": "chaperone_send",
+         "description": "Send through Chaperone: the protected text goes to the flow's model, the reply comes back with "
+                        "real values restored locally. Refuses to send if the local attacker is not cleared.",
+         "inputSchema": {"type": "object", "properties": args, "required": REQUIRED}},
+    ]
 
 
 class BadArgs(ValueError):
@@ -40,15 +45,16 @@ def _flow(args: dict) -> Flow:
     for key in REQUIRED:
         if not isinstance(args.get(key), str) or not args[key]:
             raise BadArgs(f"missing argument: {key}")
-    allowed = {"role": ROLES, "destination": ["internal", "external"], "purpose": PURPOSES}
+    p = policy.current()
+    allowed = {"role": list(p.roles), "destination": list(policy.DESTINATIONS), "purpose": list(p.purposes)}
     for key, values in allowed.items():
         if args[key] not in values:
             raise BadArgs(f"{key} must be one of {values}")
     if len(args["text"]) > MAX_TEXT:
         raise BadArgs(f"text is longer than {MAX_TEXT} characters")
     pack = args.get("pack", "default")
-    if pack not in PACKS:
-        raise BadArgs(f"pack must be one of {list(PACKS)}")
+    if pack not in p.packs:
+        raise BadArgs(f"pack must be one of {list(p.packs)}")
     return Flow(args["role"], args["destination"], args["purpose"], pack)
 
 
@@ -89,7 +95,7 @@ def handle(msg: dict) -> dict | None:
     elif method == "ping":
         result = {}
     elif method == "tools/list":
-        result = {"tools": TOOLS}
+        result = {"tools": tools()}
     elif method == "tools/call":
         params = msg.get("params", {})
         try:

@@ -107,7 +107,7 @@ def test_message_length_is_bounded():
 
     from chaperone.app import MAX_TEXT, app
 
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://127.0.0.1")
     body = {"session_id": "s", "role": "Manager", "destination": "external", "purpose": "general"}
     assert client.post("/api/chat", json={**body, "text": "x" * (MAX_TEXT + 1)}).status_code == 422
     assert client.post("/api/chat", json={**body, "text": ""}).status_code == 422
@@ -148,7 +148,7 @@ def test_compare_runs_one_message_through_several_flows_without_sending(llm):
 
     from chaperone.app import app
 
-    r = TestClient(app).post("/api/compare", json={"text": DISCHARGE, "use_context": False}).json()
+    r = TestClient(app, base_url="http://127.0.0.1").post("/api/compare", json={"text": DISCHARGE, "use_context": False}).json()
     assert [x["flow"]["role"] + "/" + x["flow"]["destination"] for x in r["runs"]] == [
         "Doctor/internal", "Doctor/external", "Intern/external"]
     assert "Ramesh Rao" in r["runs"][0]["outbound"] and "Ramesh Rao" not in r["runs"][1]["outbound"]
@@ -191,7 +191,7 @@ def test_stream_endpoint_sends_steps_then_the_full_result(llm):
 
     body = {"session_id": "s-http", "text": DISCHARGE, "role": "Doctor", "destination": "external",
             "purpose": "clinical_summary", "use_context": False}
-    with TestClient(app).stream("POST", "/api/chat/stream", json=body) as res:
+    with TestClient(app, base_url="http://127.0.0.1").stream("POST", "/api/chat/stream", json=body) as res:
         assert res.headers["content-type"].startswith("application/x-ndjson")
         events = [json.loads(line) for line in res.iter_lines() if line]
     assert [e["step"] for e in events] == ["detect", "decide", "attack", "ready", "guard", "reply", "restore", "result"]
@@ -204,7 +204,7 @@ def test_bundled_fonts_are_served_for_offline_use():
 
     from chaperone.app import app
 
-    res = TestClient(app).get("/static/fonts/inter-latin-opsz-normal.woff2")
+    res = TestClient(app, base_url="http://127.0.0.1").get("/static/fonts/inter-latin-opsz-normal.woff2")
     assert res.status_code == 200 and res.content[:4] == b"wOF2"
 
 
@@ -213,4 +213,4 @@ def test_page_is_revalidated_so_an_update_is_never_stale():
 
     from chaperone.app import app
 
-    assert TestClient(app).get("/").headers["cache-control"] == "no-cache"
+    assert TestClient(app, base_url="http://127.0.0.1").get("/").headers["cache-control"] == "no-cache"

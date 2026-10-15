@@ -1,6 +1,6 @@
 import pytest
 
-from chaperone import gateway
+from chaperone import gateway, policy
 
 
 @pytest.fixture(autouse=True)
@@ -10,6 +10,7 @@ def env(monkeypatch, tmp_path):
         monkeypatch.setenv(f"{dest}_LLM_MODEL", "stub")
     monkeypatch.setenv("AUDIT_HMAC_KEY", "test-key-not-secret")
     monkeypatch.setattr(gateway, "AUDIT_PATH", tmp_path / "audit.jsonl")
+    monkeypatch.setattr(policy, "LOCAL_PATH", tmp_path / "policies.local.yaml")  # tests never touch real edits
     gateway.SESSIONS.clear()
 
 

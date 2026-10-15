@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from chaperone import policy
 from chaperone.gateway import analyze
 from chaperone.policy import Flow
 from chaperone.transform import value_pattern
@@ -20,10 +21,11 @@ from chaperone.transform import value_pattern
 LABELS = ["AADHAAR", "PAN", "GSTIN", "IFSC", "UPI", "PHONE", "EMAIL", "VEHICLE", "PERSON", "ORG", "LOCATION",
           "AGE", "DATE", "HEALTH", "COMPENSATION", "MNPI", "HR", "LEGAL"]
 SEMANTIC = ["HEALTH", "COMPENSATION", "MNPI", "HR", "LEGAL"]
-ROLES = ["HR", "Manager", "Sales", "Intern", "Doctor", "Accountant"]
-DESTINATIONS = ["internal", "external"]
-PURPOSES = ["scheduling", "hr_summary", "marketing", "clinical_summary", "invoicing", "general"]
-ACTIONS = ["pass", "pseudonymize", "generalize", "block"]
+# roles, purposes and actions come from the rule files, like everywhere else
+ROLES = list(policy.current().roles)
+DESTINATIONS = list(policy.DESTINATIONS)
+PURPOSES = list(policy.current().purposes)
+ACTIONS = list(policy.ACTIONS)
 
 # Presidio entity -> our label. DATE_TIME left out of scoring: it also covers "next week", a wider definition.
 PRESIDIO_MAP = {"IN_AADHAAR": "AADHAAR", "IN_PAN": "PAN", "IN_GSTIN": "GSTIN", "IN_VEHICLE_REGISTRATION": "VEHICLE",

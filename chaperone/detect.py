@@ -155,6 +155,8 @@ NER_MODEL = os.environ.get("NER_MODEL", "urchade/gliner_small-v2.1")
 NER_LABELS = {"person name": ("PERSON", "individual"), "organization": ("ORG", "business"),
               "location": ("LOCATION", "unknown")}
 NER_THRESHOLD = {"PERSON": 0.5, "ORG": 0.6, "LOCATION": 0.6}
+# every label a detector can produce: the vocabulary policy rules are checked against
+LABELS = (*RX, *(label for label, _ in NER_LABELS.values()), *SEMANTIC)
 # acronyms and role nouns GLiNER likes to call entities
 NOT_ENTITIES = {"aadhaar", "pan", "gstin", "gst", "upi", "ifsc", "kyc", "tds", "pf", "ctc", "pip", "ca", "hr", "lpa",
                 "emi", "customer", "student", "patient", "client", "team", "company", "board", "manager", "doctor",

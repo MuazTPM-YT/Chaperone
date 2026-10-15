@@ -63,7 +63,7 @@ def test_lines_from_before_the_seal_are_counted_not_trusted(llm):
 
 def test_report_and_seal_endpoints(llm):
     gateway.chat("Suresh Kumar needs a KYC update.", EXTERNAL, "s1", use_context=False)
-    client = TestClient(app)
+    client = TestClient(app, base_url="http://127.0.0.1")
     r = client.post("/api/person-report", json={"value": "Suresh Kumar"}).json()
     assert r["matches"] == 1 and r["log"]["ok"]
     assert client.post("/api/person-report", json={"value": "x"}).status_code == 422

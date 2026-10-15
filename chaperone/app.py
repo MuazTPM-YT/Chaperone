@@ -5,25 +5,28 @@ import threading
 import traceback
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import gateway
-from .detect import CONTEXT_MODEL
-from .policy import PACKS, Flow
+from . import gateway, policy
+from .detect import CONTEXT_MODEL, LABELS
+from .policy import Flow, PolicyError
 from .transform import Vault
 
 HERE = Path(__file__).parent
-ROLES = ["Manager", "HR", "Sales", "Intern", "Doctor", "Accountant"]
-PURPOSES = ["general", "scheduling", "hr_summary", "marketing", "clinical_summary", "invoicing"]
 # ponytail: one request at a time; vaults and GLiNER are not shared safely across threads
 LOCK = threading.Lock()
 # dev-only: worst-case scenarios behind a toggle, never shown in a normal run
 DEV = os.environ.get("CHAPERONE_DEV") == "1"
+# rule editing in the UI; off unless whoever starts the server turns it on, so staff cannot loosen their own checks
+ADMIN = os.environ.get("CHAPERONE_ADMIN") == "1"
 
 app = FastAPI(title="Chaperone")
+# a web page that rebinds its own domain to 127.0.0.1 still sends that domain as Host: refuse it
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 # fonts ship with the app, so the page needs no internet
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
@@ -43,7 +46,7 @@ class ChatIn(BaseModel):
 
 
 def _pack(name: str) -> str:
-    return name if name in PACKS else "default"
+    return name if name in policy.current().packs else "default"
 
 
 @app.get("/")
@@ -55,10 +58,12 @@ def index() -> FileResponse:
 @app.get("/api/meta")
 def meta(data: str = "") -> dict:
     fixture = "scenarios_worst.json" if DEV and data == "worst" else "scenarios.json"
-    return {"roles": ROLES, "destinations": ["internal", "external"], "purposes": PURPOSES,
+    p = policy.current()
+    return {"roles": list(p.roles), "destinations": list(policy.DESTINATIONS), "purposes": list(p.purposes),
+            "purpose_labels": {pid: x["label"] for pid, x in p.purposes.items()},
             "scenarios": json.loads((HERE / fixture).read_text()), "dev": DEV, "max_text": MAX_TEXT,
-            "packs": [{"id": "default", "name": "Standard rules"}, {"id": "safe_harbor", "name": "HIPAA Safe Harbor mode"}],
-            "context_model": CONTEXT_MODEL,
+            "packs": [{"id": k.id, "name": k.name, "description": k.description} for k in p.packs.values()],
+            "admin": ADMIN, "policy_error": p.error, "context_model": CONTEXT_MODEL,
             "endpoints": {"internal": gateway.recipient("internal"), "external": gateway.recipient("external")}}
 
 
@@ -122,6 +127,86 @@ def compare(body: CompareIn) -> dict:
 def baseline(body: ChatIn) -> dict:
     with LOCK:
         return gateway.baseline(body.text, Flow(body.role, body.destination, body.purpose, _pack(body.pack)))
+
+
+# ---------- rules: everyone may read them; only admin mode may change them ----------
+
+def _policies_view() -> dict:
+    p = policy.current()
+    return {
+        "packs": [{"id": k.id, "name": k.name, "description": k.description, "extends": k.extends, "edited": k.edited,
+                   "rules": list(k.own)} for k in p.packs.values()],
+        "purposes": [{"id": pid, **x} for pid, x in p.purposes.items()],
+        "edited_purposes": p.edited_purposes, "error": p.error, "admin": ADMIN,
+        "vocabulary": {"label": list(LABELS), "subject": list(policy.SUBJECTS), "role": list(p.roles),
+                       "destination": list(policy.DESTINATIONS), "purpose": list(p.purposes),
+                       "action": list(policy.ACTIONS), "minimisable": list(policy.MINIMISABLE)},
+    }
+
+
+def _admin() -> None:
+    if not ADMIN:
+        raise HTTPException(403, "Rule editing is off. Start the server with CHAPERONE_ADMIN=1 to turn it on.")
+
+
+class PolicyIn(BaseModel):
+    rules: list[dict] = Field(max_length=500)
+    purposes: dict[str, dict] | None = None
+
+
+class PreviewIn(PolicyIn):
+    pack: str
+    text: str = Field(min_length=1, max_length=MAX_TEXT)
+    role: str
+    destination: str
+    purpose: str
+    use_context: bool = True
+
+
+@app.get("/api/policies")
+def policies() -> dict:
+    return _policies_view()
+
+
+@app.put("/api/policies/{pack}")
+def save_policies(pack: str, body: PolicyIn) -> dict:
+    _admin()
+    with LOCK:
+        try:
+            before, after = policy.save_local(pack, body.rules, body.purposes)
+        except PolicyError as exc:
+            raise HTTPException(422, str(exc)) from None
+        gateway.audit_event("policy_change", {"pack": pack, "before": before, "after": after})
+        return _policies_view()
+
+
+@app.delete("/api/policies/{pack}")
+def reset_policies(pack: str) -> dict:
+    _admin()
+    with LOCK:
+        try:
+            before, after = policy.reset_local(pack)
+        except PolicyError as exc:
+            raise HTTPException(422, str(exc)) from None
+        gateway.audit_event("policy_reset", {"pack": pack, "before": before, "after": after})
+        return _policies_view()
+
+
+# the same message under the saved rules and under the edited ones; dry runs, nothing is sent or saved
+@app.post("/api/policies/preview")
+def preview_policies(body: PreviewIn) -> dict:
+    _admin()
+    flow = Flow(body.role, body.destination, body.purpose, _pack(body.pack))
+    with LOCK:
+        before = gateway.analyze(body.text, flow, Vault(), body.use_context)
+        try:
+            with policy.preview(body.pack, body.rules, body.purposes):
+                after = gateway.analyze(body.text, flow, Vault(), body.use_context)
+        except PolicyError as exc:
+            raise HTTPException(422, str(exc)) from None
+    for r in (before, after):
+        r.pop("protected")
+    return {"before": before, "after": after}
 
 
 @app.get("/api/records.csv")

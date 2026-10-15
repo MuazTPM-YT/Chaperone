@@ -5,6 +5,8 @@
 # Items marked "our adaptation" map an Indian identifier onto a US category; they are not part of the US rule.
 # Not detected in text by this tool: (I) health plan beneficiary numbers, (K) certificate or licence numbers,
 # (M) device identifiers and serial numbers, (P) biometric identifiers, (Q) full-face photographs.
+name: HIPAA Safe Harbor mode
+description: "The US de-identification method (45 CFR 164.514(b)(2)). It is not a claim that anyone meets HIPAA."
 extends: policies.yaml
 
 rules:
