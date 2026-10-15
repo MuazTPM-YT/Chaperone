@@ -161,3 +161,39 @@ def test_processing_record_lists_categories_and_no_raw_values(llm):
     assert rows[0].startswith("time_utc,conversation,sender_role") and len(rows) == 2
     assert "Doctor,external,clinical_summary,default,True,False" in rows[1] and "PERSON" in rows[1]
     assert "Ramesh" not in rows[1] and "98450" not in rows[1]
+
+
+def test_steps_are_reported_in_pipeline_order(llm):
+    llm.reply = "Noted for [PERSON_1]."
+    steps = []
+    r = gateway.chat(DISCHARGE, CLINIC, "s-st", use_context=False, on_step=lambda step, data: steps.append((step, data)))
+    assert [s for s, _ in steps] == ["detect", "decide", "attack", "ready", "guard", "reply", "restore"]
+    data = dict(steps)
+    assert {"label": "PHONE", "text": "98450 12345"} in [{k: i[k] for k in ("label", "text")} for i in data["detect"]["items"]]
+    assert data["decide"]["counts"]["omit"] == 1 and data["attack"]["skipped"] == "local AI unavailable"
+    assert data["ready"]["outbound"] == r["outbound"] and data["reply"]["reply"] == "Noted for [PERSON_1]."
+    assert data["restore"]["restored"] == r["restored"] == "Noted for Ramesh Rao."
+
+
+def test_guard_refusal_ends_the_steps_before_sending(monkeypatch, llm):
+    real_apply = gateway.apply
+    monkeypatch.setattr(gateway, "apply", lambda text, *a: (text, real_apply(text, *a)[1]))
+    steps = []
+    gateway.chat(f"Aadhaar {AADHAAR} is wrong.", EXTERNAL, "s-g", use_context=False,
+                 on_step=lambda step, data: steps.append(step))
+    assert steps == ["detect", "decide", "attack", "ready"] and llm.calls == []
+
+
+def test_stream_endpoint_sends_steps_then_the_full_result(llm):
+    from fastapi.testclient import TestClient
+
+    from chaperone.app import app
+
+    body = {"session_id": "s-http", "text": DISCHARGE, "role": "Doctor", "destination": "external",
+            "purpose": "clinical_summary", "use_context": False}
+    with TestClient(app).stream("POST", "/api/chat/stream", json=body) as res:
+        assert res.headers["content-type"].startswith("application/x-ndjson")
+        events = [json.loads(line) for line in res.iter_lines() if line]
+    assert [e["step"] for e in events] == ["detect", "decide", "attack", "ready", "guard", "reply", "restore", "result"]
+    result = events[-1]["result"]
+    assert result["sent"] and "98450" not in result["outbound"] and result["spans"]

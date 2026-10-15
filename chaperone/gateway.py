@@ -8,6 +8,7 @@ import os
 import re
 import time
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from typing import BinaryIO
@@ -37,6 +38,15 @@ def system_prompt(outbound: str) -> str:
     return (BASE_PROMPT + (PLACEHOLDER_RULE if PLACEHOLDER.search(outbound) else "")
             + (VAGUE_RULE if VAGUE.search(outbound) else ""))
 
+
+# a live view of the pipeline: called as each step finishes, with that step's own data
+OnStep = Callable[[str, dict], None]
+
+
+def _quiet(step: str, data: dict) -> None:
+    pass
+
+
 # ponytail: in-memory sessions, lost on restart; fine for a single-user local gateway
 SESSIONS: dict[str, dict[str, Vault]] = {}
 
@@ -54,9 +64,13 @@ def vault_for(session_id: str, destination: str) -> Vault:
 
 # detect -> decide -> transform -> attack and tighten; no network except the local models
 def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model: str | None = None,
-            use_attack: bool = True, use_purpose: bool = True, include: list[dict] | None = None) -> dict:
+            use_attack: bool = True, use_purpose: bool = True, include: list[dict] | None = None,
+            on_step: OnStep = _quiet) -> dict:
     t0 = time.perf_counter()
     det = detect_cached(text, use_context=use_context, model=model)
+    on_step("detect", {"items": [{"label": s.label, "text": s.text, "source": s.source} for s in det.spans],
+                       "context_ok": det.context_ok, "ms": round((time.perf_counter() - t0) * 1000, 1)})
+    t_decide = time.perf_counter()
     spans = list(det.spans)
     decisions = []
     for s in spans:
@@ -86,6 +100,10 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
         if any(d.rule == "purpose-minimisation" for d in decisions):
             outbound, applied = apply(text, spans, decisions, vault)
     purpose_ms = (time.perf_counter() - t_purpose) * 1000
+    shown = Counter("omit" if a.decision.rule == "purpose-minimisation" else a.decision.action
+                    for a in applied if not a.covered)
+    on_step("decide", {"counts": dict(shown), "blocked": outbound is None,
+                       "ms": round((time.perf_counter() - t_decide) * 1000, 1)})
 
     earlier = [m["content"] for m in vault.history if m["role"] == "user"]
     rounds, unresolved, skipped = [], [], ""
@@ -105,6 +123,7 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
             r, infs = attack.timed_attack(outbound, earlier, flow, rnd, model)
             rounds.append(r)
             live = [inf for inf in infs if inf.forbidden and not inf.disclosed]
+            on_step("attack", {"round": rnd, "ms": r.ms, "found": [inf.guess for inf in live], "skipped": ""})
             if not live:
                 break
             if rnd == attack.MAX_ROUNDS:
@@ -115,6 +134,8 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
                 unresolved = live
                 break
             outbound, applied = apply(text, spans, decisions, vault)
+    if skipped:
+        on_step("attack", {"round": None, "ms": 0, "found": [], "skipped": skipped})
     blocker: Decision | None
     if unresolved:
         outbound = None
@@ -127,6 +148,7 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
     protected = list(vault.raw.values()) + [a.span.text for a in applied if a.decision.action != "pass"]
     timings = {**det.timings, "purpose_ms": purpose_ms, "attack_ms": (time.perf_counter() - t_attack) * 1000,
                "total_ms": (time.perf_counter() - t0) * 1000}
+    on_step("ready", {"outbound": outbound, "blocked": outbound is None, "ms": round(timings["total_ms"], 1)})
     return {
         "original": text,
         "flow": asdict(flow),
@@ -189,7 +211,7 @@ def _tighten(text: str, live: list, spans: list[Span], decisions: list[Decision]
 
 
 # the only door to an LLM: guard runs first, every time
-def send(destination: str, messages: list[dict], protected: list[str]) -> str:
+def send(destination: str, messages: list[dict], protected: list[str], on_step: OnStep = _quiet) -> str:
     # a value sent as typed in an earlier turn (the flow changed since) is already out; re-checking the history
     # for it would refuse every later message. The new message is still checked for every value.
     earlier = "\n".join(m["content"] for m in messages[1:-1])
@@ -197,6 +219,7 @@ def send(destination: str, messages: list[dict], protected: list[str]) -> str:
     guard(json.dumps(messages, ensure_ascii=False), fresh)
     guard("\n".join(m["content"] for m in messages), fresh)
     guard(messages[-1]["content"], protected)
+    on_step("guard", {"checked": len(protected)})
     prefix = destination.upper()
     base, model = need(f"{prefix}_LLM_BASE_URL"), need(f"{prefix}_LLM_MODEL")
     key = os.environ.get(f"{prefix}_LLM_API_KEY", "")
@@ -353,9 +376,10 @@ def person_report(value: str) -> dict:
     return {"matches": len(rows), "rows": rows, "log": verify_log()}
 
 
-def chat(text: str, flow: Flow, session_id: str, use_context: bool = True, include: list[dict] | None = None) -> dict:
+def chat(text: str, flow: Flow, session_id: str, use_context: bool = True, include: list[dict] | None = None,
+         on_step: OnStep = _quiet) -> dict:
     vault = vault_for(session_id, flow.destination)
-    result = analyze(text, flow, vault, use_context, include=include)
+    result = analyze(text, flow, vault, use_context, include=include, on_step=on_step)
     vault.sources.append(text)
     protected = result.pop("protected")
     result.update(reply=None, restored=None, restore_stats=None, restore_marks=[], flags=[], error=None, sent=False,
@@ -366,7 +390,7 @@ def chat(text: str, flow: Flow, session_id: str, use_context: bool = True, inclu
                     {"role": "user", "content": result["outbound"]}]
         t0 = time.perf_counter()
         try:
-            reply = send(flow.destination, messages, protected)
+            reply = send(flow.destination, messages, protected, on_step)
         except OutboundLeak as exc:
             result["error"] = f"Outbound guard refused to send: {exc}"
         except httpx.HTTPError as exc:
@@ -374,11 +398,14 @@ def chat(text: str, flow: Flow, session_id: str, use_context: bool = True, inclu
         else:
             result["sent"] = True
             result["timings"]["llm_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+            on_step("reply", {"reply": reply, "ms": result["timings"]["llm_ms"]})
             vault.history += [{"role": "user", "content": result["outbound"]},
                               {"role": "assistant", "content": reply}]
             result["reply"] = reply
             result["restored"], result["restore_stats"], result["restore_marks"] = restore_marked(reply, vault)
             result["flags"] = verify.check(result["restored"], vault.sources)
+            on_step("restore", {"restored": result["restored"], "stats": result["restore_stats"],
+                                "flags": len(result["flags"])})
             _record_exposure(vault, result)
     audit(session_id, result)
     return result

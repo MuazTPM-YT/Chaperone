@@ -1,10 +1,12 @@
 import json
 import os
+import queue
 import threading
+import traceback
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import gateway
@@ -61,6 +63,32 @@ def chat(body: ChatIn) -> dict:
     flow = Flow(body.role, body.destination, body.purpose, _pack(body.pack))
     with LOCK:
         return gateway.chat(body.text, flow, body.session_id, body.use_context, body.include)
+
+
+# same as /api/chat, but one JSON line per pipeline step as it finishes, then {"step": "result"} with the full result
+@app.post("/api/chat/stream")
+def chat_stream(body: ChatIn) -> StreamingResponse:
+    flow = Flow(body.role, body.destination, body.purpose, _pack(body.pack))
+    events: queue.Queue = queue.Queue()
+
+    def run() -> None:
+        try:
+            with LOCK:
+                result = gateway.chat(body.text, flow, body.session_id, body.use_context, body.include,
+                                      on_step=lambda step, data: events.put({"step": step, **data}))
+            events.put({"step": "result", "result": result})
+        except Exception as exc:  # noqa: BLE001 - the page needs an end to the stream; the terminal gets the details
+            traceback.print_exc()
+            events.put({"step": "error", "error": type(exc).__name__})
+        finally:
+            events.put(None)
+
+    def lines():
+        while (event := events.get()) is not None:
+            yield json.dumps(event, ensure_ascii=False) + "\n"
+
+    threading.Thread(target=run, daemon=True).start()
+    return StreamingResponse(lines(), media_type="application/x-ndjson", headers={"Cache-Control": "no-store"})
 
 
 class CompareIn(BaseModel):
