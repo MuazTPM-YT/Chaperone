@@ -58,6 +58,7 @@ class Decision:
 class Pack:
     id: str
     name: str
+    short: str  # for the rules switch in the top bar
     description: str
     extends: str  # id of the pack whose rules run after this one's, or ""
     own: tuple[dict, ...]  # this pack's rules, as edited
@@ -195,7 +196,8 @@ def _build(local: dict) -> Policies:
         _check_rules(rules, vocab, needs_catch_all=not extends)
         full = resolve(pid)
         _check_rules(full, vocab, needs_catch_all=True)
-        packs[pid] = Pack(pid, str(raw[pid].get("name") or pid), str(raw[pid].get("description") or ""),
+        name = str(raw[pid].get("name") or pid)
+        packs[pid] = Pack(pid, name, str(raw[pid].get("short") or name), str(raw[pid].get("description") or ""),
                           by_name.get(extends or "", ""), tuple(rules), tuple(full), edited)
     if unknown := set(local) - set(packs):
         raise PolicyError(f"data/policies.local.yaml: unknown rule pack {', '.join(sorted(unknown))}")

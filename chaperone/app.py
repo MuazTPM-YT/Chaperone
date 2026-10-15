@@ -62,7 +62,7 @@ def meta(data: str = "") -> dict:
     return {"roles": list(p.roles), "destinations": list(policy.DESTINATIONS), "purposes": list(p.purposes),
             "purpose_labels": {pid: x["label"] for pid, x in p.purposes.items()},
             "scenarios": json.loads((HERE / fixture).read_text()), "dev": DEV, "max_text": MAX_TEXT,
-            "packs": [{"id": k.id, "name": k.name, "description": k.description} for k in p.packs.values()],
+            "packs": [{"id": k.id, "name": k.name, "short": k.short, "description": k.description} for k in p.packs.values()],
             "admin": ADMIN, "policy_error": p.error, "context_model": CONTEXT_MODEL,
             "endpoints": {"internal": gateway.recipient("internal"), "external": gateway.recipient("external")}}
 
@@ -134,7 +134,8 @@ def baseline(body: ChatIn) -> dict:
 def _policies_view() -> dict:
     p = policy.current()
     return {
-        "packs": [{"id": k.id, "name": k.name, "description": k.description, "extends": k.extends, "edited": k.edited,
+        "packs": [{"id": k.id, "name": k.name, "short": k.short, "description": k.description, "extends": k.extends,
+                   "edited": k.edited,
                    "rules": list(k.own)} for k in p.packs.values()],
         "purposes": [{"id": pid, **x} for pid, x in p.purposes.items()],
         "edited_purposes": p.edited_purposes, "error": p.error, "admin": ADMIN,

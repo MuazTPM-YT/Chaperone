@@ -407,6 +407,58 @@ dialog[open] { animation: pop 260ms var(--ease); }
 .prow .when { color: var(--muted); font-variant-numeric: tabular-nums; }
 .seal { margin-top: 14px; font-size: 12.5px; color: var(--muted); }
 .empty { color: var(--muted); font-size: 13.5px; }
+
+/* rules panel */
+.rules-h { flex-wrap: wrap; }
+.rules-h > div:first-child { flex: 1 1 0; min-width: 0; }
+.rules-bar { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.rules-bar .grow { flex: 1; }
+.rules-bar .note-s { max-width: 46ch; }
+.pill.edited { background: var(--gen-bg); color: var(--gen); }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rule-card { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 0 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-1); scroll-margin: 140px; }
+.rule-card .n { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 3px; }
+.rule-card .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.rule-card .rid { font: 500 13px var(--mono); overflow-wrap: anywhere; }
+.rule-card .acts { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+.rule-card .why { margin-top: 6px; font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+.rule-card.flash { animation: flash 1800ms var(--ease); }
+@keyframes flash { 0%, 45% { box-shadow: var(--shadow-1), 0 0 0 3px var(--accent); } 100% { box-shadow: var(--shadow-1), 0 0 0 0 transparent; } }
+.conds { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.cond { font-size: 12px; padding: 2px 8px; border-radius: 7px; background: var(--fill); color: var(--ink-2); line-height: 1.6; }
+.cond b { font-weight: 600; color: var(--muted); margin-right: 4px; }
+.inherit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; padding: 12px 14px; border-radius: 14px; border: 1.5px dashed var(--line-2); color: var(--muted); font-size: 13px; }
+.rules-sec { margin-top: 26px; }
+.rules-sec > h3 { font-size: 15px; font-weight: 660; letter-spacing: -0.015em; margin-bottom: 4px; }
+.rules-sec > p { font-size: 13px; color: var(--muted); margin-bottom: 10px; max-width: 72ch; }
+.purp { display: grid; grid-template-columns: 170px minmax(0, 1fr); align-items: start; gap: 4px 16px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.purp:last-child { border-bottom: 0; }
+.purp .task { color: var(--muted); font-size: 12.5px; }
+.rule-link { border: 0; background: none; padding: 0; font: inherit; font-family: var(--mono); font-size: 11px; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+/* editing */
+.rule-card.edit { gap: 10px; }
+.rule-card.edit .rule-body { display: grid; gap: 10px; min-width: 0; }
+.fields { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; }
+.field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 520; }
+.input { border: 0; border-radius: 9px; padding: 7px 10px; background: var(--fill); color: var(--ink); font: inherit; font-size: 13.5px; min-width: 0; }
+.input.mono { font-family: var(--mono); font-size: 13px; }
+textarea.input { resize: vertical; min-height: 56px; line-height: 1.45; width: 100%; }
+.input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+.input[aria-invalid="true"] { outline: 2px solid var(--block); }
+.toggles { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px 10px; align-items: baseline; }
+.toggles > span { font-size: 12px; color: var(--muted); font-weight: 520; padding-top: 3px; }
+.tog-row { display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: 5px; }
+.tog { border: 0; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 560; background: var(--fill); color: var(--ink-2); transition: background-color 140ms ease, color 140ms ease, transform 140ms var(--press); }
+.tog:active { transform: scale(0.96); }
+.tog[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.tog:disabled { opacity: .45; cursor: not-allowed; }
+.any { font-size: 12px; color: var(--muted); }
+.add-rule { width: 100%; justify-content: center; border: 1.5px dashed var(--line-2); background: none; margin-bottom: 8px; }
+.try { display: grid; gap: 10px; }
+.try-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.payload { font: 13px/1.7 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px 12px; border-radius: 12px; background: var(--outside-card); box-shadow: inset 0 0 0 1px var(--line); }
+.try h4 { font-size: 12px; font-weight: 620; color: var(--muted); margin: 0 0 6px; }
+.changes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
 .toast { position: fixed; left: 0; right: 0; margin: 0 auto; bottom: max(22px, calc(env(safe-area-inset-bottom) + 12px)); z-index: 60; width: max-content; max-width: min(560px, calc(100vw - 32px));
   display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--ink); color: var(--paper); font-size: 13.5px; line-height: 1.45;
   box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .45); animation: rise 260ms var(--ease) both; }
@@ -417,6 +469,8 @@ dialog[open] { animation: pop 260ms var(--ease); }
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 86%, var(--accent)); }
   .btn-quiet:hover:not(:disabled), .btn-ghost:hover, .icon-btn:hover { background: var(--fill); }
+  .tog:hover:not([aria-pressed="true"]):not(:disabled) { background: var(--line); }
+  .add-rule:hover { background: var(--fill-2); }
   .select:hover { background-color: var(--line); }
   .select option:hover { background: var(--fill); }
   .sc-group button:hover:not([aria-current="true"]) { background: var(--fill-2); }
@@ -467,7 +521,7 @@ dialog[open] { animation: pop 260ms var(--ease); }
   .bubble { max-width: 100%; }
   .composer { padding: 18px 10px max(10px, env(safe-area-inset-bottom)); }
   .hints .keys { display: none; }
-  .prow { grid-template-columns: 1fr; }
+  .prow, .purp, .toggles { grid-template-columns: 1fr; }
 }
 /* short screens: the start screen must fit above the message box */
 @media (max-height: 860px) and (min-width: 861px) {
@@ -528,8 +582,7 @@ dialog[open] { animation: pop 260ms var(--ease); }
       <span>for</span>
       <select id="purpose" class="select" aria-label="Purpose: what the data may be used for"></select>
       <span>under</span>
-      <span class="seg" id="pack" role="group" aria-label="Rules"><span class="thumb" aria-hidden="true"></span>
-        <button type="button" data-v="default">Standard rules</button><button type="button" data-v="safe_harbor" title="HIPAA Safe Harbor mode: the US de-identification method (45 CFR 164.514(b)(2)). It is not a claim that anyone meets HIPAA.">Safe Harbor</button></span>
+      <span class="seg" id="pack" role="group" aria-label="Rules"><span class="thumb" aria-hidden="true"></span></span>
     </div>
     <div class="status">
       <span id="ctx-status" title="Local AI check"><span class="dot"></span><span class="txt">Local AI check: starting</span></span>
@@ -546,6 +599,10 @@ dialog[open] { animation: pop 260ms var(--ease); }
       <div id="ledger-block" hidden>
         <h2>What the external AI could know</h2>
         <ul class="ledger" id="ledger"></ul>
+      </div>
+      <h2>Rules</h2>
+      <div class="tools">
+        <button type="button" class="btn btn-ghost" id="rules-open"><span id="rules-open-label">View the rules</span><span class="dot off" id="rules-dot" hidden title="The rule file has an error"></span></button>
       </div>
       <h2>Records</h2>
       <div class="tools">
@@ -611,6 +668,15 @@ dialog[open] { animation: pop 260ms var(--ease); }
   <div class="dlg-b"><div class="cmp-grid" id="cmp-grid"></div></div>
 </dialog>
 
+<dialog id="rules-dlg" aria-labelledby="rules-title">
+  <div class="dlg-h rules-h">
+    <div><h2 id="rules-title">Rules</h2><p>Checked from top to bottom. The first rule that matches an item decides what happens to it.</p></div>
+    <form method="dialog"><button class="icon-btn" aria-label="Close"><svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></form>
+    <div class="rules-bar" id="rules-bar"></div>
+  </div>
+  <div class="dlg-b" id="rules-body" aria-live="polite"></div>
+</dialog>
+
 <dialog id="person-dlg" class="narrow" aria-labelledby="person-title">
   <div class="dlg-h">
     <div><h2 id="person-title">Person report</h2><p>Every logged request that carried this person's name or ID: when, where it went, and what happened to it. Matched by keyed hash; what you type is not stored.</p></div>
@@ -663,7 +729,13 @@ function label(l) { return LABEL[l] || l; }
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
 function maxText() { return (meta && meta.max_text) || 4000; }
-function purposeName(p) { return p === "hr_summary" ? "HR summary" : p.replace("_", " "); }
+// purpose and rule pack names come from the rule files; in a sentence, lower-case unless it starts with an acronym
+function purposeName(p) {
+  const l = (meta && meta.purpose_labels && meta.purpose_labels[p]) || p.replace(/_/g, " ");
+  return /^[A-Z]{2}/.test(l) ? l : l.charAt(0).toLowerCase() + l.slice(1);
+}
+function packShort(id) { const k = meta && meta.packs.find((x) => x.id === id); return k ? k.short : id; }
+function packNote(id) { return id && id !== "default" ? `, ${packShort(id)}` : ""; }
 function destName(d) { return d === "external" ? "External AI" : "Internal model"; }
 function destLower(d) { return d === "external" ? "external AI" : "internal model"; }
 function listJoin(xs) { return xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`; }
@@ -808,7 +880,7 @@ function decisionsHtml(r, turnIdx) {
     const canInclude = a === "omit" && !r.blocked;
     return `<li class="${s.covered ? "covered" : ""}"><div class="top"><span class="chip ${a}">${ACTION[a]}</span><span class="chip plain">${esc(label(s.label))}</span>${n > 1 ? `<span class="note-s">×${n}</span>` : ""}</div>
       <span class="val">${esc(s.text)}</span><span class="as">sent as ${becomes}</span>
-      <span class="why">${cap(`${who}found by ${SOURCE[s.source] || esc(s.source)}`)}${note}. Rule <span class="rule">${esc(s.rule)}</span>: ${esc(s.why)}</span>
+      <span class="why">${cap(`${who}found by ${SOURCE[s.source] || esc(s.source)}`)}${note}. Rule ${ruleRef(s.rule, r.flow.pack)}: ${esc(s.why)}</span>
       ${canInclude ? `<button type="button" class="chip-btn" data-inc="${turnIdx}:${i}">Include anyway</button>
         <form class="include-form" data-form="${turnIdx}:${i}" data-label="${esc(s.label)}" data-text="${esc(s.text)}" hidden><input type="text" minlength="8" maxlength="200" required placeholder="Why does this purpose need it?" aria-label="Reason (logged, names removed)"><button class="btn btn-quiet" type="submit">Include and send again</button></form>` : ""}</li>`;
   }).join("")}</ul>`;
@@ -951,7 +1023,7 @@ function outcomeHtml(t) {
   if (!r) return "";
   const time = `<span class="t">${secs(r.timings.total_ms)}${r.timings.llm_ms ? ` + AI ${secs(r.timings.llm_ms)}` : ""}</span>`;
   if (r.blocked) return `<div class="outcome stop">${ICON.stop}<span>Blocked. Nothing left this laptop.</span>${time}</div>
-    <p class="note-s" style="margin-top:6px">Rule <span class="rule">${esc(r.block_reason.rule)}</span>: ${esc(r.block_reason.why)}</p>`;
+    <p class="note-s" style="margin-top:6px">Rule ${ruleRef(r.block_reason.rule, r.flow.pack)}: ${esc(r.block_reason.why)}</p>`;
   if (!r.sent && (r.error || "").startsWith("Outbound guard")) return `<div class="outcome stop">${ICON.stop}<span>Not sent. The final check stopped it.</span>${time}</div>`;
   const changed = r.spans.filter((s) => !s.covered && s.action !== "pass").length;
   const what = changed ? `Sent with ${plural(changed, "change", "changes")}.` : "Sent as typed.";
@@ -960,7 +1032,7 @@ function outcomeHtml(t) {
 }
 
 function flowline(f) {
-  return `<p class="flowline"><b>${esc(f.role)}</b> to <b>${esc(destLower(f.destination))}</b>, for ${esc(purposeName(f.purpose))}${f.pack === "safe_harbor" ? ", Safe Harbor" : ""}</p>`;
+  return `<p class="flowline"><b>${esc(f.role)}</b> to <b>${esc(destLower(f.destination))}</b>, for ${esc(purposeName(f.purpose))}${esc(packNote(f.pack))}</p>`;
 }
 
 // animate a part only the first time it appears; later re-renders show it still
@@ -1289,6 +1361,355 @@ async function verifyLog() {
   }
 }
 
+
+// ---------- rules: anyone can read them; the server decides whether they can be edited ----------
+const WHEN_KEYS = ["label", "subject", "role", "destination", "purpose"];
+const KEY_NAME = { label: "Item", subject: "Whose data", role: "Sender", destination: "Sent to", purpose: "Purpose" };
+const SUBJECT = { individual: "A person", business: "A business", unknown: "Not known" };
+const COARSE = { "": "Default", year: "Year only", age90: "90 or older" };
+const rules = { data: null, tab: "default", editing: false, draft: [], purposes: [], error: "", preview: null, busy: false, armed: 0 };
+
+// fill the role and purpose lists and the rules switch; keeps the current choices when they still exist
+function applyMeta() {
+  const role = $("role").value, purpose = $("purpose").value;
+  $("role").innerHTML = meta.roles.map((r) => `<option>${esc(r)}</option>`).join("");
+  $("purpose").innerHTML = meta.purposes.map((p) => `<option value="${esc(p)}">${esc(meta.purpose_labels[p] || p)}</option>`).join("");
+  if (meta.roles.includes(role)) $("role").value = role;
+  if (meta.purposes.includes(purpose)) $("purpose").value = purpose;
+  $("pack").innerHTML = `<span class="thumb" aria-hidden="true"></span>` + meta.packs.map((k) =>
+    `<button type="button" data-v="${esc(k.id)}"${k.description ? ` title="${esc(k.description)}"` : ""}>${esc(k.short)}</button>`).join("");
+  if (!meta.packs.some((k) => k.id === pack)) pack = "default";
+  setPack(pack);
+  setPurposeLine();
+}
+
+async function refreshMeta() {
+  try { meta = { ...meta, ...(await (await fetch(`/api/meta?data=${encodeURIComponent(DATA)}`)).json()) }; applyMeta(); } catch (e) { /* keep the lists we have */ }
+}
+
+async function api(method, url, body) {
+  let res;
+  try {
+    res = await fetch(url, { method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
+  } catch (e) {
+    throw fail("Could not reach the gateway. Start it with <code>uv run --frozen python -m chaperone</code>, then try again.");
+  }
+  if (res.ok) return res.json();
+  let detail = "";
+  try { detail = (await res.json()).detail; } catch (e) { /* not JSON */ }
+  throw fail(typeof detail === "string" && detail ? esc(detail) : `The gateway answered with error ${res.status}. Its terminal shows the details.`);
+}
+
+async function loadRules() {
+  rules.data = await api("GET", "/api/policies");
+  $("rules-dot").hidden = !rules.data.error;
+  $("rules-open-label").textContent = rules.data.admin ? "View and edit the rules" : "View the rules";
+}
+
+function arr(v) { return v === undefined || v === null ? [] : Array.isArray(v) ? v : [v]; }
+function packData(id) { return rules.data && rules.data.packs.find((k) => k.id === id); }
+function valueName(key, v) {
+  return key === "label" ? label(v) : key === "subject" ? SUBJECT[v] || v : key === "destination" ? destName(v)
+    : key === "purpose" ? (meta.purpose_labels[v] || v) : v;
+}
+
+// which pack holds this rule, following "extends"; null for the gateway's own decisions (purpose, attacker, session)
+function rulePack(id, packId, seen = 0) {
+  const k = packData(packId);
+  if (!k || seen > 8) return null;
+  if (k.rules.some((r) => r.id === id)) return k.id;
+  return k.extends ? rulePack(id, k.extends, seen + 1) : null;
+}
+function ruleRef(id, packId) {
+  const at = rulePack(id, packId || "default");
+  return at ? `<button type="button" class="rule-link" data-rule="${esc(id)}" data-pack="${esc(at)}" title="Show this rule">${esc(id)}</button>`
+    : `<span class="rule">${esc(id)}</span>`;
+}
+
+// a working copy: conditions always as lists, so toggling is simple
+function toDraft(r) {
+  const when = {};
+  for (const [k, v] of Object.entries(r.when || {})) when[k] = arr(v);
+  return { id: r.id, when, action: r.action, scope: r.scope || "span", coarse: r.coarse || "", why: r.why || "" };
+}
+function fromDraft(r) {
+  const out = { id: r.id.trim() }, when = {};
+  for (const k of WHEN_KEYS) if ((r.when[k] || []).length) when[k] = r.when[k];
+  if (Object.keys(when).length) out.when = when;
+  out.action = r.action;
+  if (r.action === "block" && r.scope === "request") out.scope = "request";
+  if (r.action === "generalize" && r.coarse) out.coarse = r.coarse;
+  out.why = r.why.trim();
+  return out;
+}
+// the last rule of a pack that extends nothing must stay a catch-all
+function locked(i) { const k = packData(rules.tab); return !k.extends && i === rules.draft.length - 1; }
+
+function condsHtml(when) {
+  const keys = WHEN_KEYS.filter((k) => arr((when || {})[k]).length);
+  if (!keys.length) return `<div class="conds"><span class="cond">Anything the rules above did not decide</span></div>`;
+  return `<div class="conds">${keys.map((k) => `<span class="cond"><b>${KEY_NAME[k]}</b>${esc(arr(when[k]).map((v) => valueName(k, v)).join(", "))}</span>`).join("")}</div>`;
+}
+
+function ruleViewHtml(r, i) {
+  const extra = (r.scope === "request" ? `<span class="chip plain">Whole message</span>` : "") + (r.coarse ? `<span class="chip plain">${esc(COARSE[r.coarse])}</span>` : "");
+  return `<li class="rule-card" id="rule-${esc(r.id)}"><span class="n">${i + 1}</span><div>
+    <div class="top"><span class="rid">${esc(r.id)}</span><span class="acts"><span class="chip ${esc(r.action)}">${ACTION[r.action] || esc(r.action)}</span>${extra}</span></div>
+    ${condsHtml(r.when)}<p class="why">${esc(r.why)}</p></div></li>`;
+}
+
+const ICON_UP = '<svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 12l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_DOWN = '<svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICON_DEL = '<svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 6h11M8 6V4.5h4V6m-6.5 0 .8 9.5h7.4l.8-9.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function ruleEditHtml(r, i) {
+  const v = rules.data.vocabulary, lock = locked(i), last = rules.draft.length - 1;
+  const opts = (list, cur, name) => list.map((x) => `<option value="${esc(x)}"${x === cur ? " selected" : ""}>${esc(name(x))}</option>`).join("");
+  const toggles = WHEN_KEYS.map((k) => {
+    const on = r.when[k] || [];
+    return `<span>${KEY_NAME[k]}</span><div class="tog-row" role="group" aria-label="${KEY_NAME[k]}">${v[k].map((x) =>
+      `<button type="button" class="tog" data-ri="${i}" data-key="${k}" data-val="${esc(x)}" aria-pressed="${on.includes(x)}">${esc(valueName(k, x))}</button>`).join("")}${on.length ? "" : `<span class="any">any</span>`}</div>`;
+  }).join("");
+  // a catch-all stays last, so the rule above it cannot move down past it
+  const lastMovable = packData(rules.tab).extends ? last : last - 1;
+  const moveUp = !lock && i > 0, moveDown = !lock && i < lastMovable;
+  return `<li class="rule-card edit" id="draft-${i}"><span class="n">${i + 1}</span><div class="rule-body">
+    <div class="fields">
+      <label class="field">Rule id<input class="input mono" data-ri="${i}" data-f="id" value="${esc(r.id)}" maxlength="63" spellcheck="false" autocomplete="off"${lock ? " readonly" : ""}></label>
+      <label class="field">Action<select class="select" data-ri="${i}" data-f="action">${opts(v.action, r.action, (a) => ACTION[a] || a)}</select></label>
+      ${r.action === "block" ? `<label class="toggle"><input type="checkbox" class="switch" data-ri="${i}" data-f="scope"${r.scope === "request" ? " checked" : ""}> Stop the whole message</label>` : ""}
+      ${r.action === "generalize" ? `<label class="field">How vague<select class="select" data-ri="${i}" data-f="coarse">${opts(Object.keys(COARSE), r.coarse, (c) => COARSE[c])}</select></label>` : ""}
+      <span class="acts">
+        <button type="button" class="icon-btn" data-move="${i}" data-dir="-1" aria-label="Move rule ${i + 1} up"${moveUp ? "" : " disabled"}>${ICON_UP}</button>
+        <button type="button" class="icon-btn" data-move="${i}" data-dir="1" aria-label="Move rule ${i + 1} down"${moveDown ? "" : " disabled"}>${ICON_DOWN}</button>
+        <button type="button" class="icon-btn" data-del="${i}" aria-label="Delete rule ${i + 1}"${lock ? " disabled" : ""}>${ICON_DEL}</button>
+      </span>
+    </div>
+    ${lock ? `<p class="any">Catch-all: it decides every item the rules above do not. It has no conditions and always stays last.</p>` : `<div class="toggles">${toggles}</div>`}
+    <label class="field">Reason users see<textarea class="input" data-ri="${i}" data-f="why" maxlength="300" rows="2">${esc(r.why)}</textarea></label>
+  </div></li>`;
+}
+
+function purposesHtml(edit) {
+  const ps = edit ? rules.purposes : rules.data.purposes, v = rules.data.vocabulary;
+  return `<section class="rules-sec"><h3>What each purpose leaves out</h3>
+    <p>Identifiers a purpose does not need are left out before anything is sent. Users can still include one, with a reason that is logged.</p>
+    ${ps.map((p, pi) => `<div class="purp"><div><b>${esc(p.label)}</b><div class="task">Not needed to ${esc(p.task)}</div></div>
+      <div class="tog-row" role="group" aria-label="${esc(p.label)}: left out">${edit
+        ? v.minimisable.map((x) => `<button type="button" class="tog" data-pi="${pi}" data-val="${esc(x)}" aria-pressed="${p.omit.includes(x)}">${esc(label(x))}</button>`).join("")
+        : p.omit.length ? p.omit.map((x) => `<span class="chip omit">${esc(label(x))}</span>`).join("") : `<span class="any">Nothing</span>`}</div></div>`).join("")}</section>`;
+}
+
+function rulesBarHtml() {
+  const d = rules.data, k = packData(rules.tab);
+  const tabs = `<span class="seg" id="rules-tabs" role="group" aria-label="Rule set"><span class="thumb" aria-hidden="true"></span>${d.packs.map((p) =>
+    `<button type="button" data-v="${esc(p.id)}"${rules.editing && p.id !== rules.tab ? " disabled" : ""}>${esc(p.short)}</button>`).join("")}</span>`;
+  const edited = k.edited || (rules.tab === "default" && d.edited_purposes);
+  const pill = edited ? `<span class="pill edited" title="Changed in this app; saved in data/policies.local.yaml">Edited here</span>` : "";
+  if (!d.admin) return `${tabs}<span class="grow"></span>${pill}<span class="note-s">Read only. To edit, start the server with <code>CHAPERONE_ADMIN=1</code>.</span>`;
+  if (!rules.editing) return `${tabs}<span class="grow"></span>${pill}<button type="button" class="btn btn-quiet" id="rules-edit">Edit ${esc(k.short)}</button>`;
+  const reset = edited ? `<button type="button" class="btn btn-ghost" id="rules-reset">${rules.armed ? "Click again to reset" : "Reset to shipped rules"}</button>` : "";
+  return `${tabs}<span class="grow"></span>${reset}<button type="button" class="btn btn-ghost" id="rules-cancel">Cancel</button>
+    <button type="button" class="btn btn-primary" id="rules-save"${rules.busy ? " disabled" : ""}>Save rules</button>`;
+}
+
+function tryHtml() {
+  const f = `<b>${esc($("role").value)}</b> to <b>${esc(destLower(dest))}</b>, for ${esc(purposeName($("purpose").value))}`;
+  return `<section class="rules-sec try"><h3>Try your edit</h3>
+    <p>Runs this message under the saved rules and under your edit, as ${f}. Change the flow in the top bar. Nothing is sent or saved.</p>
+    <textarea class="input" id="try-text" rows="3" maxlength="${maxText()}" aria-label="Message to try">${esc(rules.tryText || "")}</textarea>
+    <div><button type="button" class="btn btn-quiet" id="try-go"${rules.busy ? " disabled" : ""}>Try it</button></div>
+    <div id="try-out">${rules.preview ? previewHtml(rules.preview) : ""}</div></section>`;
+}
+
+function previewHtml(p) {
+  const side = (r) => r.blocked ? `<p class="note-s"><b>Blocked.</b> ${esc(r.block_reason ? r.block_reason.why : "")}</p>` : `<div class="payload">${tokenMarks(r.outbound)}</div>`;
+  const key = (x) => `${x.label}|${x.text}`, before = new Map(p.before.spans.map((x) => [key(x), x]));
+  const changed = p.after.spans.filter((x) => { const b = before.get(key(x)); return !b || act(b, p.before.blocked) !== act(x, p.after.blocked); });
+  const list = changed.length ? `<ul class="changes">${changed.map((x) => { const b = before.get(key(x));
+    return `<li><span class="chip plain">${esc(label(x.label))}</span> <code>${esc(x.text)}</code>: ${b ? ACTION[act(b, p.before.blocked)] : "not found"}, now <span class="chip ${act(x, p.after.blocked)}">${ACTION[act(x, p.after.blocked)]}</span> by <span class="rule">${esc(x.rule)}</span></li>`; }).join("")}</ul>`
+    : `<p class="note-s">Your edit changes nothing for this message.</p>`;
+  return `<div class="try-grid"><div><h4>Saved rules</h4>${side(p.before)}</div><div><h4>Your edit</h4>${side(p.after)}</div></div><div><h4>What changed</h4>${list}</div>`;
+}
+
+function renderRules() {
+  const d = rules.data, k = packData(rules.tab);
+  $("rules-bar").innerHTML = rulesBarHtml();
+  setSeg("rules-tabs", rules.tab);
+  const warn = d.error ? `<div class="callout" role="alert">A rule file changed but has an error, so the previous rules are still in use. ${esc(d.error)}</div>` : "";
+  const err = rules.error ? `<div class="callout" role="alert" id="rules-error">${rules.error}</div>` : "";
+  const parent = k.extends ? packData(k.extends) : null;
+  const inherit = parent ? `<div class="inherit">Items these rules do not decide go on to the ${esc(parent.name)} (${plural(parent.rules.length, "rule", "rules")}).
+    <button type="button" class="link" data-tab="${esc(parent.id)}"${rules.editing ? " disabled" : ""}>Show them</button></div>` : "";
+  const desc = k.description ? `<p class="note-s" style="margin-bottom:12px">${esc(k.description)}</p>` : "";
+  let body;
+  if (rules.editing) {
+    body = `${err}${desc}<button type="button" class="btn add-rule" id="rules-add">Add a rule at the top</button>
+      <ol class="rules">${rules.draft.map(ruleEditHtml).join("")}</ol>${inherit}
+      ${rules.tab === "default" ? purposesHtml(true) : ""}${tryHtml()}`;
+  } else {
+    body = `${warn}${desc}<ol class="rules">${k.rules.map(ruleViewHtml).join("")}</ol>${inherit}${rules.tab === "default" ? purposesHtml(false) : ""}`;
+  }
+  $("rules-body").innerHTML = body;
+}
+
+async function openRules(packId, ruleId) {
+  closeRail();
+  if (!$("rules-dlg").open) $("rules-dlg").showModal();
+  if (!rules.editing) {
+    $("rules-body").innerHTML = `<div class="shimmer" style="height:120px"></div>`;
+    try { await loadRules(); } catch (e) { $("rules-body").innerHTML = `<p class="empty">${e.safe ? e.message : esc(e.message)}</p>`; return; }
+    if (packId && packData(packId)) rules.tab = packId;
+    if (!packData(rules.tab)) rules.tab = "default";
+  }
+  renderRules();
+  const card = ruleId && document.getElementById(`rule-${ruleId}`);
+  if (card) { card.scrollIntoView({ block: "center" }); card.classList.add("flash"); setTimeout(() => card.classList.remove("flash"), 1900); }
+}
+
+function startEdit() {
+  rules.editing = true;
+  rules.error = "";
+  rules.preview = null;
+  rules.armed = 0;
+  rules.draft = packData(rules.tab).rules.map(toDraft);
+  rules.purposes = rules.data.purposes.map((p) => ({ ...p, omit: [...p.omit] }));
+  rules.tryText = rules.tryText || $("text").value.trim() || (turns.length ? turns[turns.length - 1].text : "");
+  renderRules();
+}
+
+function stopEdit() { rules.editing = false; rules.error = ""; rules.preview = null; rules.armed = 0; renderRules(); }
+
+function editBody() {
+  const body = { rules: rules.draft.map(fromDraft) };
+  if (rules.tab === "default") {
+    const now = rules.purposes.map((p) => [p.id, p.omit]), was = rules.data.purposes.map((p) => [p.id, p.omit]);
+    if (JSON.stringify(now) !== JSON.stringify(was)) body.purposes = Object.fromEntries(rules.purposes.map((p) => [p.id, { omit: p.omit }]));
+  }
+  return body;
+}
+
+async function saveRules() {
+  rules.busy = true;
+  rules.error = "";
+  renderRules();
+  try {
+    rules.data = await api("PUT", `/api/policies/${encodeURIComponent(rules.tab)}`, editBody());
+    rules.busy = false;
+    stopEdit();
+    await refreshMeta();
+    toast("<b>Rules saved.</b> The next message uses them. The change is sealed in the audit log.");
+  } catch (e) {
+    rules.busy = false;
+    rules.error = e.safe ? e.message : esc(e.message);
+    renderRules();
+    $("rules-error")?.scrollIntoView({ block: "center" });
+  }
+}
+
+async function resetRules() {
+  if (!rules.armed) {
+    rules.armed = setTimeout(() => { rules.armed = 0; if (rules.editing) renderRules(); }, 4000);
+    renderRules();
+    return;
+  }
+  clearTimeout(rules.armed);
+  rules.armed = 0;
+  try {
+    rules.data = await api("DELETE", `/api/policies/${encodeURIComponent(rules.tab)}`);
+    stopEdit();
+    await refreshMeta();
+    toast("<b>Shipped rules restored.</b> The reset is sealed in the audit log.");
+  } catch (e) {
+    rules.error = e.safe ? e.message : esc(e.message);
+    renderRules();
+  }
+}
+
+async function tryRules() {
+  const text = ($("try-text").value || "").trim();
+  rules.tryText = $("try-text").value;
+  if (!text) { $("try-text").focus(); return; }
+  rules.busy = true;
+  $("try-go").disabled = true;
+  $("try-out").innerHTML = `<div class="shimmer" style="height:90px"></div>`;
+  try {
+    rules.preview = await api("POST", "/api/policies/preview", { ...editBody(), pack: rules.tab, text, role: $("role").value,
+      destination: dest, purpose: $("purpose").value, use_context: $("use-ctx").checked });
+    rules.preview.before = prepare(rules.preview.before);
+    rules.preview.after = prepare(rules.preview.after);
+    rules.error = "";
+  } catch (e) {
+    rules.preview = null;
+    rules.error = e.safe ? e.message : esc(e.message);
+  }
+  rules.busy = false;
+  renderRules();
+  ($("rules-error") || $("try-out")).scrollIntoView({ block: "nearest" });
+}
+
+function wireRules() {
+  $("rules-open").addEventListener("click", () => openRules(pack));
+  // Details links: open the rule that decided
+  $("lanes").addEventListener("click", (e) => { const b = e.target.closest("[data-rule]"); if (b) openRules(b.dataset.pack, b.dataset.rule); });
+  $("rules-bar").addEventListener("click", (e) => {
+    const t = e.target.closest("#rules-tabs button");
+    if (t && !t.disabled && t.dataset.v !== rules.tab) { rules.tab = t.dataset.v; renderRules(); return; }
+    if (e.target.closest("#rules-edit")) startEdit();
+    else if (e.target.closest("#rules-cancel")) stopEdit();
+    else if (e.target.closest("#rules-save")) saveRules();
+    else if (e.target.closest("#rules-reset")) resetRules();
+  });
+  const body = $("rules-body");
+  body.addEventListener("click", (e) => {
+    const tab = e.target.closest("[data-tab]");
+    if (tab && !tab.disabled) { rules.tab = tab.dataset.tab; renderRules(); body.closest("dialog").scrollTop = 0; return; }
+    if (!rules.editing) return;
+    const tog = e.target.closest(".tog"), mv = e.target.closest("[data-move]"), del = e.target.closest("[data-del]");
+    let focus = null;
+    if (tog && tog.dataset.pi !== undefined) {
+      const p = rules.purposes[+tog.dataset.pi], x = tog.dataset.val;
+      p.omit = p.omit.includes(x) ? p.omit.filter((y) => y !== x) : [...p.omit, x];
+      focus = `.tog[data-pi="${tog.dataset.pi}"][data-val="${x}"]`;
+    } else if (tog) {
+      const r = rules.draft[+tog.dataset.ri], k = tog.dataset.key, x = tog.dataset.val, on = r.when[k] || [];
+      r.when[k] = on.includes(x) ? on.filter((y) => y !== x) : [...on, x];
+      focus = `.tog[data-ri="${tog.dataset.ri}"][data-key="${k}"][data-val="${x}"]`;
+    } else if (mv && !mv.disabled) {
+      const i = +mv.dataset.move, j = i + +mv.dataset.dir;
+      [rules.draft[i], rules.draft[j]] = [rules.draft[j], rules.draft[i]];
+      focus = `[data-move="${j}"][data-dir="${mv.dataset.dir}"]`;
+    } else if (del && !del.disabled) {
+      rules.draft.splice(+del.dataset.del, 1);
+      focus = "#rules-add";
+    } else if (e.target.closest("#rules-add")) {
+      let n = 1;
+      while (rules.draft.some((r) => r.id === `new-rule-${n}`)) n += 1;
+      rules.draft.unshift({ id: `new-rule-${n}`, when: {}, action: "pseudonymize", scope: "span", coarse: "", why: "" });
+      focus = `#draft-0 input[data-f="id"]`;
+    } else if (e.target.closest("#try-go")) { tryRules(); return; } else return;
+    rules.preview = null;
+    renderRules();
+    if (focus) body.querySelector(focus)?.focus();
+  });
+  // typing keeps focus: update the draft without re-rendering
+  body.addEventListener("input", (e) => {
+    const el = e.target;
+    if (el.id === "try-text") { rules.tryText = el.value; return; }
+    if (!rules.editing || el.dataset.ri === undefined || !["id", "why"].includes(el.dataset.f)) return;
+    rules.draft[+el.dataset.ri][el.dataset.f] = el.value;
+  });
+  body.addEventListener("change", (e) => {
+    const el = e.target;
+    if (!rules.editing || el.dataset.ri === undefined || !["action", "scope", "coarse"].includes(el.dataset.f)) return;
+    const r = rules.draft[+el.dataset.ri];
+    if (el.dataset.f === "scope") r.scope = el.checked ? "request" : "span"; else r[el.dataset.f] = el.value;
+    rules.preview = null;
+    renderRules();
+    body.querySelector(`[data-ri="${el.dataset.ri}"][data-f="${el.dataset.f}"]`)?.focus();
+  });
+}
+
 // ---------- chat state ----------
 function newConversation() {
   fetch(`/api/reset/${session}`, { method: "POST" }).catch(() => {});
@@ -1364,10 +1785,10 @@ async function boot() {
     return;
   }
   $("text").maxLength = maxText();
-  $("role").innerHTML = meta.roles.map((r) => `<option>${esc(r)}</option>`).join("");
-  $("purpose").innerHTML = meta.purposes.map((p) => `<option value="${esc(p)}">${esc(cap(purposeName(p)))}</option>`).join("");
+  applyMeta();
   setDest("external");
   setPack("default");
+  loadRules().catch(() => {});  // rule links in Details need the rule list; the panel reloads it when opened
   setCtxStatus(true, "");
   setPurposeLine();
   syncSend();
@@ -1378,7 +1799,7 @@ async function boot() {
     if (!g) groups.push(g = { name: s.group, items: [] });
     g.items.push(s);
   }
-  const sub = (s) => s.compare ? "three flows side by side" : `${s.role} to ${destLower(s.destination)}, ${purposeName(s.purpose)}${s.pack === "safe_harbor" ? ", Safe Harbor" : ""}`;
+  const sub = (s) => s.compare ? "three flows side by side" : `${s.role} to ${destLower(s.destination)}, ${purposeName(s.purpose)}${packNote(s.pack)}`;
   $("scenarios").innerHTML = groups.map((g) => `<div class="sc-group"><p>${esc(g.name.replace(/^\d+\.\s*/, ""))}</p>${g.items.map((s) =>
     `<button type="button" data-id="${esc(s.id)}" aria-current="false">${esc(s.title)}<small>${esc(sub(s))}</small></button>`).join("")}</div>`).join("");
   // the four that show the idea fastest; any scenario id missing from the data set is skipped
@@ -1405,6 +1826,7 @@ async function boot() {
   $("scrim").addEventListener("click", closeRail);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeRail(); });
   $("person-open").addEventListener("click", () => { closeRail(); $("person-dlg").showModal(); $("person-q").focus(); });
+  wireRules();
   $("person-form").addEventListener("submit", personReport);
   $("verify").addEventListener("click", () => { closeRail(); verifyLog(); });
   for (const d of document.querySelectorAll("dialog")) d.addEventListener("click", (e) => { if (e.target === d) d.close(); });  // click outside closes
