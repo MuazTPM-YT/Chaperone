@@ -34,7 +34,7 @@ uv run --frozen python -m chaperone     # then open http://127.0.0.1:8000
 
 After setup nothing needs the internet. `--frozen` stops uv from re-checking the lockfile online.
 
-Click a scenario at the top of the page, or open `http://127.0.0.1:8000/#7` to run scenario 7 directly.
+Click a scenario on the start screen or in the side rail, or open `http://127.0.0.1:8000/#7` to run scenario 7 directly.
 
 ## How it works
 
@@ -231,7 +231,7 @@ and the purpose step above drops identifiers the purpose does not need.
 
 ## Accountability
 
-**Person report.** Type a full name or an ID in the sidebar (or `POST /api/person-report {"value": ...}`). Chaperone
+**Person report.** Open "Person report" in the side rail and type a full name or an ID (or `POST /api/person-report {"value": ...}`). Chaperone
 computes the keyed tag of that value on this laptop and lists every logged request that carried it: when, which flow,
 which endpoint and model received it, and what happened to the value (sent as typed, as a placeholder, made vague,
 left out, withheld). The log holds only tags, so it is not itself a copy of the personal data, and the value asked
@@ -270,7 +270,8 @@ back to the agent. Example client entry:
 | Placeholder content | Type only: `[PERSON_1]`; a generalized span adds its vague value: `[AGE_1: in their 50s]` | Type plus role (`[PATIENT_1]`) helps reasoning but tells the provider who is a patient. Gender guessed from names is unreliable and leaks more. |
 | Unknown flows | Identifiers pseudonymize, sensitive details generalize | Block-by-default gives useless answers ("[PERSON withheld] has been diagnosed with [HEALTH withheld]"); pass-by-default leaks. Examples: [`eval/results/default_effect.md`](eval/results/default_effect.md). |
 | Same value in later turns | Stays masked for that destination | Internal and external conversations keep separate maps. |
-| Frontend | One HTML file, no build, no CDN | Works offline in the demo. |
+| Frontend | One HTML file, no build, no CDN; fonts (Inter, JetBrains Mono, OFL) ship in `chaperone/static/fonts` | Works offline in the demo. |
+| Live steps | `POST /api/chat/stream` sends one JSON line per step (find, rules, each attack round, final check, reply, restore), then the full result | The page shows each check as it finishes. `/api/chat` still answers once, for scripts and tests. |
 
 | Attacker vs. a second "anonymiser" model | One attacker; tightening reuses our own generalize and block | Staab et al. let an LLM rewrite freely. A free rewrite can drop task facts and cannot be restored. |
 | Purpose needs | Declared per purpose in `policies.yaml` | Asked per message, qwen2.5:3b said "needed" for almost every identifier. |
@@ -324,7 +325,7 @@ More in [PLAN.md](PLAN.md) and [PLAN-v2.md](PLAN-v2.md).
 | `docs/DEMO.md` | Demo video runbook |
 
 ```sh
-uv run --frozen pytest                              # 71 tests; scenario tests need Ollama running
+uv run --frozen pytest                              # 75 tests; scenario tests need Ollama running
 uv run --frozen python eval/run_eval.py --split dev # or --split heldout
 uv run --frozen python eval/run_inference.py --split dev   # inference leaks; needs llama3.1:8b as the grader
 uv run --frozen python eval/add_case.py             # add a held-out case
