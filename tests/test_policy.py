@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 
 import pytest
 import yaml
@@ -153,3 +154,15 @@ def test_local_file_is_plain_yaml_an_admin_can_read():
     policy.save_local("default", [rule, *own()], None)
     saved = yaml.safe_load(policy.LOCAL_PATH.read_text())
     assert saved["default"]["rules"][0]["id"] == "pan-blocked"
+
+
+def test_a_new_rule_file_is_a_new_rule_set(monkeypatch, tmp_path):
+    for f in ("policies.yaml", "policies_safe_harbor.yaml"):
+        shutil.copy(policy.HERE / f, tmp_path / f)
+    (tmp_path / "policies_strict.yaml").write_text(
+        "name: Strict\nextends: policies.yaml\nrules:\n"
+        "  - {id: names-blocked, when: {label: PERSON}, action: block, why: No names leave.}\n")
+    monkeypatch.setattr(policy, "HERE", tmp_path)
+    monkeypatch.setattr(policy, "DEFAULT_PATH", tmp_path / "policies.yaml")
+    assert policy.current().packs["strict"].name == "Strict"
+    assert decide("PERSON", "individual", Flow("Manager", "external", "general", "strict")).rule == "names-blocked"

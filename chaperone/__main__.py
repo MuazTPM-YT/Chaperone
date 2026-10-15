@@ -1,7 +1,9 @@
 import os
+import sys
 
 import uvicorn
 
+from . import policy
 from .detect import detect
 from .gateway import need
 
@@ -9,6 +11,11 @@ from .gateway import need
 for name in ("INTERNAL_LLM_BASE_URL", "INTERNAL_LLM_MODEL", "EXTERNAL_LLM_BASE_URL", "EXTERNAL_LLM_MODEL",
              "AUDIT_HMAC_KEY"):
     need(name)
+# a broken rule file must stop the start, not fail the first message
+try:
+    policy.current()
+except policy.PolicyError as exc:
+    sys.exit(f"rule error: {exc}")
 
 # load GLiNER and the context model now, so the first demo request is fast
 print("warming up models...", flush=True)
