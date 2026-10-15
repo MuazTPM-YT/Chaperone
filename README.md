@@ -27,7 +27,7 @@ More: [only female cardiologist](docs/screenshots/s8b.png), [same message in thr
 ## Contents
 
 [Install](#install) · [Use the app](#use-the-app) · [How it works](#how-it-works) · [Configuration](#configuration) ·
-[HTTP API](#http-api) · [Agents (MCP)](#agents-mcp) · [Results](#results) · [Limitations](#limitations) ·
+[Change the rules](#change-the-rules) · [HTTP API](#http-api) · [Agents (MCP)](#agents-mcp) · [Results](#results) · [Limitations](#limitations) ·
 [Development](#development) · [Troubleshooting](#troubleshooting) · [Security](#security)
 
 ## Install
@@ -114,8 +114,8 @@ The page is a chat with three lanes, so you see both ends of every message:
 6. **Copy** above your reply copies it with the real values.
 7. **Compare three flows** (under the message box) runs the same message through three flows as a dry run. Nothing
    is sent.
-8. The side rail also has **Person report**, **Check the audit log seal**, and **Download processing record (CSV)**.
-   See [Accountability](#accountability).
+8. The side rail also has **View the rules** (see [Change the rules](#change-the-rules)), **Person report**,
+   **Check the audit log seal**, and **Download processing record (CSV)**. See [Accountability](#accountability).
 
 Open `http://127.0.0.1:8000/#7` to run scenario 7 at once (any scenario id works). The theme button cycles automatic,
 light and dark. Below 1360 px wide the side rail opens from the menu button; on phones the lanes stack in order.
@@ -147,7 +147,7 @@ flowchart LR
    Long text is read in sentence-sized windows (about 250 characters): on a 1,274-character paste the 3B model
    found nothing at all when given the whole thing. A full name found once also masks its first name used
    alone later ("Rohan wants…"), with the same placeholder.
-2. **Decide per flow.** `chaperone/policies.yaml` holds 18 ordered rules over category, data subject (person or
+2. **Decide per flow.** `chaperone/policies.yaml` holds 18 ordered rules (see [Change the rules](#change-the-rules)) over category, data subject (person or
    business), sender role, destination and purpose. The first match wins, and every decision records its rule id
    and a plain reason.
 3. **Transform.** `pass` sends as is. `pseudonymize` swaps in `[PERSON_1]`, the same in every turn of the
@@ -174,6 +174,59 @@ flowchart LR
 If the local LLM is down, detection falls back to patterns and names, and the UI says so in red. Health, pay, HR,
 legal and MNPI details are not caught in that mode.
 
+## Change the rules
+
+What may leave is decided by rule files, not by code:
+
+| File | What it holds |
+|---|---|
+| `chaperone/policies.yaml` | The Standard rules, the sender roles, and the purposes with what each one leaves out |
+| `chaperone/policies_safe_harbor.yaml` | HIPAA Safe Harbor mode. Its rules run first; anything they do not decide goes on to the Standard rules |
+| `chaperone/policies_<name>.yaml` | Any new file named like this becomes a new rule set in the top bar. Give it a `name:` and usually `extends: policies.yaml`. It appears after a page reload |
+| `data/policies.local.yaml` | Edits made in the app (admin mode). Not committed. Delete it to go back to the shipped rules |
+
+A rule:
+
+```yaml
+  - id: salary-not-for-marketing           # lowercase letters, digits, dashes; unique
+    when: {label: COMPENSATION, destination: external, purpose: marketing}
+    action: block                          # pass | pseudonymize | generalize | block
+    scope: request                         # optional, block only: stop the whole message
+    why: Pay data has no place in an external marketing tool.   # users see this
+```
+
+- Rules are checked from the top. **The first rule that matches decides.** A condition left out matches anything.
+- `when` keys are `label`, `subject` (`individual`, `business`, `unknown`), `role`, `destination` (`internal`,
+  `external`) and `purpose`. Each takes one value or a list.
+- A rule set that extends nothing must end with a catch-all: a rule with no `when`.
+- `generalize` can take `coarse: year` (dates to the year) or `coarse: age90` (ages over 89 become "90 or older").
+
+**Changes apply without a restart.** Save the file and the next message uses it. Every rule is checked first: an
+unknown label, role or purpose, a missing reason, a duplicate id, or a catch-all that is not last is refused. If a
+changed file is invalid, the previous rules stay in use and the Rules panel says what is wrong. A rule file that is
+invalid when the app starts stops it with the reason.
+
+**In the app.** Anyone can open **View the rules** in the side rail. A rule name under "Details" opens the rule that
+decided. To edit in the app, start the server in admin mode:
+
+```sh
+CHAPERONE_ADMIN=1 uv run --frozen python -m chaperone
+```
+
+The panel then lets you add, edit, reorder and delete rules and choose what each purpose leaves out. **Try it** runs a
+message under the saved rules and under your edit, side by side, without sending or saving anything. **Save rules**
+checks the edit on the server and writes it to `data/policies.local.yaml`. **Reset to shipped rules** removes the
+edits. Every save and reset is sealed into the audit log with a fingerprint of the rules before and after.
+
+Admin mode is off by default on purpose: Chaperone checks staff messages, so staff should not be able to loosen the
+checks from the same page. Whoever starts the server decides.
+
+**What stays in code, and why.** The ID patterns and checksums, the final check that refuses to send a masked value,
+the attacker loop, and the audit seal are safety parts, not preferences; switching them off at runtime would turn
+protection off silently. The two destinations are fixed because each is an endpoint in `.env`. Only identifiers (phone,
+email, UPI, Aadhaar, PAN, GSTIN, IFSC, vehicle) can be left out for a purpose; leaving out a name or a clinical fact
+would make the answer wrong.
+
 ## Configuration
 
 Settings live in `.env` (see `.env.example`). `setup.sh` writes it; it is not committed. Values already set in the
@@ -197,6 +250,7 @@ environment win over `.env`. A missing required value stops the app at start wit
 | `ATTACK_MAX_ROUNDS` | no | `2` | Tightening rounds before a message is refused |
 | `ATTACK_MIN_CONFIDENCE` | no | `0.7` | Lowest attacker confidence that counts |
 | `PORT` | no | `8000` | Port of the web app (always bound to `127.0.0.1`) |
+| `CHAPERONE_ADMIN` | no | empty | `1` lets the page edit the rules ([Change the rules](#change-the-rules)). Leave it empty for staff |
 | `CHAPERONE_DEV` | no | empty | `1` shows a "Demo data / Worst case" switch with stress-test messages |
 
 To use a real hosted AI as the external destination, set three lines and restart. No code changes:
@@ -222,6 +276,13 @@ All endpoints are on `http://127.0.0.1:8000`. Bodies are JSON.
 | `POST /api/person-report` | `{"value": "Ramesh Rao"}`: every logged request that carried this name or ID |
 | `GET /api/audit/verify` | Check the audit log's seal chain |
 | `GET /api/records.csv` | One row per request: purpose, destination, categories, actions. No personal values |
+| `GET /api/policies` | The rule sets, purposes and the allowed values for each condition |
+| `PUT /api/policies/{pack}` | Admin mode: `{"rules": [...], "purposes": {...}}`. Checked, saved to `data/policies.local.yaml`, sealed in the log. `422` with the reason if invalid |
+| `DELETE /api/policies/{pack}` | Admin mode: drop the local edits of one rule set |
+| `POST /api/policies/preview` | Admin mode: one message under the saved rules and under candidate rules. Nothing is sent or saved |
+
+Without admin mode the three admin endpoints answer `403`. Requests whose `Host` is not `127.0.0.1` or `localhost`
+are refused with `400`.
 
 A chat request:
 
@@ -480,8 +541,8 @@ More in [docs/PLAN.md](docs/PLAN.md) and [docs/PLAN-v2.md](docs/PLAN-v2.md).
 ## Development
 
 ```sh
-uv run --frozen pytest                     # all 76 tests; 20 scenario tests need Ollama running
-uv run --frozen pytest -m "not ollama"     # the 56 that run anywhere (what CI runs)
+uv run --frozen pytest                     # all 100 tests; 20 scenario tests need Ollama running
+uv run --frozen pytest -m "not ollama"     # the 80 that run anywhere (what CI runs)
 uv run --frozen ruff check chaperone tests eval
 uv run --frozen mypy chaperone
 ```
@@ -503,7 +564,7 @@ switch at the bottom of the page. Without that variable the switch and the stres
 | Path | What |
 |---|---|
 | `chaperone/detect.py` | Three detection layers |
-| `chaperone/policies.yaml`, `policy.py` | Flow rules and matcher |
+| `chaperone/policies.yaml`, `policy.py` | Rules, roles and purposes; matcher, checks, live reload, admin edits |
 | `chaperone/policies_safe_harbor.yaml` | HIPAA Safe Harbor policy pack |
 | `chaperone/transform.py` | Actions, placeholder vault, outbound guard, restore |
 | `chaperone/attack.py` | Local attacker, evidence check, safer wording |
@@ -511,7 +572,7 @@ switch at the bottom of the page. Without that variable the switch and the stres
 | `chaperone/verify.py` | Flags invented ages, dates, amounts and names in replies |
 | `chaperone/gateway.py` | Pipeline, live step events, the single LLM call path, sealed audit log, person report, processing record |
 | `chaperone/app.py` | HTTP API, including the live step stream |
-| `chaperone/static/index.html` | The whole UI: one file, no build step |
+| `chaperone/static/index.html` | The whole UI, including the Rules panel: one file, no build step |
 | `chaperone/static/fonts/` | Inter and JetBrains Mono (SIL Open Font License), so the UI works offline |
 | `chaperone/mcp_server.py` | MCP tools for agents |
 | `chaperone/scenarios.json` | The demo scenarios, used by the UI and the tests |
@@ -534,6 +595,9 @@ switch at the bottom of the page. Without that variable the switch and the stres
 | The first message is slow | The models load on first use. Later messages are faster. A cold start can take 2 to 3 s. |
 | A scenario gives a different result now and then | The 3B local model is not fully deterministic. Send it again. |
 | 20 tests fail with `context_ok` errors | Those tests need Ollama. Start it, or run `pytest -m "not ollama"`. |
+| The Rules panel says a rule file has an error | A file was changed by hand and is invalid; the previous rules are still in use. Fix the file named in the message, or delete `data/policies.local.yaml`. |
+| The app stops at start with a rule error | A rule file is invalid and there is no earlier version to fall back on. Fix the file named in the message. |
+| "Rule editing is off" | Start the server with `CHAPERONE_ADMIN=1`. |
 
 ## Security
 
@@ -544,6 +608,8 @@ switch at the bottom of the page. Without that variable the switch and the stres
   rewrite the log (see [Accountability](#accountability)).
 - `.env` holds the keys and is in `.gitignore`. Never commit it.
 - Conversations are kept in memory only and are gone when the app stops.
+- Rule editing is off unless the server is started with `CHAPERONE_ADMIN=1`. Every rule change is sealed in the
+  audit log. Requests for any other host name are refused, so a web page cannot reach the app through DNS rebinding.
 
 ## License
 
