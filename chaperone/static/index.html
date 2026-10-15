@@ -1880,7 +1880,9 @@ async function boot() {
       .map(([v, t]) => `<a href="?data=${v}" aria-current="${DATA === v}">${t}</a>`).join("");
     document.body.append(nav);
   }
-  if (location.hash) runPreset(decodeURIComponent(location.hash.slice(1)));  // #8a runs scenario 8a, handy for recording
+  // #8a runs scenario 8a, handy for recording; #rules opens the rules panel
+  if (location.hash === "#rules") openRules(pack);
+  else if (location.hash) runPreset(decodeURIComponent(location.hash.slice(1)));
   else $("text").focus();
 }
 boot();
