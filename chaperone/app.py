@@ -48,7 +48,8 @@ def _pack(name: str) -> str:
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(HERE / "static" / "index.html")
+    # no-cache still allows a 304, but the browser must ask, so a new version is never hidden behind an old one
+    return FileResponse(HERE / "static" / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/api/meta")

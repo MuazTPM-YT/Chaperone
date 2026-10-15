@@ -206,3 +206,11 @@ def test_bundled_fonts_are_served_for_offline_use():
 
     res = TestClient(app).get("/static/fonts/inter-latin-opsz-normal.woff2")
     assert res.status_code == 200 and res.content[:4] == b"wOF2"
+
+
+def test_page_is_revalidated_so_an_update_is_never_stale():
+    from fastapi.testclient import TestClient
+
+    from chaperone.app import app
+
+    assert TestClient(app).get("/").headers["cache-control"] == "no-cache"
