@@ -40,3 +40,6 @@
 - The attacker is local qwen2.5:3b, at most 2 tightening rounds. If it is still not cleared, nothing is sent.
 - "No inference found by the local check" is not "safe". A bigger model may infer more.
 - Agents can use the same checks over MCP: `uv run --frozen python -m chaperone.mcp_server`.
+- Rules are data, not code. "View the rules" in the side rail (or `/#rules`) shows them; a rule name under Details
+  opens the rule that decided. Started with `CHAPERONE_ADMIN=1`, the panel edits them, "Try it" shows the effect on a
+  message before saving, and every change is sealed in the audit log. Staff without admin mode cannot loosen them.

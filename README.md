@@ -22,13 +22,42 @@ cannot afford enterprise DLP.
 
 ![No diagnosis written, but "tamoxifen" implies breast cancer: the drug is made vague; names-only masking would leak it](docs/screenshots/s8a.png)
 
-More: [only female cardiologist](docs/screenshots/s8b.png), [same message in three flows](docs/screenshots/s10.png).
+More: [only female cardiologist](docs/screenshots/s8b.png), [same message in three flows](docs/screenshots/s10.png),
+[the rules panel](docs/screenshots/s11.png).
+
+## Features
+
+- **Both ends in view.** A three-lane chat: what you wrote, each check as it runs, and exactly what the AI received
+  and replied. The reply comes back with the real names and values put in again.
+- **Flow-aware rules.** The same detail can pass, be masked, be made vague, be left out, or stop the message,
+  depending on who sends it, where it goes and why.
+- **Detection on this laptop.** Indian IDs with checksums (Aadhaar, PAN with holder type, GSTIN, IFSC, UPI, phone,
+  email, vehicle, record and account numbers), names, organisations and places, and meaning (health, pay, unpublished
+  results, HR and legal matters) in English and Hinglish.
+- **A local attacker** reads every outgoing message and the conversation so far, and asks what it could work out.
+  Forbidden inferences are made vaguer, or the message is refused.
+- **Reversible masking.** `[PERSON_1]` and `[AGE_1: in their 50s]` go out; exact values come back only on this laptop.
+  Invented ages, dates, amounts and names in the reply are flagged.
+- **Purpose minimisation** (DPDP Act): identifiers the purpose does not need are left out, with a logged
+  "Include anyway".
+- **Rules you can read and change.** Rule files that apply without a restart, a Rules panel for everyone, and an
+  editor with "Try it" in admin mode. Every change is sealed in the audit log.
+- **Accountability without a copy of the data.** A sealed audit log of keyed tags, a person report ("where did this
+  person's data go?"), and a processing record as CSV.
+- **HIPAA Safe Harbor mode**, an MCP server for agents, and a streaming HTTP API.
 
 ## Contents
 
-[Install](#install) · [Use the app](#use-the-app) · [How it works](#how-it-works) · [Configuration](#configuration) ·
-[Change the rules](#change-the-rules) · [HTTP API](#http-api) · [Agents (MCP)](#agents-mcp) · [Results](#results) · [Limitations](#limitations) ·
-[Development](#development) · [Troubleshooting](#troubleshooting) · [Security](#security)
+1. [Install](#install) and [update](#update)
+2. [Use the app](#use-the-app) and the [demo scenarios](#demo-scenarios)
+3. [How it works](#how-it-works)
+4. [Change the rules](#change-the-rules)
+5. [Configuration](#configuration)
+6. [HTTP API](#http-api) and [Agents (MCP)](#agents-mcp)
+7. [Results](#results) and [Prior art](#prior-art-and-whats-different)
+8. [HIPAA Safe Harbor mode](#hipaa-safe-harbor-mode) and [Accountability](#accountability)
+9. [Design decisions](#design-decisions) and [Limitations](#limitations)
+10. [Development](#development), [Troubleshooting](#troubleshooting) and [Security](#security)
 
 ## Install
 
@@ -93,6 +122,17 @@ The commands work in bash, zsh and fish.
 
 After setup nothing needs the internet. `--frozen` stops uv from checking the lockfile online.
 
+### Update
+
+```sh
+git pull
+uv sync --frozen
+uv run --frozen python -m chaperone
+```
+
+Your `.env`, audit log (`data/audit.jsonl`) and rule edits (`data/policies.local.yaml`) are not touched by an update.
+Reload the page after the server restarts.
+
 ## Use the app
 
 The page is a chat with three lanes, so you see both ends of every message:
@@ -117,8 +157,35 @@ The page is a chat with three lanes, so you see both ends of every message:
 8. The side rail also has **View the rules** (see [Change the rules](#change-the-rules)), **Person report**,
    **Check the audit log seal**, and **Download processing record (CSV)**. See [Accountability](#accountability).
 
-Open `http://127.0.0.1:8000/#7` to run scenario 7 at once (any scenario id works). The theme button cycles automatic,
-light and dark. Below 1360 px wide the side rail opens from the menu button; on phones the lanes stack in order.
+Links: `http://127.0.0.1:8000/#7` runs scenario 7 at once (any scenario id works), and `/#rules` opens the rules.
+Escape closes a panel. The theme button cycles automatic, light and dark. Below 1360 px wide the side rail opens from
+the menu button; on phones the lanes stack in order and panels open from the bottom.
+
+### Demo scenarios
+
+Each one sets the flow and sends a message, so you see one decision. They live in `chaperone/scenarios.json` and
+double as tests (`tests/test_scenarios.py`).
+
+| Id | Scenario | Flow | What it shows |
+|---|---|---|---|
+| 1a | Leave, no detail | Manager to external AI, scheduling | A colleague's name passes: a scheduler needs it |
+| 1b | Leave for chemotherapy | Manager to external AI, scheduling | Same request; the medical detail is made vague |
+| 2a | Internal HR summarizer | HR to internal model, HR summary | Salary stays exact inside the organisation |
+| 2b | External marketing copilot | Sales to external AI, marketing | Same sentence; the whole request is blocked |
+| 3a | Company PAN | Accountant to external AI, invoicing | A company's PAN is business data and passes |
+| 3b | Individual's PAN | Accountant to external AI, invoicing | A person's PAN and name are masked |
+| 4a | Valid Aadhaar | Accountant to external AI, general | A checksum-valid Aadhaar is masked |
+| 4b | Order number | Accountant to external AI, general | Twelve digits that fail the checksum pass |
+| 5 | Rahul ka salary | Manager to external AI, general | Hinglish: name and pay are caught |
+| 6a | Apple's public results | Manager to external AI, general | Public results pass |
+| 6b | Our unannounced results | Manager to external AI, general | Unpublished results never leave |
+| 7 | Discharge summary | Doctor to external AI, clinical summary | Names masked, age and date vague, the family phone left out |
+| 8a | Medicine, no diagnosis | Manager to external AI, general | "Tamoxifen" implies cancer; names-only masking would leak it |
+| 8b | Our only female cardiologist | HR to external AI, HR summary | No name, but one person; the description is made vaguer |
+| 9 | Discharge note, dates to year | Doctor to external AI, clinical summary, Safe Harbor | Dates go to the year; names and the phone are removed |
+| 10 | Medicine note, three flows | Three flows side by side | The same note decided three ways |
+
+The 4-minute video script is in [docs/DEMO.md](docs/DEMO.md).
 
 ## How it works
 
@@ -126,7 +193,7 @@ light and dark. Below 1360 px wide the side rail opens from the menu button; on 
 flowchart LR
     U[Staff message + flow<br/>role, destination, purpose] --> D
     subgraph L[This laptop]
-        D[Detect] --> P[Policy<br/>policies.yaml] --> T[Transform<br/>pass, pseudonymize,<br/>generalize, block] --> M[Purpose<br/>minimisation] --> K[Local attacker<br/>tighten or refuse] --> G{Outbound guard}
+        D[Detect] --> P[Policy<br/>rule files, live] --> T[Transform<br/>pass, pseudonymize,<br/>generalize, block] --> M[Purpose<br/>minimisation] --> K[Local attacker<br/>tighten or refuse] --> G{Outbound guard}
         D1[Pattern + checksum<br/>Aadhaar, PAN, GSTIN, IFSC,<br/>UPI, phone, email, vehicle] --- D
         D2[GLiNER names,<br/>orgs, places] --- D
         D3[Local LLM qwen2.5:3b<br/>health, pay, MNPI, HR, legal] --- D
@@ -169,7 +236,8 @@ flowchart LR
    `Person 1`, `[person_1]`. Then a local check marks ages, dates, amounts, long numbers and names in the reply
    that the source never said: the external model sometimes invents them ("the 62-year-old patient").
 8. **Audit.** `data/audit.jsonl` stores rule ids, actions, placeholders, the recipient (endpoint host and model)
-   and HMAC-SHA256 tags of values. Never raw values. Every line is sealed; see [Accountability](#accountability).
+   and HMAC-SHA256 tags of values. Never raw values. Rule changes are logged there too. Every line is sealed; see
+   [Accountability](#accountability).
 
 If the local LLM is down, detection falls back to patterns and names, and the UI says so in red. Health, pay, HR,
 legal and MNPI details are not caught in that mode.
@@ -200,6 +268,21 @@ A rule:
   `external`) and `purpose`. Each takes one value or a list.
 - A rule set that extends nothing must end with a catch-all: a rule with no `when`.
 - `generalize` can take `coarse: year` (dates to the year) or `coarse: age90` (ages over 89 become "90 or older").
+- Labels a rule can name: `PERSON`, `ORG`, `LOCATION`, `AADHAAR`, `PAN`, `GSTIN`, `IFSC`, `UPI`, `PHONE`, `EMAIL`,
+  `VEHICLE`, `MRN`, `ACCOUNT`, `URL`, `IP`, `AGE`, `DATE`, `HEALTH`, `COMPENSATION`, `MNPI`, `HR`, `LEGAL`.
+
+Example: let accountants send a customer's PAN to the external AI when they draft an invoice. Put this above
+`personal-ids-external`, which would mask it:
+
+```yaml
+  - id: pan-ok-for-invoices
+    when: {label: PAN, role: Accountant, destination: external, purpose: invoicing}
+    action: pass
+    why: An invoice must show the customer's PAN.
+```
+
+To add a role or a purpose, add it to `roles:` or `purposes:` at the top and bottom of `chaperone/policies.yaml`.
+It appears in the top bar after a page reload, and rules can name it at once.
 
 **Changes apply without a restart.** Save the file and the next message uses it. Every rule is checked first: an
 unknown label, role or purpose, a missing reason, a duplicate id, or a catch-all that is not last is refused. If a
@@ -229,7 +312,8 @@ would make the answer wrong.
 
 ## Configuration
 
-Settings live in `.env` (see `.env.example`). `setup.sh` writes it; it is not committed. Values already set in the
+Settings live in `.env` (see `.env.example`); rules live in rule files ([Change the rules](#change-the-rules)).
+`setup.sh` writes `.env`; it is not committed. Values already set in the
 environment win over `.env`. A missing required value stops the app at start with the variable's name.
 
 | Variable | Required | Default in `.env.example` | What it does |
@@ -298,10 +382,10 @@ curl -s http://127.0.0.1:8000/api/chat -H 'Content-Type: application/json' -d '{
 | Field | Values |
 |---|---|
 | `text` | 1 to 4,000 characters |
-| `role` | `Manager`, `HR`, `Sales`, `Intern`, `Doctor`, `Accountant` |
+| `role` | A role from the rule files. Shipped: `Manager`, `HR`, `Sales`, `Intern`, `Doctor`, `Accountant` |
 | `destination` | `internal`, `external` |
-| `purpose` | `general`, `scheduling`, `hr_summary`, `marketing`, `clinical_summary`, `invoicing` |
-| `pack` | `default`, `safe_harbor` |
+| `purpose` | A purpose from the rule files. Shipped: `general`, `scheduling`, `hr_summary`, `marketing`, `clinical_summary`, `invoicing` |
+| `pack` | A rule set. Shipped: `default` (Standard rules), `safe_harbor` |
 | `use_context` | `false` turns off the local model checks (IDs and names only) |
 | `include` | Optional: `[{"label": "PHONE", "text": "98450 12345", "reason": "..."}]` for "Include anyway" |
 
@@ -329,11 +413,12 @@ check refuses, goes from `ready` straight to `result`, and the result says why. 
 `uv run --frozen python -m chaperone.mcp_server` starts a stdio MCP server with two tools. `chaperone_check` is a
 dry run: it returns what would leave and what the attacker could still infer. `chaperone_send` sends through the
 same pipeline and returns the restored reply plus any invented-detail flags. Results never echo masked raw values
-back to the agent. Example client entry:
+back to the agent. The allowed roles, purposes and rule sets in the tool schemas come from the rule files. Example
+client entry:
 
 ```json
 {"mcpServers": {"chaperone": {"command": "uv", "args": ["run", "--frozen", "python", "-m", "chaperone.mcp_server"],
-                              "cwd": "/path/to/DevHack2026"}}}
+                              "cwd": "/path/to/devhack2026-round1"}}}
 ```
 
 ## Results
@@ -508,6 +593,9 @@ for "Priya Sharma") is not found.
 | Live steps | `POST /api/chat/stream` sends one JSON line per step (find, rules, each attack round, final check, reply, restore), then the full result | The page shows each check as it finishes. `/api/chat` still answers once, for scripts and tests. |
 | Attacker vs. a second "anonymiser" model | One attacker; tightening reuses our own generalize and block | Staab et al. let an LLM rewrite freely. A free rewrite can drop task facts and cannot be restored. |
 | Purpose needs | Declared per purpose in `policies.yaml` | Asked per message, qwen2.5:3b said "needed" for almost every identifier. |
+| Rules as data | Rule files, re-read when they change; roles and purposes listed there only | A typo could weaken protection, so every rule is checked against the detector's labels and the declared roles and purposes, and a bad change keeps the last good rules. |
+| Who may change rules | Anyone may read them; only admin mode (`CHAPERONE_ADMIN=1`) may edit them in the app | Staff cannot loosen their own checks from the same page. There is no login, so the choice is made by whoever starts the server. |
+| Where app edits go | `data/policies.local.yaml`, not the shipped files | The shipped rules, tests and demo scenarios stay intact; "Reset to shipped rules" is one file removal. |
 
 More in [docs/PLAN.md](docs/PLAN.md) and [docs/PLAN-v2.md](docs/PLAN-v2.md).
 
@@ -535,6 +623,8 @@ More in [docs/PLAN.md](docs/PLAN.md) and [docs/PLAN-v2.md](docs/PLAN-v2.md).
 - The attacker's own safer wording can carry health back in: "uses a white cane and a screen reader" became "a
   person with mobility and visual impairments" (inf-004).
 - HIPAA Safe Harbor mode removes identifiers in text. It does not make anyone meet HIPAA.
+- There is no login. Admin mode is on or off for the whole server, and a rule edit applies to everyone using it.
+- The audit log records that rules changed and fingerprints of the rules before and after, not who changed them.
 - All results are on our own dev sets. The held-out sets are empty until teammates fill them; do not quote dev
   numbers as final.
 
@@ -578,7 +668,10 @@ switch at the bottom of the page. Without that variable the switch and the stres
 | `chaperone/scenarios.json` | The demo scenarios, used by the UI and the tests |
 | `chaperone/scenarios_worst.json` | Stress-test messages (long names, scripts, emoji, a long paste); dev only |
 | `eval/` | Datasets, harness, baseline, model and placeholder tests ([guide](eval/README.md)) |
-| `tests/` | Unit and end-to-end tests |
+| `tests/` | Unit and end-to-end tests (`test_policy.py` covers rule checks, live reload, admin editing and the audit trail) |
+| `data/` | Created at run time, not committed: `audit.jsonl` (sealed log) and `policies.local.yaml` (rule edits from the app) |
+| `setup.sh`, `.env.example` | One-time setup, and every setting with a safe default |
+| `.github/workflows/ci.yml` | CI: lint, types and the tests that run without Ollama |
 | `docs/DEMO.md` | Demo video runbook |
 | `docs/PLAN.md`, `docs/PLAN-v2.md` | Build plans |
 
