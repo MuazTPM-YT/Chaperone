@@ -118,7 +118,32 @@ h1, h2, h3, p { margin: 0; }
 .brand b { font-size: 16.5px; font-weight: 680; letter-spacing: -0.025em; }
 .flow { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; font-size: 14px; color: var(--muted); }
 .select { appearance: none; -webkit-appearance: none; border: 0; border-radius: 9px; padding: 6px 28px 6px 11px; font-weight: 560; color: var(--ink);
-  background: var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23878d99' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center; }
+  background: var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23878d99' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+  transition: background-color 160ms ease; }
+/* browsers without a styleable picker still get theme colours in their native list */
+.select option { background: var(--surface); color: var(--ink); }
+/* styleable select (Chrome 135+): the menu takes the page's own theme; others keep the native menu */
+@supports (appearance: base-select) {
+  .select, .select::picker(select) { appearance: base-select; }
+  .select { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px 6px 11px; background-image: none; cursor: pointer; }
+  .select::picker-icon { content: ""; width: 10px; height: 6px; background: var(--muted);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    transition: rotate 200ms var(--press); }
+  .select:open::picker-icon { rotate: 180deg; }
+  .select:open { background-color: var(--line); }
+  .select::picker(select) { border: 0; border-radius: 12px; padding: 4px; margin-block: 6px; min-width: anchor-size(width); color: var(--ink);
+    background: var(--surface); box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .35), 0 0 0 1px var(--line-2);
+    opacity: 1; translate: 0 0; transition: opacity 150ms var(--press), translate 150ms var(--press), overlay 150ms allow-discrete, display 150ms allow-discrete; }
+  .select:not(:open)::picker(select) { opacity: 0; translate: 0 -4px; transition-duration: 100ms; }
+  @starting-style { .select:open::picker(select) { opacity: 0; translate: 0 -4px; } }
+  .select option { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; font-size: 14px; font-weight: 450; background: none; white-space: nowrap; cursor: pointer; }
+  .select option:checked { font-weight: 600; }
+  .select option:focus-visible { outline: none; background: var(--fill); }
+  .select option::checkmark { order: 1; margin-inline-start: auto; content: ""; width: 12px; height: 12px; background: var(--accent);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.3 3.3L15 7' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.3 3.3L15 7' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+}
 .seg { position: relative; display: inline-flex; padding: 2px; background: var(--fill); border-radius: 10px; isolation: isolate; }
 .seg .thumb { position: absolute; top: 2px; bottom: 2px; left: 0; border-radius: 8px; background: var(--surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, .12); z-index: -1; transition: transform 320ms var(--ease), width 320ms var(--ease); }
@@ -392,6 +417,8 @@ dialog[open] { animation: pop 260ms var(--ease); }
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 86%, var(--accent)); }
   .btn-quiet:hover:not(:disabled), .btn-ghost:hover, .icon-btn:hover { background: var(--fill); }
+  .select:hover { background-color: var(--line); }
+  .select option:hover { background: var(--fill); }
   .sc-group button:hover:not([aria-current="true"]) { background: var(--fill-2); }
   .pick:hover { box-shadow: var(--shadow-2); transform: translateY(-1px); }
   .link:hover { text-decoration: underline; }
@@ -468,7 +495,7 @@ dialog[open] { animation: pop 260ms var(--ease); }
 @media (prefers-reduced-motion: reduce) {
   .enter, .enter-r, .enter-l, dialog[open], .toast { animation: fade 200ms ease both; }
   .step.active .node::after, .shimmer, .send[aria-busy="true"] svg { animation: none; }
-  .rail-side, .seg .thumb, .switch::after, details.more > summary svg { transition-duration: 1ms !important; }
+  .rail-side, .seg .thumb, .switch::after, details.more > summary svg, .select::picker(select), .select::picker-icon { transition-duration: 1ms !important; }
   .btn:active, .icon-btn:active, .pick:active, .pick:hover { transform: none !important; }
 }
 @keyframes fade { from { opacity: 0; } }
@@ -636,7 +663,7 @@ function label(l) { return LABEL[l] || l; }
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
 function maxText() { return (meta && meta.max_text) || 4000; }
-function purposeName(p) { return p.replace("_", " "); }
+function purposeName(p) { return p === "hr_summary" ? "HR summary" : p.replace("_", " "); }
 function destName(d) { return d === "external" ? "External AI" : "Internal model"; }
 function destLower(d) { return d === "external" ? "external AI" : "internal model"; }
 function listJoin(xs) { return xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`; }
@@ -1338,7 +1365,7 @@ async function boot() {
   }
   $("text").maxLength = maxText();
   $("role").innerHTML = meta.roles.map((r) => `<option>${esc(r)}</option>`).join("");
-  $("purpose").innerHTML = meta.purposes.map((p) => `<option value="${esc(p)}">${esc(purposeName(p))}</option>`).join("");
+  $("purpose").innerHTML = meta.purposes.map((p) => `<option value="${esc(p)}">${esc(cap(purposeName(p)))}</option>`).join("");
   setDest("external");
   setPack("default");
   setCtxStatus(true, "");
