@@ -1,10 +1,14 @@
-// gate check: the slide 2 and 3 messages render the same in the new page as in the old one (chaperone/static/index.html).
-// The old page runs live; its exact answers are then replayed into the new page, so both draw the same data.
+// gate check: the slide 2 and 3 messages render the same in the new page as in the old one.
+// The old page (chaperone/static/index.html, removed after the switch) is read from git history and runs live;
+// its exact answers are then replayed into the new page, so both draw the same data.
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 const OLD = "/static/index.html";
+const LAST_OLD = "24f3d64";  // the last commit that still had the old page
+const OLD_PAGE = execFileSync("git", ["show", `${LAST_OLD}:chaperone/static/index.html`], { cwd: path.join(__dirname, "../.."), maxBuffer: 1 << 24 });
 // tall enough that a whole turn fits without scrolling, so one picture holds the top bar, the rail and the turn
 test.use({ viewport: { width: 1600, height: 2600 } });
 
@@ -52,6 +56,7 @@ for (const id of [...SCENARIOS, "hinglish"]) {
         await r.fulfill({ response: res, body: bodies[path] });
       });
     }
+    await page.route(OLD, (r) => r.fulfill({ status: 200, contentType: "text/html", body: OLD_PAGE }));
     await page.goto(OLD);
     await expect(page.locator("#scenarios button").first()).toBeVisible();
     const oldText = await run(page, start);

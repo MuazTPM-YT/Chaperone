@@ -1,6 +1,7 @@
 # UI parity checklist
 
-Everything `chaperone/static/index.html` does, as read on 2026-10-17 (commit `96ba3f3`). The Next.js app in `web/`
+Everything the old single-file page `chaperone/static/index.html` did, as read on 2026-10-17 (commit `96ba3f3`). It was
+removed after the switch; it is still in git history (last in commit `24f3d64`). The Next.js app in `web/`
 must do all of it. Each item names the Playwright tests that cover it (`web/e2e/`); every test title starts with the
 item ids it covers.
 
