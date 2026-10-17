@@ -74,7 +74,8 @@ def run_ours(ex: dict, use_context: bool, model: str | None) -> dict:
     from chaperone.transform import Vault
 
     flow = Flow(ex["role"], ex["destination"], ex["purpose"])
-    r = analyze(ex["text"], flow, Vault(), use_context=use_context, model=model)
+    # the no-context row measures detection alone, so it skips the refusal a real send would get
+    r = analyze(ex["text"], flow, Vault(), use_context=use_context, model=model, refuse_unchecked=use_context)
     spans = [{"start": s["start"], "end": s["end"], "label": s["label"], "action": s["action"],
               "covered": s["covered"]} for s in r["spans"]]
     return {"spans": spans, "outbound": r["outbound"], "ms": r["timings"]["total_ms"],

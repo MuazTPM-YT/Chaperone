@@ -11,8 +11,8 @@ NOTE = ("Patient Ramesh Rao, 54-year-old male from Udupi, admitted on 12 March 2
 HARBOR = Flow("Doctor", "external", "clinical_summary", "safe_harbor")
 
 
-def test_safe_harbor_dates_to_year_ages_over_89_grouped():
-    r = gateway.analyze(NOTE, HARBOR, Vault(), use_context=False)
+def test_safe_harbor_dates_to_year_ages_over_89_grouped(checks_up):
+    r = gateway.analyze(NOTE, HARBOR, Vault())
     out = r["outbound"]
     assert "[DATE_1: 2026]" in out and "12 March" not in out
     assert "54-year-old" in out  # ages up to 89 may stay

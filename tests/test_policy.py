@@ -134,12 +134,12 @@ def test_admin_edit_is_validated_saved_and_sealed_in_the_audit_log(monkeypatch):
     assert gateway.verify_log()["ok"] and gateway.processing_record().count("\n") == 1  # header only
 
 
-def test_preview_runs_both_rule_sets_without_sending_or_saving(monkeypatch, llm):
+def test_preview_runs_both_rule_sets_without_sending_or_saving(monkeypatch, llm, checks_up):
     monkeypatch.setattr(app_module, "ADMIN", True)
     rule = {"id": "pan-pass", "when": {"label": "PAN"}, "action": "pass", "why": "Test."}
     r = client().post("/api/policies/preview", json={
         "pack": "default", "rules": [rule, *own()], "text": "Bill Suresh Kumar, PAN ABKPS7312M.",
-        "role": "Accountant", "destination": "external", "purpose": "invoicing", "use_context": False}).json()
+        "role": "Accountant", "destination": "external", "purpose": "invoicing"}).json()
     assert "[PAN_1]" in r["before"]["outbound"] and "ABKPS7312M" in r["after"]["outbound"]
     assert llm.calls == [] and not policy.LOCAL_PATH.exists() and "protected" not in r["after"]
 

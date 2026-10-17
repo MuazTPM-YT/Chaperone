@@ -1,17 +1,18 @@
 import json
-from dataclasses import replace
 
 import httpx
 import pytest
 
 from chaperone import detect as detect_mod
 from chaperone import gateway
-from chaperone.detect import detect
 from chaperone.policy import Flow
 from chaperone.transform import OutboundLeak, Vault, guard, restore
 
 EXTERNAL = Flow("Manager", "external", "general")
 AADHAAR = "7260 1815 9082"
+
+# deterministic path: local checks stubbed as up, so external sends are allowed
+pytestmark = pytest.mark.usefixtures("checks_up")
 
 
 def test_guard_catches_respaced_and_cased_values():
@@ -25,14 +26,14 @@ def test_guard_stops_a_leak_before_any_network_call(monkeypatch, llm):
     # simulate a transform bug: spans detected, but the text goes out untouched
     real_apply = gateway.apply
     monkeypatch.setattr(gateway, "apply", lambda text, *a: (text, real_apply(text, *a)[1]))
-    r = gateway.chat(f"Customer Aadhaar {AADHAAR} needs a KYC update.", EXTERNAL, "s1", use_context=False)
+    r = gateway.chat(f"Customer Aadhaar {AADHAAR} needs a KYC update.", EXTERNAL, "s1")
     assert llm.calls == []
     assert r["sent"] is False and "guard refused" in r["error"]
 
 
 def test_session_history_is_guarded_too(llm):
-    gateway.chat(f"Customer Aadhaar {AADHAAR} needs a KYC update.", EXTERNAL, "s1", use_context=False)
-    gateway.chat("Draft the reply.", EXTERNAL, "s1", use_context=False)
+    gateway.chat(f"Customer Aadhaar {AADHAAR} needs a KYC update.", EXTERNAL, "s1")
+    gateway.chat("Draft the reply.", EXTERNAL, "s1")
     sent = json.dumps(llm.calls, ensure_ascii=False)
     assert "[AADHAAR_1]" in sent and "7260" not in sent
 
@@ -40,20 +41,18 @@ def test_session_history_is_guarded_too(llm):
 def test_flow_change_mid_conversation_does_not_stall_it(llm):
     # scheduling sends the name as typed; the next flow masks it. The raw name already sits in the history,
     # so re-guarding the history against it used to refuse every later message.
-    gateway.chat("Book a call with Priya Sharma on Friday.", Flow("Manager", "external", "scheduling"), "s1",
-                 use_context=False)
-    b = gateway.chat("Write a thank-you note to Priya Sharma.", EXTERNAL, "s1", use_context=False)
-    c = gateway.chat("Make it shorter.", EXTERNAL, "s1", use_context=False)
+    gateway.chat("Book a call with Priya Sharma on Friday.", Flow("Manager", "external", "scheduling"), "s1")
+    b = gateway.chat("Write a thank-you note to Priya Sharma.", EXTERNAL, "s1")
+    c = gateway.chat("Make it shorter.", EXTERNAL, "s1")
     assert b["outbound"] == "Write a thank-you note to [PERSON_1]."
     assert b["sent"] and c["sent"] and len(llm.calls) == 3
 
 
 def test_pseudonyms_are_consistent_and_sticky_per_destination(llm):
-    a = gateway.chat(f"Aadhaar {AADHAAR} is wrong.", EXTERNAL, "s1", use_context=False)
-    b = gateway.chat("Recheck 726018159082 please.", EXTERNAL, "s1", use_context=False)
+    a = gateway.chat(f"Aadhaar {AADHAAR} is wrong.", EXTERNAL, "s1")
+    b = gateway.chat("Recheck 726018159082 please.", EXTERNAL, "s1")
     assert "[AADHAAR_1]" in a["outbound"] and "[AADHAAR_1]" in b["outbound"]
-    internal = gateway.chat("Recheck 726018159082 please.", Flow("Manager", "internal", "general"), "s1",
-                            use_context=False)
+    internal = gateway.chat("Recheck 726018159082 please.", Flow("Manager", "internal", "general"), "s1")
     assert "726018159082" in internal["outbound"]  # internal vault is separate
 
 
@@ -77,7 +76,7 @@ def test_restore_does_not_confuse_1_and_10():
 
 
 def test_audit_log_holds_no_raw_values(llm):
-    gateway.chat(f"Suresh Kumar, Aadhaar {AADHAAR}, PAN ABKPS7312M", EXTERNAL, "s1", use_context=False)
+    gateway.chat(f"Suresh Kumar, Aadhaar {AADHAAR}, PAN ABKPS7312M", EXTERNAL, "s1")
     log = gateway.AUDIT_PATH.read_text()
     for raw in ("Suresh", "7260", "ABKPS7312M"):
         assert raw not in log
@@ -89,20 +88,18 @@ def test_audit_log_holds_no_raw_values(llm):
 def test_example_audit_key_is_rejected(monkeypatch, llm):
     monkeypatch.setenv("AUDIT_HMAC_KEY", "change-me")
     with pytest.raises(RuntimeError, match="AUDIT_HMAC_KEY"):
-        gateway.chat("hello", EXTERNAL, "s1", use_context=False)
+        gateway.chat("hello", EXTERNAL, "s1")
 
 
 def test_first_name_alone_gets_the_full_names_placeholder(llm):
-    r = gateway.chat("Rohan Deshpande joined in May. Rohan's car is in the visitor slot.", EXTERNAL, "s1",
-                     use_context=False)
+    r = gateway.chat("Rohan Deshpande joined in May. Rohan's car is in the visitor slot.", EXTERNAL, "s1")
     assert "Rohan" not in r["outbound"]
     assert r["outbound"].count("[PERSON_1]") == 2
     assert restore("Tell [PERSON_1] to move it.", gateway.vault_for("s1", "external"))[0] == "Tell Rohan Deshpande to move it."
 
 
 def test_placeholders_follow_reading_order(llm):
-    r = gateway.chat("Ward round: Ramesh Rao, Sunita Rao and Kiran Patil need discharge notes.", EXTERNAL, "s1",
-                     use_context=False)
+    r = gateway.chat("Ward round: Ramesh Rao, Sunita Rao and Kiran Patil need discharge notes.", EXTERNAL, "s1")
     assert r["outbound"].startswith("Ward round: [PERSON_1], [PERSON_2] and [PERSON_3]")
 
 
@@ -130,17 +127,17 @@ CLINIC = Flow("Doctor", "external", "clinical_summary")
 
 
 def test_purpose_omits_what_the_task_does_not_need(llm):
-    r = gateway.chat(DISCHARGE, CLINIC, "s-p1", use_context=False)
+    r = gateway.chat(DISCHARGE, CLINIC, "s-p1")
     assert "[PHONE omitted]" in r["outbound"] and "98450" not in r["outbound"]
     assert [s["rule"] for s in r["spans"] if s["label"] == "PHONE"] == ["purpose-minimisation"]
     invoice = gateway.chat("Bill Suresh Kumar, PAN ABKPS7312M, for the audit.", Flow("Accountant", "external", "invoicing"),
-                           "s-p2", use_context=False)
+                           "s-p2")
     assert "[PAN_1]" in invoice["outbound"]  # an invoice needs the PAN
 
 
 def test_include_anyway_needs_a_reason_and_is_logged_without_raw_values(llm):
     reason = "Ward clerk Ravi Kumar needs the contact on the note"
-    r = gateway.chat(DISCHARGE, CLINIC, "s-p3", use_context=False,
+    r = gateway.chat(DISCHARGE, CLINIC, "s-p3",
                      include=[{"label": "PHONE", "text": "98450 12345", "reason": reason}])
     assert "[PHONE_1]" in r["outbound"] and r["overrides"][0]["label"] == "PHONE"
     log = gateway.AUDIT_PATH.read_text()
@@ -152,7 +149,7 @@ def test_compare_runs_one_message_through_several_flows_without_sending(llm):
 
     from chaperone.app import app
 
-    r = TestClient(app, base_url="http://127.0.0.1").post("/api/compare", json={"text": DISCHARGE, "use_context": False}).json()
+    r = TestClient(app, base_url="http://127.0.0.1").post("/api/compare", json={"text": DISCHARGE}).json()
     assert [x["flow"]["role"] + "/" + x["flow"]["destination"] for x in r["runs"]] == [
         "Doctor/internal", "Doctor/external", "Intern/external"]
     assert "Ramesh Rao" in r["runs"][0]["outbound"] and "Ramesh Rao" not in r["runs"][1]["outbound"]
@@ -160,7 +157,7 @@ def test_compare_runs_one_message_through_several_flows_without_sending(llm):
 
 
 def test_processing_record_lists_categories_and_no_raw_values(llm):
-    gateway.chat(DISCHARGE, CLINIC, "s-rec", use_context=False)
+    gateway.chat(DISCHARGE, CLINIC, "s-rec")
     rows = gateway.processing_record().splitlines()
     assert rows[0].startswith("time_utc,conversation,sender_role") and len(rows) == 2
     assert "Doctor,external,clinical_summary,default,True,False" in rows[1] and "PERSON" in rows[1]
@@ -170,11 +167,12 @@ def test_processing_record_lists_categories_and_no_raw_values(llm):
 def test_steps_are_reported_in_pipeline_order(llm):
     llm.reply = "Noted for [PERSON_1]."
     steps = []
-    r = gateway.chat(DISCHARGE, CLINIC, "s-st", use_context=False, on_step=lambda step, data: steps.append((step, data)))
+    r = gateway.chat(DISCHARGE, CLINIC, "s-st", on_step=lambda step, data: steps.append((step, data)))
     assert [s for s, _ in steps] == ["detect", "decide", "attack", "ready", "guard", "reply", "restore"]
     data = dict(steps)
     assert {"label": "PHONE", "text": "98450 12345"} in [{k: i[k] for k in ("label", "text")} for i in data["detect"]["items"]]
-    assert data["decide"]["counts"]["omit"] == 1 and data["attack"]["skipped"] == "local AI unavailable"
+    assert data["decide"]["counts"]["omit"] == 1 and data["attack"] == {"round": 0, "ms": data["attack"]["ms"],
+                                                                         "found": [], "skipped": ""}
     assert data["ready"]["outbound"] == r["outbound"] and data["reply"]["reply"] == "Noted for [PERSON_1]."
     assert data["restore"]["restored"] == r["restored"] == "Noted for Ramesh Rao."
 
@@ -183,7 +181,7 @@ def test_guard_refusal_ends_the_steps_before_sending(monkeypatch, llm):
     real_apply = gateway.apply
     monkeypatch.setattr(gateway, "apply", lambda text, *a: (text, real_apply(text, *a)[1]))
     steps = []
-    gateway.chat(f"Aadhaar {AADHAAR} is wrong.", EXTERNAL, "s-g", use_context=False,
+    gateway.chat(f"Aadhaar {AADHAAR} is wrong.", EXTERNAL, "s-g",
                  on_step=lambda step, data: steps.append(step))
     assert steps == ["detect", "decide", "attack", "ready"] and llm.calls == []
 
@@ -194,7 +192,7 @@ def test_stream_endpoint_sends_steps_then_the_full_result(llm):
     from chaperone.app import app
 
     body = {"session_id": "s-http", "text": DISCHARGE, "role": "Doctor", "destination": "external",
-            "purpose": "clinical_summary", "use_context": False}
+            "purpose": "clinical_summary"}
     with TestClient(app, base_url="http://127.0.0.1").stream("POST", "/api/chat/stream", json=body) as res:
         assert res.headers["content-type"].startswith("application/x-ndjson")
         events = [json.loads(line) for line in res.iter_lines() if line]
@@ -227,14 +225,9 @@ OFFLINE_NOTE = "Priya is on leave, she’s started tamoxifen."
 
 @pytest.fixture
 def local_model_down(monkeypatch):
+    monkeypatch.setattr(gateway, "detect_cached", detect_mod.detect_cached)  # undo the module's checks_up stub
     monkeypatch.setattr(detect_mod, "OLLAMA_URL", "http://127.0.0.1:9")  # nothing listens here
     detect_mod._CACHE.clear()
-
-
-@pytest.fixture
-def context_up(monkeypatch):
-    monkeypatch.setattr(gateway, "detect_cached", lambda text, use_context=True, model=None:
-                        replace(detect(text, use_context=False), context_ok=True))
 
 
 def test_external_is_refused_when_local_checks_are_offline(llm, local_model_down):
@@ -251,7 +244,7 @@ def test_internal_still_goes_out_with_the_offline_warning(llm, local_model_down)
     assert r["context_ok"] is False and r["attack"]["skipped"] == "local AI unavailable"
 
 
-def test_attacker_failing_mid_check_refuses_external(monkeypatch, llm, context_up):
+def test_attacker_failing_mid_check_refuses_external(monkeypatch, llm):
     def down(*a, **k):
         raise httpx.ConnectError("connection refused")
 
@@ -260,8 +253,18 @@ def test_attacker_failing_mid_check_refuses_external(monkeypatch, llm, context_u
     assert r["blocked"] and r["block_reason"]["rule"] == "local-checks-offline" and llm.calls == []
 
 
-def test_online_checks_send_external_as_before(monkeypatch, llm, context_up):
+def test_online_checks_send_external_as_before(monkeypatch, llm):
     monkeypatch.setattr(gateway.attack, "attack", lambda *a, **k: [])
     r = gateway.chat(OFFLINE_NOTE, EXTERNAL, "s1")
     assert r["sent"] and not r["blocked"] and r["attack"]["ran"] and len(llm.calls) == 1
     assert "[PERSON_1]" in llm.calls[0]["messages"][-1]["content"]
+
+
+def test_external_is_refused_when_checks_are_turned_off(llm):
+    r = gateway.chat(OFFLINE_NOTE, EXTERNAL, "s1", use_context=False)
+    assert r["blocked"] and r["block_reason"]["rule"] == "local-checks-turned-off" and llm.calls == []
+
+
+def test_internal_still_goes_out_when_checks_are_turned_off(llm):
+    r = gateway.chat(OFFLINE_NOTE, Flow("Manager", "internal", "general"), "s1", use_context=False)
+    assert r["sent"] and not r["blocked"] and len(llm.calls) == 1

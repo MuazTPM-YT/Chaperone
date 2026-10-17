@@ -969,8 +969,8 @@ function outSteps(t, i) {
     // the full warning once per chat; later turns get the short form
     const said = turns.slice(0, i).some((x) => x.steps.detect && !x.steps.detect.context_ok);
     const off = t.flow.use_context ? "offline" : "turned off";
-    const stopped = t.flow.use_context && t.flow.destination === "external";
-    const warn = st.detect.context_ok ? "" : stopped ? `<div class="callout">Local checks are offline, so nothing goes to an external AI.</div>`
+    const stopped = t.flow.destination === "external";
+    const warn = st.detect.context_ok ? "" : stopped ? `<div class="callout">Local checks are ${off}, so nothing goes to an external AI.</div>`
       : said ? `<div class="callout">Local AI checks ${off}: only IDs and names checked.</div>`
       : `<div class="callout">Local AI checks are ${off}. Only IDs and names were checked; health, pay, HR, legal details and inferences can go through unnoticed.</div>`;
     out.push(stepLi(st.detect.context_ok ? "done" : "warn", "Find what is sensitive",

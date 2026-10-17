@@ -65,7 +65,7 @@ def vault_for(session_id: str, destination: str) -> Vault:
 # detect -> decide -> transform -> attack and tighten; no network except the local models
 def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model: str | None = None,
             use_attack: bool = True, use_purpose: bool = True, include: list[dict] | None = None,
-            on_step: OnStep = _quiet) -> dict:
+            on_step: OnStep = _quiet, refuse_unchecked: bool = True) -> dict:
     t0 = time.perf_counter()
     det = detect_cached(text, use_context=use_context, model=model)
     on_step("detect", {"items": [{"label": s.label, "text": s.text, "source": s.source} for s in det.spans],
@@ -141,12 +141,15 @@ def analyze(text: str, flow: Flow, vault: Vault, use_context: bool = True, model
     if skipped:
         on_step("attack", {"round": None, "ms": 0, "found": [], "skipped": skipped})
     blocker: Decision | None
-    # without the local checks only IDs and names were looked at: fail closed for anything leaving the organisation
+    # without the local checks only IDs and names were looked at: fail closed for anything leaving the organisation.
+    # refuse_unchecked=False is for the detection eval's no-context-layer row only
     checks_down = use_context and (not det.context_ok or skipped == "local AI unavailable")
-    if checks_down and flow.destination == "external" and outbound is not None:
+    if refuse_unchecked and (checks_down or not use_context) and flow.destination == "external" and outbound is not None:
         outbound = None
-        blocker = Decision("block", "local-checks-offline",
-                           "Local checks are offline, so nothing goes to an external AI.", "request")
+        blocker = (Decision("block", "local-checks-offline",
+                            "Local checks are offline, so nothing goes to an external AI.", "request") if use_context
+                   else Decision("block", "local-checks-turned-off",
+                                 "Local checks are turned off, so nothing goes to an external AI.", "request"))
     elif unresolved:
         outbound = None
         guesses = "; ".join(sorted({inf.guess for inf in unresolved}))

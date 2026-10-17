@@ -35,3 +35,15 @@ def llm(monkeypatch):
     stub = StubLLM(gateway.httpx.post)
     monkeypatch.setattr(gateway.httpx, "post", stub)
     return stub
+
+
+# local checks reported up without Ollama: deterministic detection only, and the attacker finds nothing
+@pytest.fixture
+def checks_up(monkeypatch):
+    from dataclasses import replace
+
+    from chaperone import attack, detect
+
+    monkeypatch.setattr(gateway, "detect_cached", lambda text, use_context=True, model=None:
+                        replace(detect.detect(text, use_context=False), context_ok=True))
+    monkeypatch.setattr(attack, "attack", lambda *a, **k: [])
