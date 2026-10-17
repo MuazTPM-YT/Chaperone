@@ -1,6 +1,6 @@
 # Chaperone
 
-[![CI](https://github.com/MuazTPM-YT/devhack2026-round1/actions/workflows/ci.yml/badge.svg)](https://github.com/MuazTPM-YT/devhack2026-round1/actions/workflows/ci.yml)
+[![CI](https://github.com/MuazTPM-YT/Chaperone/actions/workflows/ci.yml/badge.svg)](https://github.com/MuazTPM-YT/Chaperone/actions/workflows/ci.yml)
 
 Chaperone is a privacy gateway that runs on the office laptop. It sits between staff and an AI chatbot. It checks
 every message before it leaves, and decides what may go out based on the flow: what the data is, whose it is, who
@@ -112,8 +112,8 @@ The commands work in bash, zsh and fish.
 3. Get the code and run the setup once:
 
    ```sh
-   git clone https://github.com/MuazTPM-YT/devhack2026-round1.git
-   cd devhack2026-round1
+   git clone https://github.com/MuazTPM-YT/Chaperone.git
+   cd Chaperone
    ./setup.sh
    ```
 
@@ -192,7 +192,7 @@ from the rule files. Example client config:
 
 ```json
 {"mcpServers": {"chaperone": {"command": "uv", "args": ["run", "--frozen", "python", "-m", "chaperone.mcp_server"],
-                              "cwd": "/path/to/devhack2026-round1"}}}
+                              "cwd": "/path/to/Chaperone"}}}
 ```
 
 ## Configuration
