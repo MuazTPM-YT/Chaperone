@@ -2,105 +2,114 @@
 
 [![CI](https://github.com/MuazTPM-YT/devhack2026-round1/actions/workflows/ci.yml/badge.svg)](https://github.com/MuazTPM-YT/devhack2026-round1/actions/workflows/ci.yml)
 
-A local privacy gateway that sits between office staff and an AI chatbot. It decides what may leave based on the
-**flow** (what the data is, whose it is, who sends it, where it goes, and why), not on keywords.
+Chaperone is a privacy gateway that runs on the office laptop. It sits between staff and an AI chatbot. It checks
+every message before it leaves, and decides what may go out based on the flow: what the data is, whose it is, who
+sends it, where it goes, and why.
 
-> "Priya is on leave next week" is fine for a scheduling assistant.
-> "Priya is on leave next week for chemotherapy" is not; the medical detail is made vague before it leaves.
+**The problem.** Small clinics, CA firms, college offices and small companies paste client data into AI chatbots to
+get work done. Names and ID numbers are only part of the risk. "Priya has started tamoxifen" names no illness, but a
+reader can still guess breast cancer. "Our only female cardiologist at Udupi" has no name, but it points to one
+person. Enterprise DLP (data loss prevention) tools that could catch this cost too much for these offices, and the
+Indian DPDP Act (Digital Personal Data Protection Act, 2023) still applies to them.
 
-Masking names and IDs is the floor; many tools do it (see [Prior art](#prior-art-and-whats-different)). Chaperone
-adds a step after masking: a **local attacker model reads every outgoing message**, and the conversation so far,
-and asks what it could work out. "Meena is on tamoxifen" has no diagnosis in it, but a reader can infer breast
-cancer. If the flow forbids that inference, Chaperone makes the evidence vaguer and asks again. If two rounds do not
-clear it, the message is not sent.
+Built for DevHack 2026, problem statement 2.2 (context-aware data privacy).
 
-Built for DevHack 2026, problem statement 2.2 (context-aware data privacy). Target users: small Indian clinics, CA
-firms, college offices and SMEs that paste client data into external AI tools, face DPDP Act obligations, and
-cannot afford enterprise DLP.
-
-![Patient note: names masked, age and date sent vague and restored exact, wife's phone omitted](docs/screenshots/s7.png)
-
-![No diagnosis written, but "tamoxifen" implies breast cancer: the drug is made vague; names-only masking would leak it](docs/screenshots/s8a.png)
-
-More: [only female cardiologist](docs/screenshots/s8b.png), [same message in three flows](docs/screenshots/s10.png),
-[the rules panel](docs/screenshots/s11.png).
-
-## Features
-
-- **Both ends in view.** A three-lane chat: what you wrote, each check as it runs, and exactly what the AI received
-  and replied. The reply comes back with the real names and values put in again.
-- **Flow-aware rules.** The same detail can pass, be masked, be made vague, be left out, or stop the message,
-  depending on who sends it, where it goes and why.
-- **Detection on this laptop.** Indian IDs with checksums (Aadhaar, PAN with holder type, GSTIN, IFSC, UPI, phone,
-  email, vehicle, record and account numbers), names, organisations and places, and meaning (health, pay, unpublished
-  results, HR and legal matters) in English and Hinglish.
-- **A local attacker** reads every outgoing message and the conversation so far, and asks what it could work out.
-  Forbidden inferences are made vaguer, or the message is refused.
-- **Reversible masking.** `[PERSON_1]` and `[AGE_1: in their 50s]` go out; exact values come back only on this laptop.
-  Invented ages, dates, amounts and names in the reply are flagged.
-- **Purpose minimisation** (DPDP Act): identifiers the purpose does not need are left out, with a logged
-  "Include anyway".
-- **Rules you can read and change.** Rule files that apply without a restart, a Rules panel for everyone, and an
-  editor with "Try it" in admin mode. Every change is sealed in the audit log.
-- **Accountability without a copy of the data.** A sealed audit log of keyed tags, a person report ("where did this
-  person's data go?"), and a processing record as CSV.
-- **HIPAA Safe Harbor mode**, an MCP server for agents, and a streaming HTTP API.
+![Patient note: names masked, age and date sent vague and restored exact, the family phone left out](docs/screenshots/s7.png)
 
 ## Contents
 
-1. [Install](#install) and [update](#update)
-2. [Use the app](#use-the-app) and the [demo scenarios](#demo-scenarios)
-3. [How it works](#how-it-works)
-4. [Change the rules](#change-the-rules)
-5. [Configuration](#configuration)
-6. [HTTP API](#http-api) and [Agents (MCP)](#agents-mcp)
-7. [Results](#results) and [Prior art](#prior-art-and-whats-different)
-8. [HIPAA Safe Harbor mode](#hipaa-safe-harbor-mode) and [Accountability](#accountability)
-9. [Design decisions](#design-decisions) and [Limitations](#limitations)
-10. [Development](#development), [Troubleshooting](#troubleshooting) and [Security](#security)
+1. [What Chaperone is](#chaperone)
+2. [How it works](#how-it-works)
+3. [Quick start](#quick-start)
+4. [Try it](#try-it)
+5. [Using it from an AI agent (MCP)](#using-it-from-an-ai-agent-mcp)
+6. [Configuration](#configuration)
+7. [API](#api)
+8. [Evaluation](#evaluation)
+9. [Tests](#tests)
+10. [Guarantees and known limits](#guarantees-and-known-limits)
+11. [Prior art and what's different](#prior-art-and-whats-different)
+12. [Project layout](#project-layout)
+13. [License](#license)
 
-## Install
+## How it works
 
-### Requirements
+A message takes six steps on the way out and three on the way back. All nine run on the laptop. Only the checked
+text goes to the AI. There is no architecture image in `docs/` yet, so here is the same picture as text:
 
-| Need | Notes |
+```text
+  You type a message and pick the flow (role, destination, purpose)
+        |
+  THIS LAPTOP ----------------------------------------------------------------
+  | 1 Detect -> 2 Policy -> 3 Transform -> 4 Purpose -> 5 Attacker -> 6 Guard |
+  |                                                                     |      |
+  | 9 Audit  <- 8 Verify  <- 7 Restore  <-----------------------+       |      |
+  -------------------------------------------------------------|-------|------
+                                                               |       v
+                                              reply comes back |   only checked text
+                                                               +---- the AI (internal or external)
+```
+
+1. **Detect.** Text patterns find 14 kinds of ID. An Aadhaar number must pass its Verhoeff checksum (a check digit),
+   so an order number is not mistaken for one. GLiNER (a small NER model: named entity recognition) finds names,
+   organisations and places on the CPU. A local model, Qwen2.5 3B run by Ollama (a local model runner), finds health,
+   pay, MNPI (unpublished company results), HR and legal details. It sees IDs and names only as tags like `[PERSON]`.
+2. **Policy.** Rules in YAML files decide each item by its type, its owner (a person or a business), the sender's
+   role, the destination and the purpose. The first matching rule wins: pass, mask, make vague, or block. Some rules
+   block the whole message, for example unpublished results to an external AI.
+3. **Transform.** Masked values become numbered placeholders such as `[PERSON_1]`, the same for the whole
+   conversation. Vague values keep a hint, such as `[AGE_1: in their 50s]` or a salary band.
+4. **Purpose.** IDs the purpose does not need are left out, not masked. A clinical summary drops the phone number.
+   Only IDs can be left out. "Include anyway" puts one back and needs a reason, which the audit log keeps.
+5. **Attacker.** The local model reads the outgoing text, plus up to 6 earlier messages, and tries to work out a
+   diagnosis or a person. If the flow forbids what it finds, those words are made vaguer, then blocked. After 2
+   rounds that do not clear it, the message is not sent.
+6. **Guard and send.** Before any network call, the payload and the history are searched for every masked value,
+   ignoring spaces and case. One hit and nothing is sent. The send goes to any OpenAI-style chat service.
+7. **Restore.** Placeholders in the reply become real values again, on the laptop only, even when the AI wrote them
+   differently (`[person_1]`, `Person 1`).
+8. **Verify.** Ages, dates, amounts, long numbers and names in the reply that you never wrote are flagged as
+   invented.
+9. **Audit.** One line per request: rule, action and a keyed hash (HMAC) of each value, never the value. Each line's
+   seal covers the line before it, so an edited or removed line breaks the chain.
+
+If the local checks are offline or turned off, nothing goes to an external AI. A message to the internal model still
+goes out, with a warning that only IDs and names were checked.
+
+## Quick start
+
+### What you need
+
+| Need | Tested with |
 |---|---|
-| Linux or macOS | Windows is not supported: the audit log uses `fcntl`. WSL2 may work but is not tested. |
-| [uv](https://docs.astral.sh/uv/) | Installs Python 3.12 and every package from the lockfile. |
-| [Ollama](https://ollama.com) | Runs the local model `qwen2.5:3b` (about 2 GB). |
-| About 6 GB of disk | Python packages, the local model, the name model. |
-| A GPU is optional | A 4 GB GPU is enough. On CPU the checks are slower. |
+| Linux or macOS. Windows is not supported (the audit log uses `fcntl`). | Arch Linux, kernel 7.2.9 |
+| [uv](https://docs.astral.sh/uv/) (installs Python 3.12 and every package from the lockfile) | uv 0.13.1, Python 3.12.12 |
+| [Ollama](https://ollama.com) | Ollama 0.40.4 |
+| [Node.js](https://nodejs.org) 20.9 or newer, with npm (only to build the page once) | Node 26.11.1, npm 12.2.0 |
+| A GPU with 4 GB is enough. Without one, the checks run on the CPU and are slower. | NVIDIA RTX 3050 Laptop, 4 GB |
+| About 2 GB of free RAM and 5 GB of disk. Measured: the app used 1.2 GB of RAM (1.6 GB peak while loading); Python packages 1.7 GB, page build tools 0.4 GB, local model 1.9 GB, name model 0.6 GB | 15 GiB RAM |
 
 ### Steps
 
 The commands work in bash, zsh and fish.
 
-1. **Install uv** (skip if `uv --version` works):
+1. Install uv, Ollama and Node.js if you do not have them:
 
    ```sh
    curl -LsSf https://astral.sh/uv/install.sh | sh
+   curl -fsSL https://ollama.com/install.sh | sh        # Linux; on macOS use the app from ollama.com
    ```
 
-2. **Install Ollama** (skip if `ollama --version` works):
+   Install Node.js from [nodejs.org](https://nodejs.org) or your package manager (Arch: `sudo pacman -S nodejs npm`).
+
+2. Start Ollama and check that it answers:
 
    ```sh
-   curl -fsSL https://ollama.com/install.sh | sh     # Linux
-   sudo pacman -S ollama                             # Arch Linux (ollama-cuda for NVIDIA GPUs)
+   sudo systemctl start ollama     # Linux with the service; without it, run `ollama serve` in its own terminal
+   ollama list                     # must print a table, not "could not connect"
    ```
 
-   On macOS, download the app from [ollama.com/download](https://ollama.com/download).
-
-3. **Start Ollama** and check that it answers:
-
-   ```sh
-   sudo systemctl enable --now ollama   # Linux with the systemd service (the installer adds it)
-   ollama serve                         # or: in its own terminal, if there is no service
-   ollama list                          # must print a table, not "could not connect"
-   ```
-
-   On macOS, open the Ollama app.
-
-4. **Get the code and run setup** (once):
+3. Get the code and run the setup once:
 
    ```sh
    git clone https://github.com/MuazTPM-YT/devhack2026-round1.git
@@ -108,265 +117,142 @@ The commands work in bash, zsh and fish.
    ./setup.sh
    ```
 
-   `setup.sh` installs the Python packages, pulls `qwen2.5:3b`, downloads the name model, and writes `.env` with a
-   fresh random audit key. It stops with a clear message if uv or Ollama is missing or not running.
+   `setup.sh` installs the Python packages, pulls the local model (`ollama pull qwen2.5:3b`), downloads the name
+   model, builds the page (`npm ci && npm run build` in `web/`), and writes `.env` with a new random audit key. It
+   stops with a clear message if something is missing.
 
-5. **Start Chaperone**:
+4. Start Chaperone:
 
    ```sh
    uv run --frozen python -m chaperone
    ```
 
-   Wait for `context layer ok`, then open <http://127.0.0.1:8000>. If it prints `context layer OFFLINE`, see
-   [Troubleshooting](#troubleshooting).
+   Wait for `context layer ok`, then open <http://127.0.0.1:8000>. Startup took 5.0 s on the test laptop (3 runs).
 
-After setup nothing needs the internet. `--frozen` stops uv from checking the lockfile online.
+After setup, nothing needs the internet. We checked this by running the full browser test suite in a sandbox with no
+network (only `127.0.0.1`): 57 of 57 passed.
 
-### Update
+To update later: `git pull`, then `uv sync --frozen`, then `(cd web && npm ci && npm run build)`, then start again.
+Your `.env`, the audit log (`data/audit.jsonl`) and rule edits (`data/policies.local.yaml`) are not touched.
 
-```sh
-git pull
-uv sync --frozen
-uv run --frozen python -m chaperone
-```
+### If something goes wrong
 
-Your `.env`, audit log (`data/audit.jsonl`) and rule edits (`data/policies.local.yaml`) are not touched by an update.
-Reload the page after the server restarts.
-
-## Use the app
-
-The page is a chat with three lanes, so you see both ends of every message:
-
-| Lane | What it shows |
+| What you see | What to do |
 |---|---|
-| **You** (left) | Your message with every finding highlighted, and the reply with the real names and values put back. |
-| **Chaperone** (middle) | Each check as it runs: find, apply the rules, try to infer, final check, put the values back. |
-| **External AI** (right, hatched) | Exactly what the AI received and what it wrote, placeholders included. The dashed line is the edge of this laptop. |
+| `context layer OFFLINE`, or the page says "Local AI check: offline" | Start Ollama (step 2) and run `ollama pull qwen2.5:3b`. |
+| The page says "The page is not built yet" | Run `cd web && npm ci && npm run build`. |
+| `missing required env var ...` | Run `./setup.sh`, or copy `.env.example` to `.env`. |
+| `AUDIT_HMAC_KEY still has the example value` | Run `./setup.sh`, or put a random value in `.env`. |
+| `address already in use` | `PORT=8001 uv run --frozen python -m chaperone` |
+| `ollama list` is empty after a pull | `ollama serve` as your user looks in `~/.ollama`; the service uses `/var/lib/ollama`. Use the service. |
 
-1. **Pick a scenario** on the start screen or in the side rail, or type your own message.
-2. **Set the flow** in the top bar: who sends it, to the internal model or the external AI, for which purpose, and
-   under which rules (Standard or HIPAA Safe Harbor). The flow decides what may leave.
-3. **Send** with Enter. Shift + Enter adds a new line.
-4. Open **Details** under a step to see each decision, its rule and the reason, what the attacker inferred, and what
-   masking names alone would have leaked.
-5. A value left out for the purpose has **Include anyway**. It asks for a reason, which the audit log keeps with names
-   removed.
-6. **Copy** above your reply copies it with the real values.
-7. **Compare three flows** (under the message box) runs the same message through three flows as a dry run. Nothing
-   is sent.
-8. The side rail also has **View the rules** (see [Change the rules](#change-the-rules)), **Person report**,
-   **Check the audit log seal**, and **Download processing record (CSV)**. See [Accountability](#accountability).
+## Try it
 
-Links: `http://127.0.0.1:8000/#7` runs scenario 7 at once (any scenario id works), and `/#rules` opens the rules.
-Escape closes a panel. The theme button cycles automatic, light and dark. Below 1360 px wide the side rail opens from
-the menu button; on phones the lanes stack in order and panels open from the bottom.
+The page has three lanes: **You** (what you wrote, with each finding marked), **Chaperone** (each check as it runs)
+and **External AI** (exactly what the AI received and replied). Pick a scenario in the side rail, or type a message.
+The top bar sets the flow: sender role, internal model or external AI, purpose, and rule set. Open **Details** under
+a step to see each decision with its rule and reason.
 
-### Demo scenarios
-
-Each one sets the flow and sends a message, so you see one decision. They live in `chaperone/scenarios.json` and
-double as tests (`tests/test_scenarios.py`).
+`http://127.0.0.1:8000/#7` runs scenario 7 at once. `/#rules` opens the rules.
 
 | Id | Scenario | Flow | What it shows |
 |---|---|---|---|
-| 1a | Leave, no detail | Manager to external AI, scheduling | A colleague's name passes: a scheduler needs it |
-| 1b | Leave for chemotherapy | Manager to external AI, scheduling | Same request; the medical detail is made vague |
-| 2a | Internal HR summarizer | HR to internal model, HR summary | Salary stays exact inside the organisation |
-| 2b | External marketing copilot | Sales to external AI, marketing | Same sentence; the whole request is blocked |
-| 3a | Company PAN | Accountant to external AI, invoicing | A company's PAN is business data and passes |
-| 3b | Individual's PAN | Accountant to external AI, invoicing | A person's PAN and name are masked |
-| 4a | Valid Aadhaar | Accountant to external AI, general | A checksum-valid Aadhaar is masked |
-| 4b | Order number | Accountant to external AI, general | Twelve digits that fail the checksum pass |
-| 5 | Rahul ka salary | Manager to external AI, general | Hinglish: name and pay are caught |
-| 6a | Apple's public results | Manager to external AI, general | Public results pass |
-| 6b | Our unannounced results | Manager to external AI, general | Unpublished results never leave |
+| 1a, 1b | Leave note, with and without "chemotherapy" | Manager to external AI, scheduling | The name passes; the medical detail is made vague |
+| 2a, 2b | "Vikram Nair's revised salary is ₹14.2 lakh" | HR to internal / Sales to external marketing | Exact inside the organisation; the whole request blocked outside |
+| 3a, 3b | Invoice with a PAN | Accountant to external AI, invoicing | A company's PAN passes; a person's PAN and name are masked |
+| 4a, 4b | Twelve digits | Accountant to external AI | A valid Aadhaar is masked; an order number that fails the checksum passes |
+| 5 | "Rahul ka salary 14 lakh hai" | Manager to external AI | Hinglish: the name and the pay are caught |
+| 6a, 6b | Apple's Q3 revenue / our Q3 revenue before the announcement | Manager to external AI | Public results pass; unpublished results never leave |
 | 7 | Discharge summary | Doctor to external AI, clinical summary | Names masked, age and date vague, the family phone left out |
-| 8a | Medicine, no diagnosis | Manager to external AI, general | "Tamoxifen" implies cancer; names-only masking would leak it |
-| 8b | Our only female cardiologist | HR to external AI, HR summary | No name, but one person; the description is made vaguer |
-| 9 | Discharge note, dates to year | Doctor to external AI, clinical summary, Safe Harbor | Dates go to the year; names and the phone are removed |
-| 10 | Medicine note, three flows | Three flows side by side | The same note decided three ways |
+| 8a | "She has started tamoxifen" | Manager to external AI | No diagnosis written, but names-only masking would let a reader infer breast cancer |
+| 8b | "Our only female cardiologist at the Udupi branch" | HR to external AI | No name, but one person; the attacker makes it vaguer |
+| 9 | Discharge note under HIPAA Safe Harbor | Doctor to external AI | Dates go to the year only |
+| 10 | Medicine note, three flows | Compare view | The same note decided three ways, side by side, nothing sent |
 
-The 4-minute video script is in [docs/DEMO.md](docs/DEMO.md).
+The side rail also has the exposure ledger (what the external AI could know about people in this chat), **View the
+rules**, **Person report** (every logged request that carried one person's name or ID), **Check the audit log seal**
+and **Download processing record (CSV)**.
 
-## How it works
+Rules live in `chaperone/policies.yaml` and `chaperone/policies_safe_harbor.yaml`. A changed file applies to the next
+message, without a restart. A bad edit is refused and the last good rules stay in use. To edit rules in the page, start
+with `CHAPERONE_ADMIN=1`; edits go to `data/policies.local.yaml` and every change is sealed in the audit log.
 
-```mermaid
-flowchart LR
-    U[Staff message + flow<br/>role, destination, purpose] --> D
-    subgraph L[This laptop]
-        D[Detect] --> P[Policy<br/>rule files, live] --> T[Transform<br/>pass, pseudonymize,<br/>generalize, block] --> M[Purpose<br/>minimisation] --> K[Local attacker<br/>tighten or refuse] --> G{Outbound guard}
-        D1[Pattern + checksum<br/>Aadhaar, PAN, GSTIN, IFSC,<br/>UPI, phone, email, vehicle] --- D
-        D2[GLiNER names,<br/>orgs, places] --- D
-        D3[Local LLM qwen2.5:3b<br/>health, pay, MNPI, HR, legal] --- D
-        R[Restore placeholders,<br/>flag invented details] --> A[Audit log<br/>HMAC only]
-    end
-    G -- clean payload --> X[LLM endpoint<br/>internal or external]
-    G -- raw value found --> S[Refuse to send]
-    X --> R --> U2[Answer with real names]
-```
+## Using it from an AI agent (MCP)
 
-1. **Detect, locally.** Three layers. Patterns with checksums (python-stdnum) find Indian IDs and read who holds
-   them: a PAN's 4th letter says person or company, and a GSTIN embeds a PAN, so a sole proprietor's GSTIN is
-   personal. GLiNER finds names, organisations and places. A small local LLM labels meaning a pattern cannot see:
-   health, pay, unpublished company results (MNPI), HR and legal matters, in English and Hinglish. Before the
-   LLM reads the text, IDs and names are swapped for tags like `[AADHAAR]`, so it judges meaning, not numbers.
-   Pay, HR and MNPI findings get a second, narrower question about that one phrase, because extraction alone
-   called invoice totals "salary", a moved meeting an "HR matter" and a rent increase "unpublished results".
-   Long text is read in sentence-sized windows (about 250 characters): on a 1,274-character paste the 3B model
-   found nothing at all when given the whole thing. A full name found once also masks its first name used
-   alone later ("Rohan wants…"), with the same placeholder.
-2. **Decide per flow.** `chaperone/policies.yaml` holds 18 ordered rules (see [Change the rules](#change-the-rules)) over category, data subject (person or
-   business), sender role, destination and purpose. The first match wins, and every decision records its rule id
-   and a plain reason.
-3. **Transform.** `pass` sends as is. `pseudonymize` swaps in `[PERSON_1]`, the same in every turn of the
-   conversation. `generalize` sends a vague version inside a placeholder, `[AGE_1: in their 50s]` or
-   `[DATE_1: March 2026]`, so the reply gets the exact value back on this laptop. Pay becomes a band ("senior
-   salary band (₹10–30 lakh/yr)"). `block` withholds a span, or the whole request.
-4. **Minimise for the purpose.** Each purpose in `policies.yaml` lists identifiers it does not need. A clinical
-   summary does not need the family's phone number, so it is left out, not even sent as a placeholder. The user can
-   click "Include anyway"; that needs a reason, and the audit log stores it as a hash plus a masked copy.
-5. **Attack, then tighten.** A local model (qwen2.5:3b, two short few-shot calls: identity and health) reads the
-   outbound text plus earlier messages to the same destination. An inference counts only if (a) its evidence words
-   appear in the outbound text outside our own placeholders, (b) a second, narrower question confirms it, and (c)
-   the flow's policy would not `pass` that category raw. Evidence is generalized first, then blocked. At most 2
-   rounds; if the attacker is still not cleared, the request is refused with the reason. The UI shows "No
-   inference found by the local check", never "safe".
-6. **Guard.** The only code path to an LLM checks the full outbound payload, history included, for every raw value
-   that was masked in this conversation (spacing and case ignored) and refuses to send if one is found.
-7. **Restore and check.** Placeholders in the reply are swapped back on the laptop, tolerating `PERSON_1`,
-   `Person 1`, `[person_1]`. Then a local check marks ages, dates, amounts, long numbers and names in the reply
-   that the source never said: the external model sometimes invents them ("the 62-year-old patient").
-8. **Audit.** `data/audit.jsonl` stores rule ids, actions, placeholders, the recipient (endpoint host and model)
-   and HMAC-SHA256 tags of values. Never raw values. Rule changes are logged there too. Every line is sealed; see
-   [Accountability](#accountability).
+MCP (Model Context Protocol) is how AI agents call tools. `uv run --frozen python -m chaperone.mcp_server` starts a
+stdio MCP server with two tools:
 
-If the local LLM is down, detection falls back to patterns and names, and the UI says so in red. Health, pay, HR,
-legal and MNPI details are not caught in that mode.
-
-## Change the rules
-
-What may leave is decided by rule files, not by code:
-
-| File | What it holds |
+| Tool | What it does |
 |---|---|
-| `chaperone/policies.yaml` | The Standard rules, the sender roles, and the purposes with what each one leaves out |
-| `chaperone/policies_safe_harbor.yaml` | HIPAA Safe Harbor mode. Its rules run first; anything they do not decide goes on to the Standard rules |
-| `chaperone/policies_<name>.yaml` | Any new file named like this becomes a new rule set in the top bar. Give it a `name:` and usually `extends: policies.yaml`. It appears after a page reload |
-| `data/policies.local.yaml` | Edits made in the app (admin mode). Not committed. Delete it to go back to the shipped rules |
+| `chaperone_check` | Dry run. Returns what would leave for this flow and what the local attacker could still infer. Nothing is sent. |
+| `chaperone_send` | Sends through the same nine steps. Returns the reply with real values restored, and any invented-detail flags. |
 
-A rule:
+Both take `text`, `role`, `destination`, `purpose`, and optionally `pack` and `session_id`. The allowed values come
+from the rule files. Example client config:
 
-```yaml
-  - id: salary-not-for-marketing           # lowercase letters, digits, dashes; unique
-    when: {label: COMPENSATION, destination: external, purpose: marketing}
-    action: block                          # pass | pseudonymize | generalize | block
-    scope: request                         # optional, block only: stop the whole message
-    why: Pay data has no place in an external marketing tool.   # users see this
+```json
+{"mcpServers": {"chaperone": {"command": "uv", "args": ["run", "--frozen", "python", "-m", "chaperone.mcp_server"],
+                              "cwd": "/path/to/devhack2026-round1"}}}
 ```
-
-- Rules are checked from the top. **The first rule that matches decides.** A condition left out matches anything.
-- `when` keys are `label`, `subject` (`individual`, `business`, `unknown`), `role`, `destination` (`internal`,
-  `external`) and `purpose`. Each takes one value or a list.
-- A rule set that extends nothing must end with a catch-all: a rule with no `when`.
-- `generalize` can take `coarse: year` (dates to the year) or `coarse: age90` (ages over 89 become "90 or older").
-- Labels a rule can name: `PERSON`, `ORG`, `LOCATION`, `AADHAAR`, `PAN`, `GSTIN`, `IFSC`, `UPI`, `PHONE`, `EMAIL`,
-  `VEHICLE`, `MRN`, `ACCOUNT`, `URL`, `IP`, `AGE`, `DATE`, `HEALTH`, `COMPENSATION`, `MNPI`, `HR`, `LEGAL`.
-
-Example: let accountants send a customer's PAN to the external AI when they draft an invoice. Put this above
-`personal-ids-external`, which would mask it:
-
-```yaml
-  - id: pan-ok-for-invoices
-    when: {label: PAN, role: Accountant, destination: external, purpose: invoicing}
-    action: pass
-    why: An invoice must show the customer's PAN.
-```
-
-To add a role or a purpose, add it to `roles:` or `purposes:` at the top and bottom of `chaperone/policies.yaml`.
-It appears in the top bar after a page reload, and rules can name it at once.
-
-**Changes apply without a restart.** Save the file and the next message uses it. Every rule is checked first: an
-unknown label, role or purpose, a missing reason, a duplicate id, or a catch-all that is not last is refused. If a
-changed file is invalid, the previous rules stay in use and the Rules panel says what is wrong. A rule file that is
-invalid when the app starts stops it with the reason.
-
-**In the app.** Anyone can open **View the rules** in the side rail. A rule name under "Details" opens the rule that
-decided. To edit in the app, start the server in admin mode:
-
-```sh
-CHAPERONE_ADMIN=1 uv run --frozen python -m chaperone
-```
-
-The panel then lets you add, edit, reorder and delete rules and choose what each purpose leaves out. **Try it** runs a
-message under the saved rules and under your edit, side by side, without sending or saving anything. **Save rules**
-checks the edit on the server and writes it to `data/policies.local.yaml`. **Reset to shipped rules** removes the
-edits. Every save and reset is sealed into the audit log with a fingerprint of the rules before and after.
-
-Admin mode is off by default on purpose: Chaperone checks staff messages, so staff should not be able to loosen the
-checks from the same page. Whoever starts the server decides.
-
-**What stays in code, and why.** The ID patterns and checksums, the final check that refuses to send a masked value,
-the attacker loop, and the audit seal are safety parts, not preferences; switching them off at runtime would turn
-protection off silently. The two destinations are fixed because each is an endpoint in `.env`. Only identifiers (phone,
-email, UPI, Aadhaar, PAN, GSTIN, IFSC, vehicle) can be left out for a purpose; leaving out a name or a clinical fact
-would make the answer wrong.
 
 ## Configuration
 
-Settings live in `.env` (see `.env.example`); rules live in rule files ([Change the rules](#change-the-rules)).
-`setup.sh` writes `.env`; it is not committed. Values already set in the
-environment win over `.env`. A missing required value stops the app at start with the variable's name.
+Settings live in `.env`. `setup.sh` writes it from `.env.example`. It is not committed. A value already set in the
+environment wins over `.env`. A missing required value stops the app at start and names the variable.
 
-| Variable | Required | Default in `.env.example` | What it does |
-|---|---|---|---|
-| `INTERNAL_LLM_BASE_URL` | yes | `http://127.0.0.1:11434/v1` | OpenAI-compatible endpoint of the organisation's own model |
-| `INTERNAL_LLM_MODEL` | yes | `qwen2.5:3b` | Model name at that endpoint |
-| `INTERNAL_LLM_API_KEY` | no | empty | Bearer key, if the endpoint needs one |
-| `EXTERNAL_LLM_BASE_URL` | yes | `http://127.0.0.1:11434/v1` | The "external AI". The default is local Ollama standing in for a third party |
-| `EXTERNAL_LLM_MODEL` | yes | `qwen2.5:3b` | Model name at that endpoint |
-| `EXTERNAL_LLM_API_KEY` | no | empty | Bearer key for a real hosted API |
-| `AUDIT_HMAC_KEY` | yes | `change-me` (refused) | Secret for the audit log's tags and seals. `setup.sh` generates one |
-| `OLLAMA_URL` | no | `http://127.0.0.1:11434` | Where the local checks reach Ollama |
-| `CONTEXT_MODEL` | no | `qwen2.5:3b` | Local model for meaning and for the attacker |
-| `CONTEXT_TIMEOUT` | no | `20` | Seconds before a local model call gives up |
-| `CONTEXT_CHUNK` | no | `250` | Characters per window when long text is read |
-| `NER_MODEL` | no | `urchade/gliner_small-v2.1` | Name, organisation and place model |
-| `ATTACK_CATEGORIES` | no | `IDENTITY,HEALTH` | What the attacker looks for; add `COMPENSATION,HR,LEGAL` to widen it |
-| `ATTACK_MAX_ROUNDS` | no | `2` | Tightening rounds before a message is refused |
-| `ATTACK_MIN_CONFIDENCE` | no | `0.7` | Lowest attacker confidence that counts |
-| `PORT` | no | `8000` | Port of the web app (always bound to `127.0.0.1`) |
-| `CHAPERONE_ADMIN` | no | empty | `1` lets the page edit the rules ([Change the rules](#change-the-rules)). Leave it empty for staff |
-| `CHAPERONE_DEV` | no | empty | `1` shows a "Demo data / Worst case" switch with stress-test messages |
+| Key | Default | Meaning |
+|---|---|---|
+| `INTERNAL_LLM_BASE_URL` | `http://127.0.0.1:11434/v1` | Required. OpenAI-style endpoint of the organisation's own model |
+| `INTERNAL_LLM_MODEL` | `qwen2.5:3b` | Required. Model name at that endpoint |
+| `INTERNAL_LLM_API_KEY` | empty | Bearer key, if that endpoint needs one |
+| `EXTERNAL_LLM_BASE_URL` | `http://127.0.0.1:11434/v1` | Required. The "external AI". The default is local Ollama standing in for a third party |
+| `EXTERNAL_LLM_MODEL` | `qwen2.5:3b` | Required. Model name at that endpoint |
+| `EXTERNAL_LLM_API_KEY` | empty | Bearer key for a real hosted API |
+| `AUDIT_HMAC_KEY` | `change-me` (refused) | Required. Secret for the audit log hashes and seals. `setup.sh` writes a random one |
+| `OLLAMA_URL` | `http://127.0.0.1:11434` | Where the local checks reach Ollama |
+| `CONTEXT_MODEL` | `qwen2.5:3b` | Local model for meaning and for the attacker |
+| `CONTEXT_TIMEOUT` | `20` | Seconds before a local model call gives up |
+| `CONTEXT_CHUNK` | `250` | Characters per window when long text is read |
+| `NER_MODEL` | `urchade/gliner_small-v2.1` | Name, organisation and place model |
+| `ATTACK_CATEGORIES` | `IDENTITY,HEALTH` | What the attacker looks for. Add `COMPENSATION,HR,LEGAL` to widen it |
+| `ATTACK_MAX_ROUNDS` | `2` | Tightening rounds before a message is refused |
+| `ATTACK_MIN_CONFIDENCE` | `0.7` | Lowest attacker confidence that counts |
+| `PORT` | `8000` | Port of the web app. It always listens on `127.0.0.1` only |
+| `CHAPERONE_ADMIN` | empty | `1` lets the page edit the rules. Leave it empty for staff |
+| `CHAPERONE_DEV` | empty | `1` shows a "Demo data / Worst case" switch with stress-test messages |
 
-To use a real hosted AI as the external destination, set three lines and restart. No code changes:
+**A real hosted AI as the external destination.** Set three lines in `.env` and restart. No code change:
 
 ```sh
 EXTERNAL_LLM_BASE_URL=https://api.openai.com/v1
 EXTERNAL_LLM_MODEL=gpt-4o-mini
-EXTERNAL_LLM_API_KEY=sk-...
+EXTERNAL_LLM_API_KEY=<your key>
 ```
 
-## HTTP API
+Any service with an OpenAI-style `/chat/completions` endpoint works. The page then shows the host name instead of
+"simulated on this laptop", and the audit log records which host and model received each request.
 
-All endpoints are on `http://127.0.0.1:8000`. Bodies are JSON.
+## API
+
+All endpoints are on `http://127.0.0.1:8000`. Bodies are JSON. Requests whose `Host` header is not `127.0.0.1` or
+`localhost` are refused.
 
 | Method and path | What it does |
 |---|---|
-| `GET /api/meta` | Roles, purposes, rule packs, scenarios, configured models |
+| `GET /` | The page (built from `web/`) |
+| `GET /api/meta` | Roles, purposes, rule sets, scenarios, configured models |
 | `POST /api/chat` | Check, send, restore. Answers once with the full result |
-| `POST /api/chat/stream` | Same as `/api/chat`, as [JSON lines](#live-steps), one per step |
+| `POST /api/chat/stream` | Same as `/api/chat`, as one JSON line per step, then the full result |
 | `POST /api/compare` | Dry run of one message in up to 4 flows. Nothing is sent |
 | `POST /api/baseline` | What masking names and IDs alone would send, and what the attacker infers from it |
-| `POST /api/reset/{session_id}` | Forget one conversation's placeholder map |
+| `POST /api/reset/{session_id}` | Forget one conversation's placeholders |
 | `POST /api/person-report` | `{"value": "Ramesh Rao"}`: every logged request that carried this name or ID |
 | `GET /api/audit/verify` | Check the audit log's seal chain |
 | `GET /api/records.csv` | One row per request: purpose, destination, categories, actions. No personal values |
-| `GET /api/policies` | The rule sets, purposes and the allowed values for each condition |
-| `PUT /api/policies/{pack}` | Admin mode: `{"rules": [...], "purposes": {...}}`. Checked, saved to `data/policies.local.yaml`, sealed in the log. `422` with the reason if invalid |
-| `DELETE /api/policies/{pack}` | Admin mode: drop the local edits of one rule set |
-| `POST /api/policies/preview` | Admin mode: one message under the saved rules and under candidate rules. Nothing is sent or saved |
-
-Without admin mode the three admin endpoints answer `403`. Requests whose `Host` is not `127.0.0.1` or `localhost`
-are refused with `400`.
+| `GET /api/policies` | The rule sets, purposes and allowed values |
+| `PUT /api/policies/{pack}` | Admin mode only: save edited rules (checked first; `422` with the reason if invalid) |
+| `DELETE /api/policies/{pack}` | Admin mode only: drop the local edits of one rule set |
+| `POST /api/policies/preview` | Admin mode only: one message under the saved rules and under the edit. Nothing is sent or saved |
 
 A chat request:
 
@@ -374,338 +260,178 @@ A chat request:
 curl -s http://127.0.0.1:8000/api/chat -H 'Content-Type: application/json' -d '{
   "session_id": "demo-1",
   "text": "Draft an invoice to Suresh Kumar, PAN ABKPS7312M, for ₹45,000 of printing work.",
-  "role": "Accountant", "destination": "external", "purpose": "invoicing",
-  "pack": "default", "use_context": true
-}'
+  "role": "Accountant", "destination": "external", "purpose": "invoicing", "pack": "default", "use_context": true}'
 ```
 
-| Field | Values |
-|---|---|
-| `text` | 1 to 4,000 characters |
-| `role` | A role from the rule files. Shipped: `Manager`, `HR`, `Sales`, `Intern`, `Doctor`, `Accountant` |
-| `destination` | `internal`, `external` |
-| `purpose` | A purpose from the rule files. Shipped: `general`, `scheduling`, `hr_summary`, `marketing`, `clinical_summary`, `invoicing` |
-| `pack` | A rule set. Shipped: `default` (Standard rules), `safe_harbor` |
-| `use_context` | `false` turns off the local model checks (IDs and names only) |
-| `include` | Optional: `[{"label": "PHONE", "text": "98450 12345", "reason": "..."}]` for "Include anyway" |
+`text` is 1 to 4,000 characters. `use_context: false` turns the local model checks off (then external sends are
+refused). `include: [{"label": "PHONE", "text": "...", "reason": "..."}]` is "Include anyway".
 
-### Live steps
+## Evaluation
 
-`/api/chat/stream` sends one JSON object per line as each step finishes, then the full result:
+Every number below comes from runs on 2026-10-17 on the test laptop (RTX 3050 Laptop, 4 GB). These are our own dev
+sets: we tuned on them, so the numbers are optimistic. The held-out set (`eval/heldout.jsonl`) is still empty.
 
-```json
-{"step": "detect", "items": [{"label": "PERSON", "text": "Suresh Kumar", "source": "ner"}], "context_ok": true, "ms": 412.3}
-{"step": "decide", "counts": {"pseudonymize": 2}, "blocked": false, "ms": 3.1}
-{"step": "attack", "round": 0, "ms": 1180.4, "found": [], "skipped": ""}
-{"step": "ready", "outbound": "Draft an invoice to [PERSON_1], PAN [PAN_1], for ₹45,000 of printing work.", "blocked": false, "ms": 1610.2}
-{"step": "guard", "checked": 4}
-{"step": "reply", "reply": "...", "ms": 980.0}
-{"step": "restore", "restored": "...", "stats": {"exact": 2, "fuzzy": 0}, "flags": 0}
-{"step": "result", "result": {"...": "same object as /api/chat"}}
+### What a reader can still infer
+
+```sh
+uv run --frozen python eval/run_inference.py --split dev     # needs llama3.1:8b in Ollama as the grader
 ```
 
-`attack` comes once per round, or once with `round: null` and a `skipped` reason. A blocked request, or one the final
-check refuses, goes from `ready` straight to `result`, and the result says why. A server fault sends
-`{"step": "error", "error": "<type>"}` instead of `result`; details go to the terminal.
+It measures whether the text that leaves still lets a reader conclude a forbidden fact (a diagnosis, or who a person
+is). Data: `eval/inference_dev.jsonl`, 32 messages (15 health hints, 9 descriptions of one person, 2 with both, 6
+controls with nothing to infer; 6 in Hinglish), with 28 forbidden facts. A different, larger model (Llama 3.1 8B,
+with its own prompt) grades each outgoing text. On the raw text it could infer 23 of the 28 facts; those 23 are the
+denominator.
 
-## Agents (MCP)
+Results over 5 runs with the same code. The middle value (median) is shown, with the lowest and highest:
 
-`uv run --frozen python -m chaperone.mcp_server` starts a stdio MCP server with two tools. `chaperone_check` is a
-dry run: it returns what would leave and what the attacker could still infer. `chaperone_send` sends through the
-same pipeline and returns the restored reply plus any invented-detail flags. Results never echo masked raw values
-back to the agent. The allowed roles, purposes and rule sets in the tool schemas come from the rule files. Example
-client entry:
+| System | Facts a reader can still infer (median) | Lowest to highest | Usefulness (median) | Refused | False alarms on the 6 controls |
+|---|---|---|---|---|---|
+| Names and IDs masked only (our own ablation, not any product) | 23 of 23 (100%) | 23 to 23 | 94% | 0 of 32 | 0 |
+| Chaperone, attacker and purpose steps off | 16 of 23 (70%) | 15 to 17 | 89% | 0 of 32 | 0 |
+| **Chaperone, full** | **7 of 23 (30%)** | **7 to 9** | 84% | 2 of 32 | 0 |
 
-```json
-{"mcpServers": {"chaperone": {"command": "uv", "args": ["run", "--frozen", "python", "-m", "chaperone.mcp_server"],
-                              "cwd": "/path/to/devhack2026-round1"}}}
+Usefulness is the share of the task's key words (names, days, amounts) found in the restored reply from the
+simulated external AI. It is a keyword check, not a quality score. Vaguer text means fewer of those words come back.
+
+The local model is not fully deterministic: the same text can get a different answer depending on what it read just
+before. The same message run 6 times gave 2 different answers. So the numbers move from run to run, and we report the
+range.
+
+### Detection and policy per written span
+
+```sh
+uv run --frozen python eval/run_eval.py --split dev
 ```
 
-## Results
+It measures whether each labelled span (a name, an ID, a health detail) reached the outgoing text, and whether spans
+that should pass were changed. Data: `eval/dev.jsonl`, 86 hand-labelled messages with 169 labelled spans.
 
-### What a reader can still work out (inference leaks)
-
-`eval/run_inference.py` on `eval/inference_dev.jsonl`: 32 messages (15 health proxies such as a hospital, a drug or
-an aid; 9 descriptions that point to one person; 2 with both; 6 controls with nothing to infer; 5 in Hinglish).
-A different, larger model (llama3.1:8b, its own prompt) grades each outbound text: can a reader conclude the
-forbidden fact? It could on the raw text for 23 of 28 facts; those 23 are the denominator. Asked the same claims
-about unrelated messages, it said yes 1 time in 28.
-
-| System | Inference leak rate ↓ | Health proxies | Who-is-it hints | Usefulness ↑ | Refused | Latency p50 / p95 |
-|---|---|---|---|---|---|---|
-| Names and IDs masked only (our ablation) | 100% (23/23) | 100% (16/16) | 100% (9/9) | 94% | 0/32 | 1979 / 3452 ms* |
-| Chaperone, attacker and purpose off | 70% (16/23) | 62% (10/16) | 67% (6/9) | 86% | 0/32 | 410 / 778 ms |
-| **Chaperone full** | **35% (8/23)** | **19% (3/16)** | 56% (5/9) | 81% | 2/32 | 3437 / 6746 ms |
-
-\* This row also runs one attacker pass for the UI panel. GPU at 85–89 °C during the run.
-
-- **Usefulness**: share of the task's key words (names, days) in the restored reply. A keyword check only.
-- No false alarms on the 6 controls in any system. Two Hinglish health messages were refused after 2 rounds:
-  nothing leaked, nothing was sent.
-- **Read this honestly.** This is the dev set: we fixed a bug found by this run (a second check threw away proxy
-  hints; health recall rose from 5/17 to 13/17) and reworded the grader's identity question. Before the fix,
-  Chaperone full leaked 64%. Usefulness drops from 94% to 81%: vaguer text means the reply names fewer of the
-  task's details. Who-is-it hints are the weak spot: the 3B attacker often judges "our CA who handles
-  the three Goa clients" as more than five people. One graded leak (inf-024) is a grader error; no job title was
-  left in the text. Full table and raw outputs: [`eval/results/inference_dev.md`](eval/results/inference_dev.md).
-- CloakLLM and CloakPipe were not run. The first row is our own "names and IDs only" setting, not their code.
-
-### Spans: what was written (detection and policy)
-
-Numbers from `eval/run_eval.py` on the **dev** set: 86 hand-labelled cases (English and Hinglish, with contrast
-pairs: the same text in two flows), 169 gold spans. **We tuned on this set, so these numbers are optimistic.** The
-held-out set (`eval/heldout.jsonl`) is written by teammates who have not read the detector code; its results
-will replace these.
-
-| System | Leak rate ↓ | Over-redaction ↓ | Request blocks (TP/FP/FN) | Latency p50 / p95 |
-|---|---|---|---|---|
-| Chaperone (full, with attacker and purpose steps) | 2.0% (2/102) | 3.0% (2/67) | 5/0/0 | 1985 / 13131 ms* |
-| Chaperone, context layer off | 38.2% (39/102) | 0.0% (0/67) | 0/0/5 | 40 / 52 ms |
-| Presidio + India recognizers | 37.3% (38/102) | 70.1% (47/67) | 0/0/5 | 6 / 9 ms |
-
-\* GPU at 85–89 °C and throttling after hours of runs; the slow tail is long messages that need attacker rounds.
-Results move by about one span between runs because the 3B model is not fully deterministic.
-
-- **Leak rate**: sensitive spans whose raw text reached the outbound payload.
-- **Over-redaction**: spans that should have passed (company PAN, a colleague's name for scheduling) but were
-  altered. It measures broken answers.
-
-| Detection F1 | Chaperone | Presidio + India recognizers |
-|---|---|---|
-| Identifiers and entities | 0.98 | 0.74 |
-| Only the labels Presidio supports | 0.98 | 0.82 |
-| Context categories (health, pay, MNPI, HR, legal) | 0.85 | not supported |
-
-Full per-label table: [`eval/results/results_dev.md`](eval/results/results_dev.md).
-
-### What Presidio already does, and what we add
-
-Fair comparison: Presidio 2.2.364 ships India recognizers (`IN_AADHAAR`, `IN_PAN`, `IN_GSTIN`,
-`IN_VEHICLE_REGISTRATION`, `IN_VOTER`, `IN_PASSPORT`) but disables them by default. We enable all of them, keep its
-default spaCy `en_core_web_lg`, and use a 0.3 score cut-off.
-
-- Presidio **already validates the Aadhaar Verhoeff check digit**, as we do. Its Aadhaar scores match ours (F1
-  1.00). It checks GSTIN structure but not the checksum. It finds phones and emails as well as we do.
-- Presidio has no IFSC or UPI recognizer, and no notion of PAN holder type.
-- Our gain is not checksums. It is (1) context categories no pattern can see, and (2) flow-aware decisions: Presidio
-  redacts a company PAN and a colleague's name in a scheduling request (70% over-redaction), while it lets the
-  chemotherapy detail and the salary through (37% leak).
-
-### Choosing the local model
-
-Benchmarked on the dev set ([`eval/results/models_dev.md`](eval/results/models_dev.md)). We use **qwen2.5:3b**:
-the best precision, so the fewest false request blocks, and the same model doubles as the simulated external AI, so
-only one model sits in 4 GB of VRAM.
-
-| Model | Context F1 | Leak rate | Context p50 / p95 |
+| System | Leak rate | Over-redaction | Whole-request blocks (right / wrong / missed) |
 |---|---|---|---|
-| qwen2.5:3b | 0.88 | 2.0% | 397 / 929 ms |
-| qwen3:1.7b | 0.75 | 8.0% | 344 / 892 ms |
-| gemma3:1b | 0.48 | 13.0% | 264 / 481 ms |
+| Chaperone, full | 2.0% (2 of 102) | 3.0% (2 of 67) | 5 / 0 / 0 |
+| Chaperone, local model off | 38.2% (39 of 102) | 0.0% (0 of 67) | 0 / 0 / 5 |
+| Presidio with its India recognizers | 37.3% (38 of 102) | 70.1% (47 of 67) | 0 / 0 / 5 |
 
-The prompt was tuned while using qwen2.5:3b, which favours it in this comparison. This benchmark ran before the
-second checks and windowed reading were added.
+Detection F1 (a score from 0 to 1 that combines precision and recall): IDs and named entities 0.98 for Chaperone
+against 0.74 for Presidio; health, pay, MNPI, HR and legal 0.88 for Chaperone, which Presidio does not detect. These
+numbers were the same in two runs, one with and one without the startup change in this release. Full tables:
+`eval/results/results_dev.md` and `eval/results/inference_dev.md`.
 
-### Placeholders survive
+### Speed
 
-In 37 real replies from the local model, 59 of 61 placeholder mentions came back in exact `[LABEL_N]` form; the
-other 2 were mangled and restored by tolerant matching. In 1 of 37 replies the model invented a placeholder that
-was never sent, which stays visible as text ([`eval/results/placeholders_dev.md`](eval/results/placeholders_dev.md)).
-The 3B model copies whatever the system prompt names: an example `[PAN_1]` produced invented placeholders in 4 of
-37 replies, and an example "[health detail]" produced "[health detail]" in a message with no health data. The
-prompt now mentions placeholders or vague phrases only when the outbound message actually contains them.
+Measured with the 16 demo scenarios, each sent twice (32 messages), each in a new conversation, with the detection
+cache cleared and the models already loaded. The reply comes from the simulated external AI (Qwen2.5 3B on the same
+laptop), so a hosted AI would take a different time. Two runs:
+
+| What | Run 1: p50 / p95 | Run 2: p50 / p95 |
+|---|---|---|
+| End to end, reply included | 3.4 s / 7.2 s | 3.3 s / 15.2 s |
+| Checks only (steps 1 to 5) | 1.4 s / 4.9 s | 1.4 s / 11.6 s |
+| AI reply only | 1.6 s / 3.3 s | 1.7 s / 6.4 s |
+
+p50 is the middle message; p95 is the slowest 1 in 20. The slow tail moves a lot: in run 2 one reply ran to 25 s
+because the AI wrote a long answer, and the GPU got hotter during the second pass. Both runs produced the same
+masked text for every message.
+
+Where the time goes (run 1, mean per message): AI reply 1.5 s, attacker 1.3 s, local model reading 0.6 s, its
+second questions 0.1 s, name model 56 ms, the invented-detail check 114 ms. Everything else (patterns, rules,
+placeholders, guard, restore, audit) takes under 1 ms. So about 95% of the time is the local model writing.
+
+Startup to the first answered request: 5.0 s (3 runs). It was 8.1 s before the name model was loaded from disk
+first; the online check for a newer copy cost 2.6 s.
+
+## Tests
+
+```sh
+uv run --frozen pytest                    # Python: 108 tests (20 need Ollama)
+uv run --frozen pytest -m "not ollama"    # the ones that run without Ollama (what CI runs)
+cd web && npm run e2e                     # browser: builds the page, starts 3 gateways, runs 57 Playwright tests
+```
+
+The browser tests need Ollama and a Chromium for Playwright (`cd web && npx playwright install chromium`, once). They
+cover every item in [docs/ui-parity.md](docs/ui-parity.md), the list of everything the page does. The audit log and
+rule edits of the test gateways go to a temporary folder, not `data/`.
+
+Lint and type checks: `uv run --frozen ruff check chaperone tests eval`, `uv run --frozen mypy chaperone`, and
+`cd web && npx tsc --noEmit`.
+
+## Guarantees and known limits
+
+Each guarantee has a test in `tests/`:
+
+- **Raw values cannot leave.** The payload and the history are checked for every masked value before any network
+  call (`test_guard_stops_a_leak_before_any_network_call`, `test_session_history_is_guarded_too`).
+- **Not cleared, not sent.** If the attacker still sees through it after 2 rounds, nothing is sent
+  (`test_message_that_cannot_be_cleared_is_not_sent`).
+- **Checks down, nothing out.** If the local checks are offline or turned off, nothing goes to an external AI
+  (`test_external_is_refused_when_local_checks_are_offline`, `test_external_is_refused_when_checks_are_turned_off`).
+- **The log keeps hashes, not values,** and an edited line breaks the seal (`test_audit_log_holds_no_raw_values`,
+  `test_seal_finds_an_edited_or_removed_line`).
+
+Known limits:
+
+- The 3B attacker still misses some cases (7 of 23 leaked in our test, median of 5 runs, range 7 to 9; names and IDs only: 23 of 23).
+- One request at a time: a global lock serialises the pipeline.
+- Placeholder maps live in memory and are lost on restart.
+- English and Hinglish only.
+- "Nothing found" by the local attacker is weak evidence, never a guarantee. A larger model or a person who knows
+  the patient may infer more.
+- No login. Admin mode is on or off for the whole server.
+- HIPAA Safe Harbor mode removes identifiers in text. It does not make anyone meet HIPAA.
 
 ## Prior art and what's different
 
-What we read before building v2, from each project's own documentation (October 2026). We did not run CloakLLM or
-CloakPipe; nothing below is a measured comparison with them.
+From each project's own documentation. We ran Presidio. We did not run the others.
 
-| Project | What it does | Overlap with Chaperone |
-|---|---|---|
-| [Presidio](https://github.com/microsoft/presidio) | Detects and anonymises PII with patterns, checksums and NER | Our detection baseline; measured above |
-| [LLM Guard](https://github.com/protectai/llm-guard) | Input and output scanners for LLM apps, including an anonymiser with a reversible vault | Mask and restore |
-| CloakLLM ([PyPI](https://pypi.org/project/cloakllm/), 0.12.0) | Masks PII before an LLM call and restores it in the reply | Mask and restore |
-| [CloakPipe](https://github.com/rohansx/cloakpipe) (FOSS Hack 2026) | Privacy proxy in front of LLM APIs, mask and restore | Mask and restore, proxy design |
-| AgentCloak | Masking for agents; also generalizes meaning ("headache" to a vaguer condition) | Semantic generalization |
-| Staab et al., *Beyond Memorization*, ICLR 2024 ([arXiv 2310.07298](https://arxiv.org/abs/2310.07298)) | Shows LLMs infer personal attributes (location, age, health) from text with no explicit PII | The threat our attacker step tests for |
-| Staab et al., *Language Models are Advanced Anonymizers*, ICLR 2025 ([arXiv 2402.13846](https://arxiv.org/abs/2402.13846)) | Adversarial anonymisation: an LLM attacker and an LLM anonymiser take turns until the attacker fails | **The closest idea to our attack-and-tighten loop.** We did not invent it. |
+| Project | What it does |
+|---|---|
+| [Presidio](https://github.com/microsoft/presidio) | Finds and masks PII (personally identifiable information) with patterns, checksums and NER. Our detection baseline above. |
+| [LLM Guard](https://github.com/protectai/llm-guard) | Input and output scanners for LLM apps, including a reversible anonymiser. |
+| CloakLLM ([PyPI](https://pypi.org/project/cloakllm/)) | Masks PII before an LLM call and restores it in the reply. |
+| [CloakPipe](https://github.com/rohansx/cloakpipe) | A privacy proxy in front of LLM APIs that masks and restores. |
+| AgentCloak | Masking for agents, including making meaning vaguer ("headache" to a vaguer condition). |
+| Staab et al., *Beyond Memorization*, ICLR 2024 ([arXiv 2310.07298](https://arxiv.org/abs/2310.07298)) | Shows that LLMs infer personal facts (place, age, health) from text with no explicit PII. This is the threat our attacker tests for. |
+| Staab et al., *Language Models are Advanced Anonymizers*, ICLR 2025 ([arXiv 2402.13846](https://arxiv.org/abs/2402.13846)) | An LLM attacker and an LLM anonymiser take turns until the attacker fails. The closest idea to our attack-and-tighten loop. We did not invent it. |
 
-What Chaperone adds on top of that work:
+What Chaperone adds:
 
-1. **The flow decides what counts as a leak.** The same inference (cancer from "tamoxifen") is forbidden for a
-   manager writing to an external chatbot and allowed for a doctor's clinical summary. Forbidden means: our policy
-   would not pass that category raw in this flow. Staab et al. remove every inferable attribute.
-2. **Small, local, and bounded.** The attacker is a 3B model on a 4 GB laptop GPU, two calls per round, at most 2
-   rounds, then refuse. Evidence must be words in the outbound text, outside our own placeholders; an inference
-   that quotes words that are not there is dropped.
-3. **Reversible.** Vague text leaves (`[AGE_1: in their 50s]`); the exact value comes back locally in the reply.
-4. **Conversation memory.** The attacker reads earlier messages to the same destination, so details split across
-   turns are caught; the exposure ledger lists what the external model could already infer about each person.
-5. **Purpose minimisation and an audit trail** with hashed values and logged "Include anyway" reasons.
-6. **Per-person accountability without a store of personal data.** A person report lists every request that carried
-   one person's name or ID, and the log is sealed against edits. The tools in the table above protect a message;
-   none that we read answers "where did this person's data go?".
+1. **The flow decides what counts as a leak.** Cancer inferred from "tamoxifen" is forbidden for a manager writing to
+   an external chatbot, and allowed in a doctor's clinical summary. Staab et al. remove every inferable fact.
+2. **Small, local and bounded.** The attacker is a 3B model on a 4 GB laptop GPU, at most 2 rounds, then refuse. Its
+   evidence must be words in the outgoing text, or the finding is dropped.
+3. **Reversible.** Vague text leaves; the exact value comes back in the reply, on the laptop.
+4. **Conversation memory.** The attacker reads earlier messages to the same destination, and the exposure ledger shows
+   what the external AI could already know.
+5. **Purpose minimisation** with a logged "Include anyway" reason.
+6. **Where did this person's data go?** A person report finds every request that carried one person's name or ID,
+   from a sealed log that holds no personal values.
 
-## HIPAA Safe Harbor mode
-
-`chaperone/policies_safe_harbor.yaml` is a policy pack that follows the 18 identifier types in the HIPAA Safe
-Harbor list (45 CFR 164.514(b)(2)) where text can carry them: names, places smaller than a state (all places, since
-we have no gazetteer), all date parts except the year, ages over 89, contact details, record, account and ID
-numbers, vehicle IDs, URLs and IP addresses. Aadhaar, personal PAN, hospital UHIDs, UPI handles and a sole
-proprietor's GSTIN are **our adaptation** for India, not part of the US rule. Health plan numbers, licence numbers,
-device serials, biometrics and photos are not detected. This mode helps a person
-remove identifiers; it does not make anyone meet HIPAA, and Safe Harbor also needs the sender to have no
-actual knowledge that the rest identifies the person.
-
-India's DPDP Act asks for a specified purpose and data minimisation. In Chaperone the purpose is part of every flow,
-and the purpose step above drops identifiers the purpose does not need.
-
-## Accountability
-
-**Person report.** Open "Person report" in the side rail and type a full name or an ID (or `POST /api/person-report {"value": ...}`). Chaperone
-computes the keyed tag of that value on this laptop and lists every logged request that carried it: when, which flow,
-which endpoint and model received it, and what happened to the value (sent as typed, as a placeholder, made vague,
-left out, withheld). The log holds only tags, so it is not itself a copy of the personal data, and the value asked
-about is not stored. This is the record a data principal can ask for under the DPDP Act (right to information about
-processing). Values are tagged in canonical form, so `7260 1815 9082` finds `726018159082`; a first name used alone
-after a full name is tagged as the full name.
-
-**Sealed log.** Each audit line carries an HMAC over its content and the previous line's seal. `GET /api/audit/verify`
-(or "Check the audit log seal") walks the chain and names the first line that was edited, added, removed or moved.
-Two processes (the web app and the MCP server) can write at once; a file lock keeps the chain in order.
-
-Limits: lines cut off the end are caught only by comparing the head value with a copy kept elsewhere. Anyone with
-`AUDIT_HMAC_KEY` can rewrite the whole log, so keep the key away from people who can edit the file. Lines written
-before this version have no seal and are reported as "older lines"; their tags use the value as typed, so the person
-report finds them only when the value is typed the same way. A name typed differently from the message ("Priya"
-for "Priya Sharma") is not found.
-
-## Design decisions
-
-| Question | Choice | Cost |
-|---|---|---|
-| Where detection runs | On the laptop, always | A cloud detector would leak what it checks. |
-| Simulated or real external AI | Simulated: local Ollama behind an OpenAI-compatible URL | The 3B stand-in writes weaker answers than a hosted model. To switch, set `EXTERNAL_LLM_BASE_URL`, `EXTERNAL_LLM_MODEL`, `EXTERNAL_LLM_API_KEY` in `.env`; no code change. |
-| Placeholder content | Type only: `[PERSON_1]`; a generalized span adds its vague value: `[AGE_1: in their 50s]` | Type plus role (`[PATIENT_1]`) helps reasoning but tells the provider who is a patient. Gender guessed from names is unreliable and leaks more. |
-| Unknown flows | Identifiers pseudonymize, sensitive details generalize | Block-by-default gives useless answers ("[PERSON withheld] has been diagnosed with [HEALTH withheld]"); pass-by-default leaks. Examples: [`eval/results/default_effect.md`](eval/results/default_effect.md). |
-| Same value in later turns | Stays masked for that destination | Internal and external conversations keep separate maps. |
-| Frontend | One HTML file, no build, no CDN; fonts (Inter, JetBrains Mono, OFL) ship in `chaperone/static/fonts` | Works offline in the demo. |
-| Live steps | `POST /api/chat/stream` sends one JSON line per step (find, rules, each attack round, final check, reply, restore), then the full result | The page shows each check as it finishes. `/api/chat` still answers once, for scripts and tests. |
-| Attacker vs. a second "anonymiser" model | One attacker; tightening reuses our own generalize and block | Staab et al. let an LLM rewrite freely. A free rewrite can drop task facts and cannot be restored. |
-| Purpose needs | Declared per purpose in `policies.yaml` | Asked per message, qwen2.5:3b said "needed" for almost every identifier. |
-| Rules as data | Rule files, re-read when they change; roles and purposes listed there only | A typo could weaken protection, so every rule is checked against the detector's labels and the declared roles and purposes, and a bad change keeps the last good rules. |
-| Who may change rules | Anyone may read them; only admin mode (`CHAPERONE_ADMIN=1`) may edit them in the app | Staff cannot loosen their own checks from the same page. There is no login, so the choice is made by whoever starts the server. |
-| Where app edits go | `data/policies.local.yaml`, not the shipped files | The shipped rules, tests and demo scenarios stay intact; "Reset to shipped rules" is one file removal. |
-
-More in [docs/PLAN.md](docs/PLAN.md) and [docs/PLAN-v2.md](docs/PLAN-v2.md).
-
-## Limitations
-
-- The context layer is a 3B model. It is not fully deterministic across runs, and it missed some Hinglish names
-  and conditions ("Kavya ... surgery") and "pregnant" as a health detail.
-- The simulated external AI is the same 3B model. Its answers are short and sometimes add facts that were not
-  in the message ("patient is now stable"). A hosted model would answer better.
-- Long pasted text is slower (about 6.5 s of checks for 1,274 characters) and recall drops: in the stress test the
-  vendor's "legal notice" went through unmarked.
-- Ages written as a bare number ("Kavya Shetty, 29") are not caught.
-- Addresses are not a category. Kannada is out of scope.
-- Sessions live in memory; a restart forgets placeholder maps. Messages are capped at 4,000 characters.
-- The attacker is a 3B model. "No inference found by the local check" means this model found nothing; a larger
-  model, or a person who knows the patient, may infer more. It checks identity and health by default; pay, HR and
-  legal inferences are opt-in (`ATTACK_CATEGORIES`) because that call caused most false alarms.
-- It errs cautious: a leave note for an intern made it infer "pregnancy" from the leave wording, and the message was
-  made vaguer than needed. The attacker adds 0.25 to 4.5 s per message.
-- Evidence already sent in an earlier message cannot be pulled back. The UI marks it "already disclosed earlier".
-- Purpose needs are declared per purpose, not judged per message. A mislabelled purpose can omit something the task
-  needs; "Include anyway" is the way out.
-- The invented-detail check finds ages, dates, amounts, long numbers and names. It does not judge invented clinical
-  facts ("patient is now stable").
-- The attacker's own safer wording can carry health back in: "uses a white cane and a screen reader" became "a
-  person with mobility and visual impairments" (inf-004).
-- HIPAA Safe Harbor mode removes identifiers in text. It does not make anyone meet HIPAA.
-- There is no login. Admin mode is on or off for the whole server, and a rule edit applies to everyone using it.
-- The audit log records that rules changed and fingerprints of the rules before and after, not who changed them.
-- All results are on our own dev sets. The held-out sets are empty until teammates fill them; do not quote dev
-  numbers as final.
-
-## Development
-
-```sh
-uv run --frozen pytest                     # all 100 tests; 20 scenario tests need Ollama running
-uv run --frozen pytest -m "not ollama"     # the 80 that run anywhere (what CI runs)
-uv run --frozen ruff check chaperone tests eval
-uv run --frozen mypy chaperone
-```
-
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs ruff, mypy and the tests without Ollama on every
-push to `main` and every pull request.
-
-Evaluation:
-
-```sh
-uv run --frozen python eval/run_eval.py --split dev          # or --split heldout
-uv run --frozen python eval/run_inference.py --split dev     # inference leaks; needs llama3.1:8b as the grader
-uv run --frozen python eval/add_case.py                      # add a held-out case
-```
-
-UI stress test: start with `CHAPERONE_DEV=1 uv run --frozen python -m chaperone` and use the "Demo data / Worst case"
-switch at the bottom of the page. Without that variable the switch and the stress data are not served.
+## Project layout
 
 | Path | What |
 |---|---|
-| `chaperone/detect.py` | Three detection layers |
-| `chaperone/policies.yaml`, `policy.py` | Rules, roles and purposes; matcher, checks, live reload, admin edits |
-| `chaperone/policies_safe_harbor.yaml` | HIPAA Safe Harbor policy pack |
-| `chaperone/transform.py` | Actions, placeholder vault, outbound guard, restore |
-| `chaperone/attack.py` | Local attacker, evidence check, safer wording |
-| `chaperone/purpose.py` | Purpose minimisation |
-| `chaperone/verify.py` | Flags invented ages, dates, amounts and names in replies |
-| `chaperone/gateway.py` | Pipeline, live step events, the single LLM call path, sealed audit log, person report, processing record |
-| `chaperone/app.py` | HTTP API, including the live step stream |
-| `chaperone/static/index.html` | The whole UI, including the Rules panel: one file, no build step |
-| `chaperone/static/fonts/` | Inter and JetBrains Mono (SIL Open Font License), so the UI works offline |
-| `chaperone/mcp_server.py` | MCP tools for agents |
-| `chaperone/scenarios.json` | The demo scenarios, used by the UI and the tests |
-| `chaperone/scenarios_worst.json` | Stress-test messages (long names, scripts, emoji, a long paste); dev only |
-| `eval/` | Datasets, harness, baseline, model and placeholder tests ([guide](eval/README.md)) |
-| `tests/` | Unit and end-to-end tests (`test_policy.py` covers rule checks, live reload, admin editing and the audit trail) |
-| `data/` | Created at run time, not committed: `audit.jsonl` (sealed log) and `policies.local.yaml` (rule edits from the app) |
+| `chaperone/detect.py` | Step 1: patterns, GLiNER, the local model |
+| `chaperone/policy.py`, `policies.yaml`, `policies_safe_harbor.yaml` | Step 2: rules, roles, purposes; live reload and admin edits |
+| `chaperone/transform.py` | Steps 3, 6 and 7: placeholders, the outbound guard, restore |
+| `chaperone/purpose.py` | Step 4: purpose minimisation |
+| `chaperone/attack.py` | Step 5: the local attacker |
+| `chaperone/verify.py` | Step 8: flags invented details in replies |
+| `chaperone/gateway.py` | The pipeline, the only call to an LLM, step 9 (audit log, person report, processing record) |
+| `chaperone/app.py` | The HTTP API; serves the built page |
+| `chaperone/mcp_server.py` | The MCP tools for agents |
+| `chaperone/scenarios.json` | Demo scenarios, used by the page and the tests |
+| `chaperone/static/fonts/` | Inter and JetBrains Mono, so the page works offline |
+| `web/` | The page: Next.js and React in TypeScript, built to static files in `web/out` |
+| `web/e2e/` | Playwright browser tests and the test gateway |
+| `eval/` | Datasets, evaluation scripts and results |
+| `tests/` | Python tests |
+| `docs/` | Demo runbook, plans, screenshots, the UI parity checklist |
+| `data/` | Made at run time, not committed: `audit.jsonl`, `policies.local.yaml` |
 | `setup.sh`, `.env.example` | One-time setup, and every setting with a safe default |
-| `.github/workflows/ci.yml` | CI: lint, types and the tests that run without Ollama |
-| `docs/DEMO.md` | Demo video runbook |
-| `docs/PLAN.md`, `docs/PLAN-v2.md` | Build plans |
-
-## Troubleshooting
-
-| What you see | Cause and fix |
-|---|---|
-| Start prints `context layer OFFLINE`; the page says "Local AI check: offline" | Ollama is not running, or the model is missing. Run `ollama list`; start Ollama ([step 3](#steps)); run `ollama pull qwen2.5:3b`. Without it only IDs and names are checked. |
-| `ollama`: `could not connect to ollama server` | The server is not running. Start it ([step 3](#steps)). |
-| `ollama list` is empty although the model was pulled | `ollama serve` run as your user looks in `~/.ollama`, but the system service keeps models in `/var/lib/ollama`. Stop it and use `sudo systemctl start ollama`. |
-| `missing required env var ...` | There is no `.env`. Run `./setup.sh`, or copy `.env.example` to `.env` and fill it in. |
-| `AUDIT_HMAC_KEY still has the example value` | Run `./setup.sh`, or set a random key: `uv run --frozen python -c "import secrets; print(secrets.token_hex(32))"`. |
-| `address already in use` | Port 8000 is taken. Start on another one: `PORT=8001 uv run --frozen python -m chaperone`. |
-| The first message is slow | The models load on first use. Later messages are faster. A cold start can take 2 to 3 s. |
-| A scenario gives a different result now and then | The 3B local model is not fully deterministic. Send it again. |
-| 20 tests fail with `context_ok` errors | Those tests need Ollama. Start it, or run `pytest -m "not ollama"`. |
-| The Rules panel says a rule file has an error | A file was changed by hand and is invalid; the previous rules are still in use. Fix the file named in the message, or delete `data/policies.local.yaml`. |
-| The app stops at start with a rule error | A rule file is invalid and there is no earlier version to fall back on. Fix the file named in the message. |
-| "Rule editing is off" | Start the server with `CHAPERONE_ADMIN=1`. |
-
-## Security
-
-- The app listens on `127.0.0.1` only and has no login. Do not expose it to a network.
-- Detection, policy, the attacker and restore all run on this machine. Only the final, checked text goes to the
-  configured LLM endpoint, and a final guard refuses to send it if any masked raw value is still in it.
-- `data/audit.jsonl` holds HMAC tags of values, never the values. Keep `AUDIT_HMAC_KEY` secret: anyone with it can
-  rewrite the log (see [Accountability](#accountability)).
-- `.env` holds the keys and is in `.gitignore`. Never commit it.
-- Conversations are kept in memory only and are gone when the app stops.
-- Rule editing is off unless the server is started with `CHAPERONE_ADMIN=1`. Every rule change is sealed in the
-  audit log. Requests for any other host name are refused, so a web page cannot reach the app through DNS rebinding.
 
 ## License
 
-MIT. Uses open-source libraries: FastAPI, GLiNER (`urchade/gliner_small-v2.1`, Apache-2.0), python-stdnum,
-Ollama with Qwen2.5-3B, Llama 3.1 8B as the evaluation grader only, and Presidio for the baseline. The Inter and
-JetBrains Mono fonts are under the SIL Open Font License; the licence texts are in `chaperone/static/fonts/`.
+MIT. Uses FastAPI, GLiNER (`urchade/gliner_small-v2.1`, Apache-2.0), python-stdnum, Ollama with Qwen2.5 3B, Next.js
+and React, Llama 3.1 8B (evaluation grader only) and Presidio (baseline only). The Inter and JetBrains Mono fonts are
+under the SIL Open Font License; the licence texts are in `chaperone/static/fonts/`.
