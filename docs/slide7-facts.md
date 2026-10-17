@@ -2,41 +2,29 @@
 
 Every claim on slide 7 ("Business Impact & Scalability"), with where it comes from. Checked on 2026-10-17 against
 `main`. Deck: `/home/Muaz/Downloads/DevHack-fixed-shots.pptx`. Backup before this version:
-`/home/Muaz/Documents/DevHack.backup-slide7-timeline.pptx`. Style: `docs/deck-style.md`.
+`/home/Muaz/Documents/DevHack.backup-slide7-tiers.pptx`. Style: `docs/deck-style.md`.
 
 No customer, pilot or partner is claimed. "We start next door" is a plan.
 
-## Top line
+## Intro box
 
 | Claim | Source |
 |---|---|
-| Free to run, because the office's own laptop does the work | Detection, the attacker, restore and audit run locally: `detect.py` `OLLAMA_URL` default `127.0.0.1`; GLiNER on CPU; `__main__.py` binds `127.0.0.1`. `LICENSE` is MIT |
-| We only charge when an office wants its laptops to share the same rules | The planned hosted dashboard. Not in the code: no login, `127.0.0.1` only |
+| Every office that handles personal data must follow the DPDP Rules by 13 May 2027 | PIB explainer, 17 Nov 2025: "an eighteen-month period for phased compliance": https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc20251117695301.pdf. Bar & Bench: Gazette dated 13 Nov 2025, "i.e., May 13, 2027": https://www.barandbench.com/amp/story/view-point/meity-notifies-final-digital-personal-data-protection-rules-2025 |
+| Free to run, because the office's own laptop does the work | Detection, the attacker, restore and audit run locally: `detect.py` `OLLAMA_URL` default `127.0.0.1`; GLiNER on CPU; `__main__.py` binds `127.0.0.1` |
+| We only charge when offices share rules and records across laptops | The planned hosted dashboard. Not in the code: no login, `127.0.0.1` only |
 
-## Card 1: 13 May 2027
-
-| Claim | Source |
-|---|---|
-| Offices that handle personal data must follow the DPDP Rules by 13 May 2027 | PIB explainer, 17 Nov 2025: "an eighteen-month period for phased compliance": https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc20251117695301.pdf. Bar & Bench: Gazette dated 13 Nov 2025, "i.e., May 13, 2027": https://www.barandbench.com/amp/story/view-point/meity-notifies-final-digital-personal-data-protection-rules-2025 |
-| We start next door: our college office, then clinics in Mangaluru and Udupi | Plan only. No visit or agreement has happened |
-
-## Card 2: Rs. 499 a month
+## Pricing cards
 
 | Claim | Source |
 |---|---|
-| The core stays free | `LICENSE` (MIT). The GitHub repo is private today, so "open source" needs it made public |
-| Shared rules and one audit log across laptops, in a hosted dashboard | Plan only. Not in the code |
-| Rs. 499 a month | Our proposal, not charged |
-| Less than a one-user TallyPrime rental (Rs. 750 a month plus GST) | Tally's page "TallyPrime Pricing for Seasonal Businesses", updated 12 May 2026: https://tallysolutions.com/tally/tallyprime-pricing-for-seasonal-businesses/. The brief said "licence"; the sourced figure is the monthly rental, so the slide says "rental" |
-| The clinic pack already ships | `chaperone/policies_safe_harbor.yaml` (HIPAA Safe Harbor), found by `policy.py` `_pack_files`, listed by `app.py`, and picked with the "Safe Harbor" switch on the page (`web/e2e/ui.spec.ts`: buttons "Standard rules", "Safe Harbor"). `tests/test_packs.py` passes |
-| More sectors come next | Not in the code |
-
-## Card 3: No cloud bill
-
-| Claim | Source |
-|---|---|
-| Each office brings its own laptop, so our costs barely grow | Same as the top line. The planned dashboard is the only thing we would host |
-| A new country or app is a rule file or a plug-in, not a rewrite | **Partly true.** Privacy rules are YAML files (`policies_*.yaml`), so they need no code. A new country's ID formats are code: regexes in `detect.py` `RX` and checksums in `_valid`, a small addition but not a rule file. A new app plugs in through MCP today (`chaperone/mcp_server.py`, `tests/test_mcp.py` passes); a proxy is not in the code |
+| Community, free, available today: the full gateway, rules and audit log, open source (MIT) | `LICENSE` (MIT); `chaperone/gateway.py`, `policy.py`, the audit log in `gateway.audit`. **The GitHub repo is private today**, so "open source" needs it made public |
+| Team, Rs. 2,499 per office a month, planned: hosted dashboard, shared rules, one sealed record | Plan only. Not in the code. The sealed record exists per laptop today (HMAC-sealed audit log, `AUDIT_HMAC_KEY`); sharing it across laptops does not |
+| Business, Rs. 7,499 per organization a month, planned: setup, support, sector rule packs | Plan only. No support offer exists |
+| The clinic pack (HIPAA Safe Harbor) already ships | Checked 2026-10-18: `chaperone/policies_safe_harbor.yaml` loads as pack `safe_harbor` ("HIPAA Safe Harbor mode", short name "Safe Harbor") in `policy.current().packs`; the page shows the buttons "Standard rules" and "Safe Harbor" (`web/e2e/ui.spec.ts`); `tests/test_packs.py` 4 passed |
+| Prices are starting points, not charged | Our proposal. No customer, pilot or partner is claimed |
+| Team is about Rs. 500 per laptop for five laptops | Rs. 2,499 / 5 = Rs. 499.80 |
+| Less than a one-user TallyPrime rental (Rs. 750 a month) | Tally's page "TallyPrime Pricing for Seasonal Businesses", updated 12 May 2026: https://tallysolutions.com/tally/tallyprime-pricing-for-seasonal-businesses/ (Silver, one user, Rs. 750 a month plus 18% GST) |
 
 ## Roadmap
 
@@ -53,8 +41,8 @@ No customer, pilot or partner is claimed. "We start next door" is a plan.
 
 | Claim | Source |
 |---|---|
-| DPDP Rules notified 13 Nov 2025 with an 18-month phase-in | PIB and Bar & Bench, above (PIB gives 14 Nov 2025 as the notification date) |
-| TallyPrime's one-user rental is Rs. 750 a month | Tally's page, above (plus 18% GST) |
+| DPDP Rules notified 13 Nov 2025 with an 18-month phase-in (PIB, Bar & Bench) | PIB and Bar & Bench, above (PIB gives 14 Nov 2025 as the notification date) |
+| TallyPrime price from tallysolutions.com | Tally's page, above |
 
 The Qwen2.5 3B license note is no longer on the slide. It is in `README.md`, section "License".
 
