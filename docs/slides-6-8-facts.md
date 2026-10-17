@@ -1,8 +1,9 @@
 # Slides 6 to 8: facts and sources
 
 Every number and claim on slides 6 ("Impacts and Benefits"), 7 ("Business Impact & Scalability") and 8 ("Additional
-links"), with where it comes from. Checked on 2026-10-17 against `main` at `ab05a85`. Deck:
-`/home/Muaz/Downloads/DevHack-fixed-shots.pptx` (backup before these edits: `/home/Muaz/Documents/DevHack.backup-slides-6-8.pptx`).
+links"), with where it comes from. Checked on 2026-10-17 against `main` at `2c1b51a` (redesign). Deck:
+`/home/Muaz/Downloads/DevHack-fixed-shots.pptx`. Backups: `/home/Muaz/Documents/DevHack.backup-slides-6-8.pptx` (before the first
+fill), `/home/Muaz/Documents/DevHack.backup-slides-6-8-redesign.pptx` (before this redesign). Styles: `docs/deck-style.md`.
 
 ## Numbers, compared with slides 3 and 4
 
@@ -18,62 +19,63 @@ links"), with where it comes from. Checked on 2026-10-17 against `main` at `ab05
 | Over-redaction (details that should pass but were changed) | Chaperone 3.0% (2 of 67), Presidio 70.1% (47 of 67) | same | Not on slides 3 or 4 |
 | Detection F1, IDs and entities | Chaperone 0.98, Presidio 0.74 | same | Not used on the slides |
 | Detection set | 86 messages, 169 labelled spans, hand-labelled by our team | `eval/dev.jsonl`; `eval/results/results_dev.md` header; `eval/README.md` | Not on slides 3 or 4 |
+| Distinct messages in both test sets | 96 (86 detection cases use 64 distinct texts, some sent in two flows; plus 32 inference messages; no overlap) | `eval/dev.jsonl`, `eval/inference_dev.jsonl` (counted 2026-10-17) | Not on slides 3 or 4 |
+| Details that should pass, and how many were changed | 67; Chaperone 2 (3.0%), Presidio 47 (70.1%) | `eval/results/results_dev.md` | Not on slides 3 or 4 |
+| Detection set languages | 66 English, 20 Hinglish cases | `eval/dev.jsonl` `lang` | n/a |
 | Held-out results | None: `eval/heldout.jsonl` has 0 cases | `wc -l eval/heldout.jsonl`; `eval/README.md` (written by teammates who haven't read `chaperone/`) | n/a |
 | Speed | 3.3 s per message, the middle (p50) of 32 runs, AI reply included; p95 7.2 s and 15.2 s in two runs | timing script runs on 2026-10-17 (16 scenarios x 2, RTX 3050 Laptop GPU, 4 GB); README "Speed" | Yes (slide 4 footer: 3.3 s) |
 | Tests | 108 pytest, 57 Playwright | `pytest --collect-only -q`; `npx playwright test --list` | Yes (slide 4 table) |
 
 No number on slides 6 to 8 differs from slides 3 or 4.
 
-## Claims on slide 6
+## Claims on slide 6 (redesign)
 
 | Claim | Source |
 |---|---|
-| English and Hinglish test messages | `eval/inference_dev.jsonl` (`lang`: 26 en, 6 hinglish); `eval/dev.jsonl` |
-| Names go out as [PERSON_1] and come back filled in | `transform.py` `Vault.placeholder`, `restore_marked`; `test_gateway.py::test_first_name_alone_gets_the_full_names_placeholder` |
-| Each message carries a purpose | `policy.Flow.purpose`; every `/api/chat` request needs `purpose` (`app.py` `ChatIn`) |
-| A sealed log shows where data went | `gateway.py` `audit`, `_seal`, `verify_log`, `person_report`; `test_audit.py` |
-| DPDP wants personal data used only for a stated purpose | PIB explainer, 17 Nov 2025 ("The notice must explain the specific purpose for which personal data is collected and used"): https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc20251117695301.pdf |
-| A diagnosis, salary or court case stays unless the flow allows it | `policies.yaml` rules on `HEALTH`, `COMPENSATION`, `LEGAL`; scenarios `1b`, `2b` |
-| A drug name that gives away an illness is made vague | scenario `8a` ("tamoxifen" sent as `[HEALTH_1: health detail]`) |
-| Aadhaar and PAN check digits | `detect.py` `_valid` (python-stdnum) |
-| Reads Hinglish | `detect.py` `CONTEXT_PROMPT`; scenario `5` |
-| 4 GB GPU, checks need no cloud account | `detect.py` `OLLAMA_URL` default `127.0.0.1`; GLiNER on CPU (`pyproject.toml`, `pytorch-cpu`); `nvidia-smi`: RTX 3050 Laptop GPU, 4096 MiB |
+| English and Hinglish test messages | `lang` in both test sets (see above) |
+| Graded by a separate model, Llama 3.1 8B | `eval/run_inference.py` `--grader` default |
+| Checked against our own labels | `eval/run_eval.py` compares against the hand-labelled spans in `eval/dev.jsonl` |
+| Presidio ran with its India recognizers | `eval/run_eval.py` (README "What Presidio already does") |
+| Staff finish the notes without remembering what to delete | placeholders are swapped in and back automatically: `transform.py` `apply`, `restore_marked` |
+| One search finds every request with a client's name; the log never stores it | `gateway.py` `person_report` (tags only, `_tag`); `test_audit.py::test_person_report_finds_every_request_that_carried_them`, `test_gateway.py::test_audit_log_holds_no_raw_values` |
+| If a drug name gives the illness away, the AI gets the note, not the illness | scenario `8a`: "tamoxifen" leaves as `[HEALTH_1: health detail]`, the rest of the note is sent |
+| A clinic or CA firm can use AI with a check in front of it, without an IT team | `setup.sh` (one script), runs on the office laptop (`__main__.py` binds `127.0.0.1`) |
+| Speed about 3.3 s a message on a 4 GB laptop, middle of 32 runs | see the table above |
 
-## Claims on slide 7, with the Built or Next tag
+## Claims on slide 7 (redesign), with the Built or Next pill
 
-| Item | Tag | Source |
+| Item | Pill | Source |
 |---|---|---|
-| Runs on one laptop with a 4 GB GPU, open models, no cloud bill for the checks | Built | as above; Qwen2.5 3B via Ollama, GLiNER `urchade/gliner_small-v2.1` (Apache-2.0) |
-| Qwen2.5 3B's licence is research-only | footnote 1 | Qwen Research License Agreement, sections 1(i) and 2(a)-(b): https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE |
-| The model is one setting | footnote 1 | `detect.py` `CONTEXT_MODEL = os.environ.get("CONTEXT_MODEL", "qwen2.5:3b")`; `.env.example` |
-| Enterprise DLP is priced for banks | not a measured number | the team's own claim on slide 2 ("priced for banks"); no statistic used |
-| Open source (MIT), one setup script | Built | `LICENSE` (MIT); `setup.sh`. The GitHub repo is private today (see slide 8) |
-| Open-source core: gateway, rules, attacker, audit log | Built | `chaperone/` |
-| Paid hosted dashboard for several offices | Next | not in the code; the app listens on `127.0.0.1` only (`__main__.py`) and has no login |
-| Sector rule packs: HIPAA Safe Harbor ships today | Built part | `chaperone/policies_safe_harbor.yaml` |
-| Finance, HR and education packs | Next | not in the code |
-| DPDP Rules: 13 May 2027 deadline | fact, no tag | PIB, 17 Nov 2025: "an eighteen-month period for phased compliance" (link above). Bar & Bench, Nov 2025: Gazette notification dated 13 Nov 2025, transition "i.e., May 13, 2027": https://www.barandbench.com/amp/story/view-point/meity-notifies-final-digital-personal-data-protection-rules-2025. PIB itself gives the notification date as 14 Nov 2025 |
-| Applies to every data fiduciary | fact, no tag | PIB: "Every Data Fiduciary must issue a separate consent notice". The brief said "regardless of size"; this was not written on the slide, because the PIB note does not say it in those words |
-| Target segment: clinics, CA firms, college offices, SMEs | fact, no tag | README; slide 2 |
-| One laptop, one person | Built | `__main__.py` binds `127.0.0.1` |
-| One office server with a login; many offices, one dashboard | Next | not in the code |
-| Aadhaar, PAN, GSTIN, UPI and Hinglish | Built | `detect.py` `RX`, `_valid`, `CONTEXT_PROMPT` |
-| New rule sets as plain YAML files | Built | `policy.py` `_pack_files` (`policies_*.yaml` become rule sets) |
-| ID and language packs per country or region | Next | not in the code |
-| AI agents through MCP | Built | `chaperone/mcp_server.py` (`chaperone_check`, `chaperone_send`) |
-| A proxy for any OpenAI-compatible chat app | Next | not in the code: `app.py` has 14 routes, `/` and `/api/*` only; `gateway.send` is a client of OpenAI-style endpoints, not a proxy |
-| A browser extension for ChatGPT and Claude | Next | not in the code |
+| Runs on what they own: an office laptop, no cloud bill for the checks | Built | `detect.py` `OLLAMA_URL` default `127.0.0.1`; GLiNER on CPU |
+| No per-seat licence: open source (MIT), one setup script | Built | `LICENSE`, `setup.sh`. The repo is private today |
+| Paid hosted dashboard: shared rules and sealed logs across offices; the core stays free | Next | not in the code (no login, `127.0.0.1` only) |
+| Sector rule packs: HIPAA Safe Harbor ships today; finance, HR, education next | Built | `chaperone/policies_safe_harbor.yaml`; the other packs are not in the code |
+| Every data fiduciary, by 13 May 2027 | no pill (fact) | PIB 17 Nov 2025 and Bar & Bench (links below) |
+| Who we start with: clinics, CA firms, college offices, SMEs | no pill (fact) | README, slide 2 |
+| Users: one laptop, one person | Built | `__main__.py` (`host="127.0.0.1"`) |
+| Users: office server with a login; many offices, one dashboard | Next | not in the code |
+| Locations: India first, Indian IDs and Hinglish | Built | `detect.py` `RX`, `_valid`, `CONTEXT_PROMPT` |
+| Locations: new rule sets as plain YAML files | Built | `policy.py` `_pack_files` (`policies_*.yaml`) |
+| Locations: ID and language packs per country | Next | not in the code |
+| Use cases: AI agents, through MCP | Built | `chaperone/mcp_server.py` |
+| Use cases: a proxy for any OpenAI-style chat app | Next | not in the code (14 routes, `/` and `/api/*` only) |
+| Use cases: browser extension for ChatGPT, Claude | Next | not in the code |
+| Footnote 1: Qwen2.5 3B licence is research-only; the model is one setting | footnote | https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE; `detect.py` `CONTEXT_MODEL` |
+| Footnote 2: DPDP dates | footnote | https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc20251117695301.pdf ("an eighteen-month period for phased compliance"); https://www.barandbench.com/amp/story/view-point/meity-notifies-final-digital-personal-data-protection-rules-2025 (Gazette dated 13 Nov 2025, "May 13, 2027") |
 
-Left out: a count of MSMEs in India. Reports from 2026 disagree (7.83 crore and 8.84 crore Udyam registrations),
-and the official parliament answers could not be opened from here, so no number is on the slide. No prices and no
-revenue projections are on the slide.
+Left out: a count of MSMEs in India (2026 reports disagree: 7.83 crore and 8.84 crore Udyam registrations; the
+parliament answers could not be opened). No prices, no revenue projections.
 
-## Claims on slide 8
+## Claims on slide 8 (redesign)
 
 | Claim | Source |
 |---|---|
-| GitHub repo URL | `git remote -v`: `https://github.com/MuazTPM-YT/devhack2026-round1.git`. **The repo is private**: the page and the API return 404 without a login (checked 2026-10-17) |
-| Code, tests, eval scripts with saved results, a README that shows how to check every number | `tests/`, `web/e2e/`, `eval/`, `eval/results/`, `README.md` ("Evaluation") |
-| No hosted version; setup is a few commands | `README.md` "Quick start"; `setup.sh`; `__main__.py` |
-| git clone, ./setup.sh, uv run --frozen python -m chaperone, open 127.0.0.1:8000 | `README.md` steps 3 and 4; checked on a fresh clone on 2026-10-17 |
-| Drive link | placeholder "[Drive link: to add]" for the team to fill |
+| GitHub repo link and QR code | `git remote -v`: `https://github.com/MuazTPM-YT/devhack2026-round1`. The link is a real hyperlink (also in the PDF export). The QR code was made with `qrcode` 8.2 (published 2025-05-01) and decoded with OpenCV 4.14.0.94 (2026-07-29), both from the image inside the deck and from the rendered slide: both give the exact URL. **The repo is private today** (404 without a login) |
+| Code, tests, eval scripts with saved results, README | `chaperone/`, `tests/`, `web/e2e/`, `eval/`, `eval/results/`, `README.md` |
+| Demo video | placeholder "[Drive link: to add]"; the QR slot is empty until the link exists |
+| Commands: `git clone ….git`, `cd devhack2026-round1`, `./setup.sh`, `uv run --frozen python -m chaperone`, then open `http://127.0.0.1:8000` | `README.md` "Quick start" steps 3 and 4; run on a fresh clone on 2026-10-17 |
+| Needs uv, Ollama and Node.js; the README lists the tested versions | `README.md` "What you need" |
+| README walkthrough, from setup to every result | `README.md` (13 sections) |
+| Eval scripts and results | `eval/run_eval.py`, `eval/run_inference.py`, `eval/results/` |
+| 108 Python and 57 browser tests | `pytest --collect-only -q`; `npx playwright test --list` |
+| Architecture diagram, in the README, steps 1 to 9 | `README.md` "How it works" (a text diagram with the nine numbered steps) |
