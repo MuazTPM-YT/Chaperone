@@ -3,45 +3,51 @@
 Every line on slide 7 ("Business Impact & Scalability"), top to bottom, left to right, so it can be retyped by hand.
 **Bold** marks bold words. Sources: `docs/slide7-facts.md`.
 
-Two marker systems only, both the same pill shape: filled green for [Built] and [Today], grey outline for [Planned],
-[Next] and [Later].
+Layout: white background, no cards, no badges. A top line, three equal columns, a roadmap under a thin light-grey
+line, and one footnote. Each column has a short green rule, a big green anchor (30 pt bold, as on slide 6), a bold
+14 pt heading and a 12 pt grey paragraph.
 
-*Intro box (grey):* The heavy work runs on the laptop the office already owns. So our cost per office is mostly **the
-hosted dashboard**, not computers or cloud AI.¹
+## Top line (16 pt, one sentence per line)
 
-## Left card (about 56%): How we make money
+Chaperone is free to run, because the office's own laptop does the work.
+We only charge when an office wants its laptops to share the same rules.
 
-A price ladder: three rows of equal height, split by thin white lines.
+## Column 1
 
-- [Built] **Free core**
-  The gateway, rules and audit log stay free and open source (MIT).
-- [Planned] **Office plan**
-  Hosted dashboard: shared rules and sealed logs across offices.
-  On the right of this row, the hero number (30 pt, bold, green, as on slide 6): **Rs. 499**, with **a month²** under
-  it (11 pt, bold, green).
-- [Built] **Sector packs**
-  HIPAA Safe Harbor ships today. Finance, HR and education come next.
+**13 May 2027**
 
-## Right card (about 44%): Why now
+**Who pays, and why now**
 
-- Hero number (30 pt, bold, green): **13 May 2027**
-- Every data fiduciary (anyone deciding how personal data is used) must follow the DPDP Rules by then.²
-- **Who pays first**
-  Clinics, CA firms and college offices, with client data and no IT team. We start next door: our own college office
-  and clinics in Mangaluru and Udupi, then CA and doctors' associations.
+Every clinic, CA firm and college office that handles personal data has to follow India's DPDP Rules by then. Most
+have no IT team and can't afford enterprise privacy tools. We start next door: our own college office, then clinics in
+Mangaluru and Udupi.
 
-## How it scales
+## Column 2
 
-| | [Today] | [Next] | [Later] |
-|---|---|---|---|
-| **Users** | One laptop, one person | An office server, with a login | Many offices sharing one dashboard |
-| **Locations** | India: Indian IDs and Hinglish | ID and language packs per country | Other countries' privacy rules |
-| **Use cases** | AI agents (MCP) and our own chat page | A proxy for any OpenAI-style chat app | A browser extension for ChatGPT, Claude |
+**Rs. 499 a month**
 
-## Footnotes (grey italic, 10 pt, left-aligned)
+**How we make money**
 
-¹ Qwen2.5 3B's license covers research use, so a paid version would ship a local model licensed for business. It's one
-setting (CONTEXT_MODEL).
+The core stays free and open source. Offices that want shared rules and one audit log across all their laptops pay for
+a hosted dashboard. That's less than a one-user TallyPrime rental. Ready-made rule packs per sector come next; the
+clinic pack already ships.
 
-² DPDP Rules notified 13 Nov 2025 with an 18-month phase-in (PIB, Bar & Bench). Rs. 499 is planned, not charged; for
-scale, a one-user TallyPrime rental is Rs. 750 a month plus GST (tallysolutions.com).
+## Column 3
+
+**No cloud bill**
+
+**Why it's cheap to grow**
+
+Every new office brings its own laptop, so our costs barely grow with users. A new country means adding its ID formats
+to the detector and its privacy rules as plain rule files. A new app plugs in through MCP today, or a proxy next.
+
+## Roadmap (12 pt, two lines)
+
+**Today:** one laptop, Indian IDs and Hinglish, AI agents via MCP. **Next:** an office server with logins, an
+OpenAI-compatible proxy.
+**Later:** many offices on one dashboard, other countries, a browser extension for ChatGPT and Claude.
+
+## Footnote (10 pt, grey italic)
+
+DPDP Rules notified 13 Nov 2025 with an 18-month phase-in. Rs. 499 is planned, not charged; TallyPrime's one-user
+rental is Rs. 750 a month.

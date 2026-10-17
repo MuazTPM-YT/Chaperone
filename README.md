@@ -435,3 +435,7 @@ What Chaperone adds:
 MIT. Uses FastAPI, GLiNER (`urchade/gliner_small-v2.1`, Apache-2.0), python-stdnum, Ollama with Qwen2.5 3B, Next.js
 and React, Llama 3.1 8B (evaluation grader only) and Presidio (baseline only). The Inter and JetBrains Mono fonts are
 under the SIL Open Font License; the licence texts are in `chaperone/static/fonts/`.
+
+Qwen2.5 3B is under the [Qwen Research License](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE),
+which covers research use, not commercial use. A paid version would ship a local model licensed for business. The
+model is one setting (`CONTEXT_MODEL`), so no code changes.
