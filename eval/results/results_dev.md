@@ -4,9 +4,9 @@
 
 | System | Leak rate ↓ | Over-redaction ↓ | Protect/allow acc. | 4-way action acc. | Request blocks (TP/FP/FN) | Latency p50 / p95 |
 |---|---|---|---|---|---|---|
-| Chaperone (full) | 2.0% (2/102) | 3.0% (2/67) | 97.6% | 97.0% | 5/0/0 | 1985 / 13131 ms |
-| Chaperone (no context layer) | 38.2% (39/102) | 0.0% (0/67) | 76.9% | 75.7% | 0/0/5 | 40 / 52 ms |
-| Presidio + India recognizers | 37.3% (38/102) | 70.1% (47/67) | 49.7% | — | 0/0/5 | 6 / 9 ms |
+| Chaperone (full) | 2.0% (2/102) | 3.0% (2/67) | 97.6% | 97.0% | 5/0/0 | 1126 / 5333 ms |
+| Chaperone (no context layer) | 38.2% (39/102) | 0.0% (0/67) | 76.9% | 75.7% | 0/0/5 | 59 / 282 ms |
+| Presidio + India recognizers | 37.3% (38/102) | 70.1% (47/67) | 49.7% | — | 0/0/5 | 5 / 8 ms |
 
 Leak rate = sensitive gold spans whose raw text reached the outbound payload. Over-redaction = spans that should pass but were altered or blocked.
 
@@ -27,14 +27,14 @@ Leak rate = sensitive gold spans whose raw text reached the outbound payload. Ov
 | LOCATION | 3 | 1.00 (P 1.00 R 1.00) | 1.00 (P 1.00 R 1.00) | 0.46 (P 0.30 R 1.00) |
 | AGE | 5 | 0.89 (P 1.00 R 0.80) | 0.89 (P 1.00 R 0.80) | not supported |
 | DATE | 7 | 1.00 (P 1.00 R 1.00) | 1.00 (P 1.00 R 1.00) | not supported |
-| HEALTH | 24 | 0.73 (P 0.65 R 0.83) | 0.00 (P 0.00 R 0.00) | not supported |
+| HEALTH | 24 | 0.78 (P 0.74 R 0.83) | 0.00 (P 0.00 R 0.00) | not supported |
 | COMPENSATION | 14 | 1.00 (P 1.00 R 1.00) | 0.00 (P 0.00 R 0.00) | not supported |
 | MNPI | 6 | 1.00 (P 1.00 R 1.00) | 0.00 (P 0.00 R 0.00) | not supported |
 | HR | 6 | 0.83 (P 0.83 R 0.83) | 0.00 (P 0.00 R 0.00) | not supported |
 | LEGAL | 4 | 1.00 (P 1.00 R 1.00) | 0.00 (P 0.00 R 0.00) | not supported |
 | *Identifiers + entities* | | **0.98** (P 1.00 R 0.97) | **0.97** (P 1.00 R 0.95) | **0.74** (P 0.72 R 0.76) |
 | *Only labels Presidio supports* | | **0.98** (P 1.00 R 0.97) | **0.97** (P 1.00 R 0.95) | **0.82** (P 0.72 R 0.96) |
-| *Context categories* | | **0.85** (P 0.80 R 0.91) | **0.00** (P 0.00 R 0.00) | **0.00** (P 0.00 R 0.00) |
+| *Context categories* | | **0.88** (P 0.86 R 0.91) | **0.00** (P 0.00 R 0.00) | **0.00** (P 0.00 R 0.00) |
 
 ### Leak rate by language
 

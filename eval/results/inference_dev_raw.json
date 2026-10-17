@@ -7,7 +7,7 @@
   "sys": [
    {
     "sent": "Draft an out-of-office note for [PERSON_1]: she is at Tata Memorial every Monday for the next two months and will log in after lunch.",
-    "ms": 15323.350770999241,
+    "ms": 17773.378134999803,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -16,7 +16,7 @@
    },
    {
     "sent": "Draft an out-of-office note for [PERSON_1]: she is at Tata Memorial every Monday for the next two months and will log in after lunch.",
-    "ms": 731.4746169977298,
+    "ms": 1099.3956029997207,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -25,7 +25,7 @@
    },
    {
     "sent": "Draft an out-of-office note for [PERSON_1]: she is at [HEALTH_1: a health matter] every Monday for the next two months and will log in after lunch.",
-    "ms": 3238.3743780010263,
+    "ms": 5370.1051249991,
     "tightened": 1,
     "useful": 1.0,
     "leaks": [
@@ -42,7 +42,7 @@
   "sys": [
    {
     "sent": "Summarise for the file: [PERSON_1] visits NIMHANS every Saturday morning, so please keep him off Saturday shifts.",
-    "ms": 2576.2855890025094,
+    "ms": 4432.497269999658,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -51,7 +51,7 @@
    },
    {
     "sent": "Summarise for the file: [PERSON_1] visits [HEALTH_1: health detail], so please keep him off Saturday shifts.",
-    "ms": 406.0929160004889,
+    "ms": 685.0754259994574,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -60,7 +60,7 @@
    },
    {
     "sent": "Summarise for the file: [PERSON_1] [HEALTH_2: a health matter] [HEALTH_1: health detail], so please [HEALTH_3: a health matter].",
-    "ms": 4085.5007159989327,
+    "ms": 7109.2402699996455,
     "tightened": 2,
     "useful": 1.0,
     "leaks": [
@@ -77,7 +77,7 @@
   "sys": [
    {
     "sent": "Tell the team [PERSON_1] will collect his monthly refill from the ART centre on the first Friday, so he leaves at 3 pm that day.",
-    "ms": 1570.2287620006246,
+    "ms": 2585.4377020004904,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -86,7 +86,7 @@
    },
    {
     "sent": "Tell the team [PERSON_1] will collect his monthly refill from the ART centre on the first Friday, so he leaves at 3 pm that day.",
-    "ms": 623.9243089985393,
+    "ms": 1121.3306400004512,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -95,7 +95,7 @@
    },
    {
     "sent": "Tell the team [PERSON_1] will collect his [HEALTH_2: a health matter] from the [HEALTH_1: a health matter] on the [HEALTH_3: a health matter], so he [HEALTH_4: a health matter] that day.",
-    "ms": 6266.726669000491,
+    "ms": 11773.336727999776,
     "tightened": 4,
     "useful": 1.0,
     "leaks": [
@@ -112,7 +112,7 @@
   "sys": [
    {
     "sent": "Write a short note: [PERSON_1] now uses a white cane and a screen reader, please share documents in accessible formats.",
-    "ms": 2510.038918997452,
+    "ms": 4356.034370999623,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -121,7 +121,7 @@
    },
    {
     "sent": "Write a short note: [PERSON_1] now uses a white cane and a screen reader, please share documents in accessible formats.",
-    "ms": 556.6571360031958,
+    "ms": 876.1700640006893,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -130,7 +130,7 @@
    },
    {
     "sent": "Write a short note: [PERSON_1] [IDENTITY_1: a person with mobility and visual impairments], please share documents in accessible formats.",
-    "ms": 3876.3381960015977,
+    "ms": 7070.999555000526,
     "tightened": 3,
     "useful": 1.0,
     "leaks": [
@@ -147,7 +147,7 @@
   "sys": [
    {
     "sent": "Draft a reply to [PERSON_1]: we have booked a sign-language interpreter for all his review meetings from next week.",
-    "ms": 445.0688859978982,
+    "ms": 598.2508520010015,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -156,7 +156,7 @@
    },
    {
     "sent": "Draft a reply to [PERSON_1]: we have booked a sign-language interpreter for all his review meetings from next week.",
-    "ms": 237.68829900291166,
+    "ms": 229.7521960008453,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -165,7 +165,7 @@
    },
    {
     "sent": "Draft a reply to [PERSON_1]: we have booked a sign-language interpreter for all his review meetings from next week.",
-    "ms": 401.38504299829947,
+    "ms": 605.5676300002233,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -182,7 +182,7 @@
   "sys": [
    {
     "sent": "Let the team know that [PERSON_1] keeps a glucose meter at her desk and may take short breaks to eat.",
-    "ms": 1297.103133998462,
+    "ms": 2127.4536889995943,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -191,7 +191,7 @@
    },
    {
     "sent": "Let the team know that [PERSON_1] keeps a glucose meter at her desk and may take short breaks to eat.",
-    "ms": 526.1276999990514,
+    "ms": 715.3431759998057,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -200,7 +200,7 @@
    },
    {
     "sent": "Let the team know that [PERSON_1] keeps a [HEALTH_1: a health matter] at her desk and may take short breaks to eat.",
-    "ms": 1931.0721099973307,
+    "ms": 3561.3592819991027,
     "tightened": 1,
     "useful": 1.0,
     "leaks": [
@@ -217,7 +217,7 @@
   "sys": [
    {
     "sent": "[PERSON_1] asked for the ground-floor desk because he now uses a wheelchair after the accident; draft the facilities request.",
-    "ms": 2938.687124998978,
+    "ms": 5380.411673999333,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -226,7 +226,7 @@
    },
    {
     "sent": "[PERSON_1] asked for the ground-floor desk because he now uses a wheelchair after the accident; draft the facilities request.",
-    "ms": 564.4740130010177,
+    "ms": 970.0353240004915,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -235,7 +235,7 @@
    },
    {
     "sent": "[PERSON_1] asked for the ground-floor desk because he now uses a wheelchair after the [HEALTH_1: a health matter]; draft the facilities request.",
-    "ms": 5128.396419000637,
+    "ms": 9418.061342999863,
     "tightened": 1,
     "useful": 1.0,
     "leaks": [
@@ -252,7 +252,7 @@
   "sys": [
    {
     "sent": "Summarise: [PERSON_1] will be away for her IVF cycle on alternate days this month.",
-    "ms": 2411.6222860029666,
+    "ms": 4164.07317499943,
     "tightened": 0,
     "useful": 0.5,
     "leaks": [
@@ -261,7 +261,7 @@
    },
    {
     "sent": "Summarise: [PERSON_1] will be away for her [HEALTH_1: health detail] on alternate days this month.",
-    "ms": 369.54782500106376,
+    "ms": 645.4198529991118,
     "tightened": 0,
     "useful": 0.5,
     "leaks": [
@@ -270,7 +270,7 @@
    },
    {
     "sent": "Summarise: [PERSON_1] will be away for her [HEALTH_1: health detail] on [HEALTH_2: a health matter] this month.",
-    "ms": 6664.274896000279,
+    "ms": 11944.031093999001,
     "tightened": 1,
     "useful": 1.0,
     "leaks": [
@@ -287,7 +287,7 @@
   "sys": [
    {
     "sent": "[PERSON_1] goes to the Thursday evening [PERSON_2], so do not schedule client dinners for him on Thursdays.",
-    "ms": 2446.504527997604,
+    "ms": 4133.060719001151,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -296,7 +296,7 @@
    },
    {
     "sent": "[PERSON_1] goes to the Thursday evening [PERSON_2], so do not schedule client dinners for him on Thursdays.",
-    "ms": 336.9023619998188,
+    "ms": 545.6748550004704,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -305,7 +305,7 @@
    },
    {
     "sent": "[PERSON_1] [IDENTITY_1: a colleague at one of our branches] [PERSON_2], so [HEALTH_1: a health matter].",
-    "ms": 7733.962215999782,
+    "ms": 13815.391426000133,
     "tightened": 2,
     "useful": 0.5,
     "leaks": [
@@ -322,7 +322,7 @@
   "sys": [
    {
     "sent": "Draft a note: [PERSON_1] will need a desk near the restroom because of her stoma bag after the surgery.",
-    "ms": 1251.0485269995115,
+    "ms": 2072.262548999788,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -331,7 +331,7 @@
    },
    {
     "sent": "Draft a note: [PERSON_1] will need a desk near the restroom because of her [HEALTH_1: health detail] after the surgery.",
-    "ms": 387.2762499995588,
+    "ms": 560.5577019996417,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -340,7 +340,7 @@
    },
    {
     "sent": "Draft a note: [PERSON_1] will [HEALTH_2: a health matter] because of her [HEALTH_1: health detail] after the [HEALTH_3: a health matter].",
-    "ms": 3900.751269000466,
+    "ms": 6809.266670999932,
     "tightened": 2,
     "useful": 1.0,
     "leaks": [
@@ -357,7 +357,7 @@
   "sys": [
    {
     "sent": "[PERSON_1] is fasting before his weekly session at the dialysis unit; move the Tuesday review to Wednesday.",
-    "ms": 1891.2118139996892,
+    "ms": 3067.211120000138,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -366,7 +366,7 @@
    },
    {
     "sent": "[PERSON_1] is fasting before his weekly session at the [HEALTH_1: health detail]; move the Tuesday review to Wednesday.",
-    "ms": 402.3087060013495,
+    "ms": 555.5760210008884,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -375,9 +375,9 @@
    },
    {
     "sent": "[PERSON_1] is [HEALTH_2: a health matter] before his weekly session at the [HEALTH_1: health detail]; [HEALTH_3: a health matter].",
-    "ms": 5673.370144999353,
+    "ms": 9436.62663899886,
     "tightened": 2,
-    "useful": 0.5,
+    "useful": 1.0,
     "leaks": [
      false
     ]
@@ -392,7 +392,7 @@
   "sys": [
    {
     "sent": "Process the claim: [PERSON_1] has applied for the disability pension and now wears a hearing aid in both ears.",
-    "ms": 3780.6187140013208,
+    "ms": 6036.984403999668,
     "tightened": 0,
     "useful": 0.5,
     "leaks": [
@@ -401,7 +401,7 @@
    },
    {
     "sent": "Process the claim: [PERSON_1] has applied for the disability pension and now wears a hearing aid in both ears.",
-    "ms": 1141.1065899992536,
+    "ms": 1718.7131680002494,
     "tightened": 0,
     "useful": 0.5,
     "leaks": [
@@ -410,7 +410,7 @@
    },
    {
     "sent": "Process the claim: [PERSON_1] has applied for the [HEALTH_1: a health matter] and now wears a [HEALTH_2: a health matter] in both ears.",
-    "ms": 5332.393223001418,
+    "ms": 8749.859307001316,
     "tightened": 2,
     "useful": 0.5,
     "leaks": [
@@ -427,7 +427,7 @@
   "sys": [
    {
     "sent": "[PERSON_1] har Saturday NIMHANS jaata hai, isliye usko Saturday shift mat do. Team ko note likho.",
-    "ms": 2826.298691001284,
+    "ms": 4583.844430000681,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -436,7 +436,7 @@
    },
    {
     "sent": "[PERSON_1] har Saturday NIMHANS jaata hai, isliye usko Saturday shift mat do. Team ko note likho.",
-    "ms": 611.5478760002588,
+    "ms": 985.700397999608,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -445,7 +445,7 @@
    },
    {
     "sent": null,
-    "ms": 5338.83790300024,
+    "ms": 8751.406718998624,
     "tightened": 3,
     "useful": 0.0,
     "leaks": [
@@ -462,7 +462,7 @@
   "sys": [
    {
     "sent": "Kavya ki mummy ka Tata Memorial mein treatment chal raha hai, isliye usko do hafte ki chutti chahiye.",
-    "ms": 3377.194390999648,
+    "ms": 5415.597383000204,
     "tightened": 0,
     "useful": 0.5,
     "leaks": [
@@ -471,7 +471,7 @@
    },
    {
     "sent": "Kavya ki mummy ka Tata Memorial mein treatment chal raha hai, isliye usko do hafte ki chutti chahiye.",
-    "ms": 1289.5379550027428,
+    "ms": 2038.0204009998124,
     "tightened": 0,
     "useful": 0.5,
     "leaks": [
@@ -480,7 +480,7 @@
    },
    {
     "sent": null,
-    "ms": 7768.7237320024,
+    "ms": 12761.17923199854,
     "tightened": 3,
     "useful": 0.0,
     "leaks": [
@@ -497,7 +497,7 @@
   "sys": [
    {
     "sent": "[PERSON_1] ab dialysis ke liye har Monday aur Thursday jaldi nikalti hai, standup ka time badlo.",
-    "ms": 3327.735972001392,
+    "ms": 5591.847837000387,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -506,7 +506,7 @@
    },
    {
     "sent": "[PERSON_1] ab [HEALTH_1: health detail] har Monday aur Thursday jaldi nikalti hai, standup ka time badlo.",
-    "ms": 512.0042390008166,
+    "ms": 659.9281429989787,
     "tightened": 0,
     "useful": 0.5,
     "leaks": [
@@ -515,7 +515,7 @@
    },
    {
     "sent": "[PERSON_1] ab [HEALTH_1: health detail] har Monday aur Thursday jaldi nikalti hai, [HEALTH_2: a health matter].",
-    "ms": 6207.2065330030455,
+    "ms": 9722.926765000011,
     "tightened": 1,
     "useful": 1.0,
     "leaks": [
@@ -532,7 +532,7 @@
   "sys": [
    {
     "sent": "The only [PERSON_1] in our Mysuru ICU has filed a complaint about night shifts; draft an acknowledgement.",
-    "ms": 2076.361605999409,
+    "ms": 3217.459247000079,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -541,7 +541,7 @@
    },
    {
     "sent": "The only [PERSON_1] in our Mysuru ICU has filed a complaint about [LEGAL_1: legal matter]; draft an acknowledgement.",
-    "ms": 376.0888659999182,
+    "ms": 540.318389001186,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -550,7 +550,7 @@
    },
    {
     "sent": "[IDENTITY_1: a nurse in one of our ICU] [PERSON_1] [IDENTITY_2: a nurse in one of our ICU] has filed a complaint about [LEGAL_1: legal matter]; draft an acknowledgement.",
-    "ms": 3842.1627809984784,
+    "ms": 6430.266531999223,
     "tightened": 2,
     "useful": 1.0,
     "leaks": [
@@ -567,7 +567,7 @@
   "sys": [
    {
     "sent": "Our senior-most driver, who has been with us since 1998, asked for an advance on his salary; draft the reply.",
-    "ms": 3611.662895000336,
+    "ms": 5724.988600999495,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -576,7 +576,7 @@
    },
    {
     "sent": "Our senior-most driver, who has been with us since 1998, asked for an advance on his salary; draft the reply.",
-    "ms": 648.2012239976029,
+    "ms": 968.7970409995614,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -585,7 +585,7 @@
    },
    {
     "sent": "[IDENTITY_1: A long-tenured driver], asked for an advance on his salary; draft the reply.",
-    "ms": 5202.887394003483,
+    "ms": 8323.97074399887,
     "tightened": 1,
     "useful": 1.0,
     "leaks": [
@@ -602,7 +602,7 @@
   "sys": [
    {
     "sent": "The [PERSON_1] who joined from Wipro last month is on medical leave; draft a note to the team.",
-    "ms": 1974.0119660018536,
+    "ms": 3057.304395999381,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -611,7 +611,7 @@
    },
    {
     "sent": "The [PERSON_1] who joined from Wipro last month is on [HEALTH_1: health detail]; draft a note to the team.",
-    "ms": 396.55757999935304,
+    "ms": 568.0950839996513,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -620,7 +620,7 @@
    },
    {
     "sent": "The [PERSON_1] who joined from Wipro last month is on [HEALTH_1: health detail]; draft a note to the team.",
-    "ms": 2432.506318000378,
+    "ms": 3759.053308000148,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -637,7 +637,7 @@
   "sys": [
    {
     "sent": "[PERSON_1] on the Hubli night crew reported harassment by a supervisor; summarise for the committee.",
-    "ms": 2032.7648580023379,
+    "ms": 3165.0930590003554,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -646,7 +646,7 @@
    },
    {
     "sent": "[PERSON_1] on the Hubli night crew reported [LEGAL_1: legal matter]; summarise for the committee.",
-    "ms": 437.97441300193896,
+    "ms": 753.2181289989239,
     "tightened": 0,
     "useful": 0.5,
     "leaks": [
@@ -655,9 +655,9 @@
    },
    {
     "sent": "[PERSON_1] on the [HEALTH_1: a health matter] reported [LEGAL_1: legal matter]; summarise for the committee.",
-    "ms": 4836.732703002781,
+    "ms": 7848.284858000625,
     "tightened": 1,
-    "useful": 0.5,
+    "useful": 0.0,
     "leaks": [
      false
     ]
@@ -672,7 +672,7 @@
   "sys": [
    {
     "sent": "Our CA who handles the three Goa clients is resigning next month; draft a client update.",
-    "ms": 1631.9097919986234,
+    "ms": 2563.5335839997424,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -681,7 +681,7 @@
    },
    {
     "sent": "Our CA who handles the three Goa clients is resigning next month; draft a client update.",
-    "ms": 187.3501080008282,
+    "ms": 292.1956580012193,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -690,7 +690,7 @@
    },
    {
     "sent": "Our CA who handles the three Goa clients is resigning next month; draft a client update.",
-    "ms": 1487.0657809988188,
+    "ms": 2360.9658519999357,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -707,7 +707,7 @@
   "sys": [
    {
     "sent": "[PERSON_1] in the orthopaedics team has asked for adapted instruments; draft the purchase request.",
-    "ms": 1917.9762300009315,
+    "ms": 3066.5379439997196,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -716,7 +716,7 @@
    },
    {
     "sent": "[PERSON_1] in the orthopaedics team has asked for adapted instruments; draft the purchase request.",
-    "ms": 440.403291999246,
+    "ms": 581.0014239996235,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -725,7 +725,7 @@
    },
    {
     "sent": "[PERSON_1] in the orthopaedics team has asked for adapted instruments; draft the purchase request.",
-    "ms": 1834.1899539991573,
+    "ms": 2823.2660009998654,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -742,7 +742,7 @@
   "sys": [
    {
     "sent": "The youngest branch manager we have, the one who runs Karwar, is under review for the cash shortfall.",
-    "ms": 2339.384989001701,
+    "ms": 3588.7819939998735,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -751,7 +751,7 @@
    },
    {
     "sent": "The youngest branch manager we have, the one who runs Karwar, is under review for the cash shortfall.",
-    "ms": 792.5355759980448,
+    "ms": 1158.9384429989877,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -760,7 +760,7 @@
    },
    {
     "sent": "[IDENTITY_1: a manager at one of our departments], is under review for the cash shortfall.",
-    "ms": 3838.305705001403,
+    "ms": 6051.801194000291,
     "tightened": 1,
     "useful": 1.0,
     "leaks": [
@@ -777,7 +777,7 @@
   "sys": [
    {
     "sent": "Hamare Hubli office ki akeli lady accountant ne manager ke against complaint ki hai, summary banao.",
-    "ms": 2217.778747999546,
+    "ms": 3583.0481720004173,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -786,7 +786,7 @@
    },
    {
     "sent": "Hamare Hubli office ki akeli lady accountant ne [HR_1: HR matter] ki hai, summary banao.",
-    "ms": 619.0593740029726,
+    "ms": 910.2645289985958,
     "tightened": 0,
     "useful": 0.0,
     "leaks": [
@@ -795,7 +795,7 @@
    },
    {
     "sent": "Hamare Hubli office ki akeli lady accountant ne [HR_1: HR matter] ki hai, summary banao.",
-    "ms": 2559.498923001229,
+    "ms": 3915.520947000914,
     "tightened": 0,
     "useful": 0.0,
     "leaks": [
@@ -812,7 +812,7 @@
   "sys": [
    {
     "sent": "[PERSON_1] ab retire ho raha hai, farewell note likho.",
-    "ms": 854.0746920007223,
+    "ms": 1161.8434249994607,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -821,7 +821,7 @@
    },
    {
     "sent": "[PERSON_1] ab retire ho raha hai, farewell note likho.",
-    "ms": 557.4261500005377,
+    "ms": 796.1320129998057,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -830,7 +830,7 @@
    },
    {
     "sent": "[PERSON_1] ab retire ho raha hai, farewell note likho.",
-    "ms": 824.6212699996249,
+    "ms": 1273.0995470010384,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -848,7 +848,7 @@
   "sys": [
    {
     "sent": "Our only [PERSON_1] at the Kundapur clinic started chemotherapy last week; plan the cover rota.",
-    "ms": 2359.6294679991843,
+    "ms": 3685.900528000275,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -858,7 +858,7 @@
    },
    {
     "sent": "Our only [PERSON_1] at the Kundapur clinic started [HEALTH_1: health detail] last week; plan the cover rota.",
-    "ms": 409.1666770000302,
+    "ms": 689.9460849999741,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -868,7 +868,7 @@
    },
    {
     "sent": "[IDENTITY_1: a doctor at one of our clinics] [PERSON_1] [IDENTITY_2: a doctor at one of our clinics] started [HEALTH_1: health detail] last week; plan the cover rota.",
-    "ms": 4785.779672998615,
+    "ms": 7503.925717001039,
     "tightened": 2,
     "useful": 1.0,
     "leaks": [
@@ -887,7 +887,7 @@
   "sys": [
    {
     "sent": "[PERSON_1] at our Bidar plant now visits the ART centre monthly; adjust his travel plan.",
-    "ms": 2654.2689710004197,
+    "ms": 4018.6674289998336,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -897,7 +897,7 @@
    },
    {
     "sent": "[PERSON_1] at our Bidar plant now visits the ART centre monthly; adjust his travel plan.",
-    "ms": 583.1411319995823,
+    "ms": 771.7369379988668,
     "tightened": 0,
     "useful": 1.0,
     "leaks": [
@@ -907,7 +907,7 @@
    },
    {
     "sent": "[PERSON_1] at our Bidar plant now visits the [HEALTH_1: a health matter] monthly; adjust his travel plan.",
-    "ms": 3396.902111999225,
+    "ms": 5220.818236000923,
     "tightened": 1,
     "useful": 1.0,
     "leaks": [
@@ -923,21 +923,21 @@
   "sys": [
    {
     "sent": "The Mangaluru branch will host the blood donation camp on Saturday; draft the invite.",
-    "ms": 504.69556899770396,
+    "ms": 758.4684659996128,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "The Mangaluru branch will host the blood donation camp on Saturday; draft the invite.",
-    "ms": 187.901299999794,
+    "ms": 302.10309799986135,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "The Mangaluru branch will host the blood donation camp on Saturday; draft the invite.",
-    "ms": 460.38805799980764,
+    "ms": 573.2692210003734,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
@@ -950,23 +950,23 @@
   "sys": [
    {
     "sent": "All nurses must finish the fire-safety training by Friday; draft the reminder.",
-    "ms": 450.90570399770513,
+    "ms": 852.3684740011959,
     "tightened": 0,
     "useful": 0.5,
     "leaks": []
    },
    {
     "sent": "All nurses must finish the fire-safety training by Friday; draft the reminder.",
-    "ms": 191.691511998215,
-    "tightened": 0,
-    "useful": 0.5,
-    "leaks": []
-   },
-   {
-    "sent": "All nurses must finish the fire-safety training by Friday; draft the reminder.",
-    "ms": 440.7182249997277,
+    "ms": 240.90094799976214,
     "tightened": 0,
     "useful": 1.0,
+    "leaks": []
+   },
+   {
+    "sent": "All nurses must finish the fire-safety training by Friday; draft the reminder.",
+    "ms": 556.4962309999828,
+    "tightened": 0,
+    "useful": 0.5,
     "leaks": []
    }
   ]
@@ -977,21 +977,21 @@
   "sys": [
    {
     "sent": "Several staff asked for an extra holiday for Onam; draft a reply saying we will check the calendar.",
-    "ms": 483.3328960012295,
+    "ms": 684.3279790009547,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "Several staff asked for an extra holiday for Onam; draft a reply saying we will check the calendar.",
-    "ms": 198.34572800027672,
+    "ms": 228.49193700130854,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "Several staff asked for an extra holiday for Onam; draft a reply saying we will check the calendar.",
-    "ms": 507.62754999959725,
+    "ms": 617.4320930003887,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
@@ -1004,21 +1004,21 @@
   "sys": [
    {
     "sent": "Write a short post about our new millet menu in the cafeteria next week.",
-    "ms": 512.4803770013386,
+    "ms": 701.9377159995202,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "Write a short post about our new millet menu in the cafeteria next week.",
-    "ms": 189.14327700258582,
+    "ms": 233.81730199980666,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "Write a short post about our new millet menu in the cafeteria next week.",
-    "ms": 463.598449001438,
+    "ms": 609.1963950002537,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
@@ -1031,21 +1031,21 @@
   "sys": [
    {
     "sent": "Kal team lunch hai, sab log 1 baje cafeteria mein aa jana, note likho.",
-    "ms": 1044.8045100019954,
+    "ms": 1423.5339739989286,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "Kal team lunch hai, sab log 1 baje cafeteria mein aa jana, note likho.",
-    "ms": 721.1411330026749,
+    "ms": 1088.6312229995383,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "Kal team lunch hai, sab log 1 baje cafeteria mein aa jana, note likho.",
-    "ms": 968.5679470021569,
+    "ms": 1503.9748220006004,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
@@ -1058,21 +1058,21 @@
   "sys": [
    {
     "sent": "Summarise our policy: every employee gets two days of paid leave for a family wedding.",
-    "ms": 1410.582782998972,
+    "ms": 2113.365266000983,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "Summarise our policy: every employee gets two days of paid leave for a family wedding.",
-    "ms": 197.991852000996,
+    "ms": 248.04524800129002,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
    },
    {
     "sent": "Summarise our policy: every employee gets two days of paid leave for a family wedding.",
-    "ms": 1380.626943999232,
+    "ms": 2130.2545170001395,
     "tightened": 0,
     "useful": 1.0,
     "leaks": []
