@@ -3,49 +3,47 @@
 Every line on slide 7 ("Business Impact & Scalability"), top to bottom, left to right, so it can be retyped by hand.
 **Bold** marks bold words. Sources: `docs/slide7-facts.md`.
 
-Layout: white background, no cards, no badges. A top line, three equal columns, a roadmap under a thin light-grey
-line, and one footnote. Each column has a short green rule, a big green anchor (30 pt bold, as on slide 6), a bold
-14 pt heading and a 12 pt grey paragraph.
+Layout, matched to slide 6: the grey intro box, three light-green cards in the slide 6 tile style (same fill, corner
+and width), a grey roadmap strip in the intro box style, and one footnote. Each card has a big green anchor (30 pt
+bold, as on slide 6), a bold 14 pt heading and 12 pt grey body text. No pills, badges or rules.
 
-## Top line (16 pt, one sentence per line)
+*Intro box (grey, 14 pt, one line):* Chaperone is free to run, because the office's own laptop does the work. We only
+charge when an office wants its laptops to share the same rules.
 
-Chaperone is free to run, because the office's own laptop does the work.
-We only charge when an office wants its laptops to share the same rules.
-
-## Column 1
+## Card 1
 
 **13 May 2027**
 
 **Who pays, and why now**
 
-Every clinic, CA firm and college office that handles personal data has to follow India's DPDP Rules by then. Most
-have no IT team and can't afford enterprise privacy tools. We start next door: our own college office, then clinics in
-Mangaluru and Udupi.
+Every clinic, CA firm and college office with personal data must follow India's DPDP Rules by then. We start next
+door: our college office, then clinics in Mangaluru and Udupi.
 
-## Column 2
+## Card 2
 
 **Rs. 499 a month**
 
 **How we make money**
 
-The core stays free and open source. Offices that want shared rules and one audit log across all their laptops pay for
-a hosted dashboard. That's less than a one-user TallyPrime rental. Ready-made rule packs per sector come next; the
-clinic pack already ships.
+The core stays free. Offices that want shared rules and one audit log across their laptops pay for a hosted
+dashboard. The clinic pack already ships; more sectors come next.
 
-## Column 3
+## Card 3
 
 **No cloud bill**
 
 **Why it's cheap to grow**
 
-Every new office brings its own laptop, so our costs barely grow with users. A new country means adding its ID formats
-to the detector and its privacy rules as plain rule files. A new app plugs in through MCP today, or a proxy next.
+Each office brings its own laptop, so our costs barely grow. A new country or app is a rule file or a plug-in, not a
+rewrite.
 
-## Roadmap (12 pt, two lines)
+## Roadmap strip (grey, three equal parts; label 13 pt bold, text 12 pt)
 
-**Today:** one laptop, Indian IDs and Hinglish, AI agents via MCP. **Next:** an office server with logins, an
-OpenAI-compatible proxy.
-**Later:** many offices on one dashboard, other countries, a browser extension for ChatGPT and Claude.
+| **Today** | **Next** | **Later** |
+|---|---|---|
+| one laptop, Indian IDs and Hinglish, AI agents via MCP | an office server with logins, / an OpenAI-compatible proxy | many offices on one dashboard, other countries, / a browser extension for ChatGPT and Claude |
+
+("/" marks a line break.)
 
 ## Footnote (10 pt, grey italic)
 
