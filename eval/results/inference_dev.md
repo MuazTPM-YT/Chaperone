@@ -4,9 +4,9 @@ Grader: `llama3.1:8b` with its own yes/no prompt (the in-loop attacker is qwen2.
 
 | System | Inference leak rate ↓ | Proxies | Quasi-identifiers | Hinglish | Usefulness ↑ | Blocked | False alarms on controls | Latency p50 / p95 |
 |---|---|---|---|---|---|---|---|---|
-| Names and IDs only (our ablation) | **100% (23/23)** | 100% (16/16) | 100% (9/9) | 100% (5/5) | 94% | 0/32 | 0/6 | 1979 / 3452 ms |
-| Chaperone, attacker and purpose off | **70% (16/23)** | 62% (10/16) | 67% (6/9) | 80% (4/5) | 86% | 0/32 | 0/6 | 410 / 778 ms |
-| Chaperone full | **35% (8/23)** | 19% (3/16) | 56% (5/9) | 40% (2/5) | 81% | 2/32 | 0/6 | 3437 / 6746 ms |
+| Names and IDs only (our ablation) | **100% (23/23)** | 100% (16/16) | 100% (9/9) | 100% (5/5) | 94% | 0/32 | 0/6 | 2055 / 3688 ms |
+| Chaperone, attacker and purpose off | **70% (16/23)** | 62% (10/16) | 67% (6/9) | 80% (4/5) | 88% | 0/32 | 0/6 | 439 / 949 ms |
+| Chaperone full | **30% (7/23)** | 19% (3/16) | 44% (4/9) | 40% (2/5) | 84% | 2/32 | 0/6 | 3840 / 7146 ms |
 
 - **Inference leak rate**: forbidden attributes the grader can still conclude from the outbound text.
 - **Usefulness**: share of the task's key facts (names, days, amounts) present in the restored reply from the simulated external model. A keyword check, not a quality judgement.
