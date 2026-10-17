@@ -4,7 +4,7 @@ Every line on slide 7 ("Business Impact & Scalability"), top to bottom, left to 
 **Bold** marks bold words. Sources: `docs/slide7-facts.md`.
 
 Layout, matched to slide 6: the grey intro box, three light-green cards in the slide 6 tile style (same fill, corner
-and width), a grey roadmap strip in the intro box style, and one footnote. Each card has a big green anchor (30 pt
+and width), a Today, Next and Later timeline, and one footnote. Each card has a big green anchor (30 pt
 bold, as on slide 6), a bold 14 pt heading and 12 pt grey body text. No pills, badges or rules.
 
 *Intro box (grey, 14 pt, one line):* Chaperone is free to run, because the office's own laptop does the work. We only
@@ -37,13 +37,15 @@ dashboard. The clinic pack already ships; more sectors come next.
 Each office brings its own laptop, so our costs barely grow. A new country or app is a rule file or a plug-in, not a
 rewrite.
 
-## Roadmap strip (grey, three equal parts; label 13 pt bold, text 12 pt)
+## Timeline (white background, one grouped shape)
+
+A line across the content width: solid green up to Today, then dashed grey with an arrowhead. Each dot sits under the
+centre of the card above it: Today filled green, Next white with a green outline, Later white with a grey outline. The
+stage name is above each dot (14 pt bold, centred); the text is below it (12 pt grey, centred).
 
 | **Today** | **Next** | **Later** |
 |---|---|---|
-| one laptop, Indian IDs and Hinglish, AI agents via MCP | an office server with logins, / an OpenAI-compatible proxy | many offices on one dashboard, other countries, / a browser extension for ChatGPT and Claude |
-
-("/" marks a line break.)
+| One laptop, Indian IDs and Hinglish, AI agents via MCP | An office server with logins, an OpenAI-compatible proxy | Many offices on one dashboard, other countries, a browser extension for ChatGPT and Claude |
 
 ## Footnote (10 pt, grey italic)
 

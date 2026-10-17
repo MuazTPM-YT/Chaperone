@@ -2,7 +2,7 @@
 
 Every claim on slide 7 ("Business Impact & Scalability"), with where it comes from. Checked on 2026-10-17 against
 `main`. Deck: `/home/Muaz/Downloads/DevHack-fixed-shots.pptx`. Backup before this version:
-`/home/Muaz/Documents/DevHack.backup-slide7-final.pptx`. Style: `docs/deck-style.md`.
+`/home/Muaz/Documents/DevHack.backup-slide7-timeline.pptx`. Style: `docs/deck-style.md`.
 
 No customer, pilot or partner is claimed. "We start next door" is a plan.
 
