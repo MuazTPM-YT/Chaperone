@@ -65,3 +65,24 @@ def test_long_text_is_read_in_sentence_windows():
     assert len(wins) > 1 and wins[0][0] == 0 and wins[-1][1] == len(text)
     assert all(text[b - 1] in ".!?;" or b == len(text) for _, b in wins)  # cut only at sentence ends
     assert detect_mod.windows("Short note.", size=250) == [(0, 11)]
+
+
+# the name model loads from disk without asking the internet; only a missing model is downloaded
+def test_name_model_loads_from_disk_first(monkeypatch):
+    import sys
+    import types
+
+    calls: list[dict] = []
+
+    def from_pretrained(name, **kw):
+        calls.append(kw)
+        if kw.get("local_files_only") and on_disk is False:
+            raise FileNotFoundError(name)
+        return "model"
+
+    monkeypatch.setitem(sys.modules, "gliner", types.SimpleNamespace(GLiNER=types.SimpleNamespace(from_pretrained=from_pretrained)))
+    on_disk = True
+    assert detect_mod._gliner.__wrapped__() == "model" and calls == [{"local_files_only": True}]
+    calls.clear()
+    on_disk = False
+    assert detect_mod._gliner.__wrapped__() == "model" and calls == [{"local_files_only": True}, {}]

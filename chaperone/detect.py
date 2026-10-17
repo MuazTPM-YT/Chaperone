@@ -167,7 +167,11 @@ NOT_ENTITIES = {"aadhaar", "pan", "gstin", "gst", "upi", "ifsc", "kyc", "tds", "
 def _gliner():
     from gliner import GLiNER  # heavy import, load once
 
-    return GLiNER.from_pretrained(NER_MODEL)
+    # the copy on disk first: asking the hub for a newer one cost ~2.6 s of an 8 s start and needs the internet
+    try:
+        return GLiNER.from_pretrained(NER_MODEL, local_files_only=True)
+    except OSError:
+        return GLiNER.from_pretrained(NER_MODEL)
 
 
 def _noise(span_text: str) -> bool:
