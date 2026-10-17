@@ -218,6 +218,20 @@ def test_page_is_revalidated_so_an_update_is_never_stale():
     assert TestClient(app, base_url="http://127.0.0.1").get("/").headers["cache-control"] == "no-cache"
 
 
+# without a built page the API still runs, and the page address says how to build it
+def test_unbuilt_page_says_how_to_build_it(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from chaperone import app as app_mod
+
+    monkeypatch.setattr(app_mod, "WEB", tmp_path)
+    client = TestClient(app_mod.app, base_url="http://127.0.0.1")
+    res = client.get("/")
+    assert res.status_code == 503 and "npm run build" in res.text
+    (tmp_path / "index.html").write_text("<!doctype html><title>Chaperone</title>")
+    assert client.get("/").text.endswith("<title>Chaperone</title>")
+
+
 # ---------- local checks offline: external sends stop, internal ones go out with a warning ----------
 
 OFFLINE_NOTE = "Priya is on leave, she’s started tamoxifen."

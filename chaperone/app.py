@@ -11,12 +11,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import gateway, policy
+from . import ROOT, gateway, policy
 from .detect import CONTEXT_MODEL, LABELS
 from .policy import Flow, PolicyError
 from .transform import Vault
 
 HERE = Path(__file__).parent
+# the page, built from web/ by `npm run build`; the API works without it
+WEB = ROOT / "web" / "out"
 # ponytail: one request at a time; vaults and GLiNER are not shared safely across threads
 LOCK = threading.Lock()
 # dev-only: worst-case scenarios behind a toggle, never shown in a normal run
@@ -50,9 +52,12 @@ def _pack(name: str) -> str:
 
 
 @app.get("/")
-def index() -> FileResponse:
+def index() -> Response:
     # no-cache still allows a 304, but the browser must ask, so a new version is never hidden behind an old one
-    return FileResponse(HERE / "static" / "index.html", headers={"Cache-Control": "no-cache"})
+    if not (WEB / "index.html").exists():
+        return Response("The page is not built yet. Run: cd web && npm ci && npm run build", status_code=503,
+                        media_type="text/plain", headers={"Cache-Control": "no-cache"})
+    return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/api/meta")
@@ -237,3 +242,7 @@ def person_report(body: PersonIn) -> dict:
 def verify_audit() -> dict:
     with LOCK:
         return gateway.verify_log()
+
+
+# the page's scripts and styles; mounted last, so every route above wins
+app.mount("/", StaticFiles(directory=WEB, check_dir=False), name="web")
