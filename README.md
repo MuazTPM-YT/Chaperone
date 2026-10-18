@@ -28,9 +28,10 @@ Built for DevHack 2026, problem statement 2.2 (context-aware data privacy).
 8. [Evaluation](#evaluation)
 9. [Tests](#tests)
 10. [Guarantees and known limits](#guarantees-and-known-limits)
-11. [Prior art and what's different](#prior-art-and-whats-different)
-12. [Project layout](#project-layout)
-13. [License](#license)
+11. [About DPDP and HIPAA](#about-dpdp-and-hipaa)
+12. [Prior art and what's different](#prior-art-and-whats-different)
+13. [Project layout](#project-layout)
+14. [License](#license)
 
 ## How it works
 
@@ -379,6 +380,22 @@ Known limits:
   the patient may infer more.
 - No login. Admin mode is on or off for the whole server.
 - HIPAA Safe Harbor mode removes identifiers in text. It does not make anyone meet HIPAA.
+
+## About DPDP and HIPAA
+
+Chaperone helps an office with some of its duties under India's DPDP Act:
+
+- sending only what a purpose needs,
+- keeping data safe when it goes to outside services,
+- being able to tell a person where their data went.
+
+Using Chaperone does not, on its own, mean an office meets the DPDP Act. The office also needs consent notices,
+contracts with the outside services that process data on its behalf, and a process for data breaches.
+
+The clinic pack is modelled on the US HIPAA Safe Harbor list, because it is a well-defined way to remove identifiers.
+HIPAA itself applies to US organisations.
+
+This is not legal advice.
 
 ## Prior art and what's different
 

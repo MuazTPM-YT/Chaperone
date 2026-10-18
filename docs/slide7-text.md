@@ -8,9 +8,9 @@ Layout, matched to slide 6: the grey intro box (two lines), three light-green pr
 has the tier name (15 pt bold), the price (30 pt bold green, as on slide 6), a grey 11 pt line and 12 pt grey body
 text. No pills, badges or icons.
 
-*Intro box (grey, 14 pt, two lines):* Every office that handles personal data must follow India's DPDP Rules by
-**13 May 2027**. Chaperone is free to run, because the office's own laptop does the work. We only charge when offices
-want to share rules and records across laptops.
+*Intro box (grey, 14 pt, two lines):* From **13 May 2027**, India's DPDP Act keeps every office responsible for client
+data it sends to outside services, including keeping that data safe. Chaperone is free to run, because the office's own
+laptop does the work. We only charge when offices want to share rules and records across laptops.
 
 ## Card 1
 
@@ -40,8 +40,8 @@ A hosted dashboard so every laptop in the office shares the same rules, and one 
 
 per organization a month · planned
 
-For offices with several branches: setup, support, and sector rule packs. The clinic pack (HIPAA Safe Harbor) already
-ships.
+For offices with several branches: setup, support, and sector rule packs. A clinic pack modelled on HIPAA's Safe
+Harbor list (a US standard that removes 18 kinds of identifiers) already ships.
 
 ## Note (11 pt, grey italic)
 
