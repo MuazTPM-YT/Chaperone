@@ -79,8 +79,8 @@ goes out, with a warning that only IDs and names were checked.
 
 ### Techniques
 
-The exact method in each step. Rules, file locations and limits are in [docs/methods/techniques.md](docs/methods/techniques.md);
-full citations are in [docs/methods/references.md](docs/methods/references.md). A reference marked "inspired by" is an idea we built
+The exact method in each step. Rules, file locations and limits are in [methods/techniques.md](methods/techniques.md);
+full citations are in [methods/references.md](methods/references.md). A reference marked "inspired by" is an idea we built
 on, not a paper we reproduced.
 
 | Step | Technique | Key parameters | Reference |
