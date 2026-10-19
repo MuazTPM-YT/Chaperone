@@ -1,8 +1,10 @@
 import difflib
 import json
+import logging
 import os
 import re
 import time
+import warnings
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
 
@@ -163,15 +165,22 @@ NOT_ENTITIES = {"aadhaar", "pan", "gstin", "gst", "upi", "ifsc", "kyc", "tds", "
                 "wife", "husband", "son", "daughter", "mother", "father", "sir", "madam", "boss"}
 
 
+# hush 3 library notices on load: torch.jit in transformers' DeBERTa, a hub argument gliner always passes, and a
+# false Mistral alarm (DeBERTa's config has no version field; its advice would break this tokenizer)
 @lru_cache(maxsize=1)
 def _gliner():
-    from gliner import GLiNER  # heavy import, load once
+    logging.getLogger("transformers.tokenization_utils_tokenizers").addFilter(
+        lambda r: "fix_mistral_regex" not in r.getMessage())
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", "`torch.jit.script` is deprecated", FutureWarning)
+        warnings.filterwarnings("ignore", "The `resume_download` argument is deprecated", UserWarning)
+        from gliner import GLiNER  # heavy import, load once
 
-    # the copy on disk first: asking the hub for a newer one cost ~2.6 s of an 8 s start and needs the internet
-    try:
-        return GLiNER.from_pretrained(NER_MODEL, local_files_only=True)
-    except OSError:
-        return GLiNER.from_pretrained(NER_MODEL)
+        # the copy on disk first: asking the hub for a newer one cost ~2.6 s of an 8 s start and needs the internet
+        try:
+            return GLiNER.from_pretrained(NER_MODEL, local_files_only=True)
+        except OSError:
+            return GLiNER.from_pretrained(NER_MODEL)
 
 
 def _noise(span_text: str) -> bool:

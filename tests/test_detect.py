@@ -86,3 +86,15 @@ def test_name_model_loads_from_disk_first(monkeypatch):
     calls.clear()
     on_disk = False
     assert detect_mod._gliner.__wrapped__() == "model" and calls == [{"local_files_only": True}, {}]
+
+
+# library warnings at load (torch, hub, a false Mistral alarm) clutter the demo terminal and say nothing about us
+def test_gliner_loads_without_library_noise():
+    import subprocess
+    import sys
+
+    out = subprocess.run([sys.executable, "-c", "from chaperone.detect import _gliner; _gliner()"],
+                         capture_output=True, text=True, timeout=300, check=False)
+    assert out.returncode == 0, out.stderr
+    for noise in ("torch.jit.script", "resume_download", "fix_mistral_regex"):
+        assert noise not in out.stderr + out.stdout
