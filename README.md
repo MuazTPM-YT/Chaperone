@@ -77,6 +77,26 @@ text goes to the AI. There is no architecture image in `docs/` yet, so here is t
 If the local checks are offline or turned off, nothing goes to an external AI. A message to the internal model still
 goes out, with a warning that only IDs and names were checked.
 
+### Techniques
+
+The exact method in each step. Rules, file locations and limits are in [docs/methods/techniques.md](docs/methods/techniques.md);
+full citations are in [docs/methods/references.md](docs/methods/references.md). A reference marked "inspired by" is an idea we built
+on, not a paper we reproduced.
+
+| Step | Technique | Key parameters | Reference |
+|---|---|---|---|
+| 1 Detect | Regular expressions with check digits (Verhoeff for Aadhaar; PAN holder-type letter; Luhn mod 36 for GSTIN, via python-stdnum). GLiNER span-based zero-shot NER. Local LLM extraction with JSON-schema-constrained output, IDs and names hidden as tags; a second narrow question for pay, HR and MNPI | 14 ID patterns; GLiNER `gliner_small-v2.1`, thresholds 0.5 (person) and 0.6; `qwen2.5:3b`, temperature 0, 10 few-shot examples, sentence windows of about 250 characters | Verhoeff 1969; Zaratiana et al. 2024 |
+| 2 Policy | Ordered first-match rule list in YAML | Conditions: label, subject, role, destination, purpose; last rule is a catch-all | Inspired by Nissenbaum 2004 (contextual integrity) |
+| 3 Transform | Consistent pseudonymization with a per-conversation map; generalization; suppression | `[LABEL_n]` per (label, canonical value); age to decade; pay to 4 yearly bands; date to month and year | Terms as in Sweeney 2002 (no k-anonymity guarantee); HIPAA Safe Harbor pack |
+| 4 Purpose | Purpose-based data minimisation | Per-purpose omit list, identifiers only (8 types) | |
+| 5 Attacker | Adversarial inference with a local LLM, then iterative tightening | Act if: evidence outside placeholders, confidence ≥ 0.7, confirmed by a second question, policy forbids it, evidence in the new message. At most 2 tightening rounds, then refuse | Inspired by Staab et al. 2024 and 2025 |
+| 6 Guard + send | Pattern scan of the payload for every protected value; one hit and nothing is sent | IDs match with up to 3 separator characters between characters; case ignored | |
+| 7 Restore | Tolerant placeholder matching with one regular expression | Accepts `[person_1]`, `PERSON_1`, `Person 1`, `[AGE_1: hint]`; only placeholders that were sent | |
+| 8 Verify | Set difference: values in the reply minus values you wrote | Ages, dates, rupee amounts, numbers of 6+ digits, names (GLiNER) | |
+| 9 Audit | `tag(v) = HMAC-SHA256(k, canon(v))`, first 16 hex characters; seal chain `mac_i = HMAC-SHA256(k, mac_{i−1} ‖ JSON(line_i))` | Key from `AUDIT_HMAC_KEY`; one fixed key, so no forward security | RFC 2104; inspired by Haber & Stornetta 1991, Schneier & Kelsey 1999 |
+
+Tags are cut to 16 hex characters (64 bits) because they are only lookup keys: the person report matches them by equality, and a session tag names a conversation. Tamper detection uses the seal chain, which keeps the full 256-bit HMAC.
+
 ## Quick start
 
 ### What you need
