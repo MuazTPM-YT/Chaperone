@@ -1,0 +1,277 @@
+1
+00:00:00,300 --> 00:00:02,871
+It's late at a small clinic.
+
+2
+00:00:02,908 --> 00:00:06,337
+The receptionist wants to go home, so they
+
+3
+00:00:06,373 --> 00:00:09,802
+paste the discharge notes into an AI
+chatbot.
+
+4
+00:00:09,839 --> 00:00:11,982
+They didn't do anything wrong.
+
+5
+00:00:12,018 --> 00:00:15,018
+But the diagnosis has left the building.
+
+6
+00:00:15,055 --> 00:00:16,769
+The problem isn't people.
+
+7
+00:00:16,806 --> 00:00:20,663
+Nobody gave them a safe way to use AI.
+
+8
+00:00:21,300 --> 00:00:22,586
+This is Chaperone.
+
+9
+00:00:22,836 --> 00:00:29,265
+It runs on the office laptop and checks
+every message before it reaches an AI.
+
+10
+00:00:29,515 --> 00:00:31,658
+One sentence about Vikram's salary.
+
+11
+00:00:31,909 --> 00:00:34,909
+HR sends it to the internal assistant.
+
+12
+00:00:35,159 --> 00:00:36,874
+It goes as typed.
+
+13
+00:00:37,124 --> 00:00:40,553
+Sales sends it to an outside marketing
+chatbot.
+
+14
+00:00:40,803 --> 00:00:41,803
+Blocked.
+
+15
+00:00:42,054 --> 00:00:43,054
+Nothing leaves.
+
+16
+00:00:43,304 --> 00:00:45,447
+An intern sends it outside.
+
+17
+00:00:45,698 --> 00:00:48,698
+The name and the salary are hidden.
+
+18
+00:00:48,948 --> 00:00:49,948
+Same words.
+
+19
+00:00:50,199 --> 00:00:51,199
+Different flow.
+
+20
+00:00:51,449 --> 00:00:52,449
+Different answer.
+
+21
+00:00:53,300 --> 00:00:55,014
+Hiding names isn't enough.
+
+22
+00:00:55,622 --> 00:00:58,194
+This Hinglish note never says diabetes.
+
+23
+00:00:58,801 --> 00:01:02,230
+Chaperone blurs the test result and the
+drug.
+
+24
+00:01:02,838 --> 00:01:07,981
+Then a local model plays attacker and
+tries to guess what's hidden.
+
+25
+00:01:08,588 --> 00:01:12,017
+It still guesses diabetes, from the word
+HbA1c.
+
+26
+00:01:12,625 --> 00:01:17,768
+So that word gets vaguer too, and the next
+try finds nothing.
+
+27
+00:01:18,375 --> 00:01:22,661
+Masking only names and IDs would have
+given diabetes away.
+
+28
+00:01:23,269 --> 00:01:27,983
+And if it's still guessable after two
+rounds, nothing is sent.
+
+29
+00:01:28,591 --> 00:01:29,877
+No name here.
+
+30
+00:01:30,484 --> 00:01:34,770
+But our only female cardiologist at Udupi
+is one person.
+
+31
+00:01:35,378 --> 00:01:40,092
+So she leaves as a doctor at one of our
+branches.
+
+32
+00:01:41,300 --> 00:01:43,014
+Back to the clinic.
+
+33
+00:01:43,276 --> 00:01:46,704
+The discharge note goes to an outside AI.
+
+34
+00:01:46,965 --> 00:01:48,680
+Names leave as placeholders.
+
+35
+00:01:48,941 --> 00:01:55,369
+The age and the date leave vaguer, and the
+exact values stay on the laptop.
+
+36
+00:01:55,631 --> 00:02:01,202
+IDs the summary doesn't need, like the
+wife's phone number, are left out.
+
+37
+00:02:01,463 --> 00:02:06,178
+The reply gets the real names back, only
+on this laptop.
+
+38
+00:02:06,439 --> 00:02:12,439
+And when the AI writes an age the doctor
+never gave, Chaperone flags it.
+
+39
+00:02:13,300 --> 00:02:15,014
+Now the owner's question.
+
+40
+00:02:15,186 --> 00:02:17,757
+Where did this patient's data go?
+
+41
+00:02:17,929 --> 00:02:21,786
+One search finds every request that
+carried his name,
+
+42
+00:02:21,957 --> 00:02:25,386
+where it went, and how it was sent.
+
+43
+00:02:25,557 --> 00:02:28,129
+The log never stores the name.
+
+44
+00:02:28,300 --> 00:02:32,157
+Only keyed hashes: tags that can't be
+turned back.
+
+45
+00:02:32,329 --> 00:02:36,186
+Every line is sealed to the one before it.
+
+46
+00:02:36,357 --> 00:02:42,786
+I change one line in a copy of the log, to
+say nothing was sent.
+
+47
+00:02:42,957 --> 00:02:45,529
+The check names the broken line.
+
+48
+00:02:46,300 --> 00:02:49,300
+What if the local checks go down?
+
+49
+00:02:50,257 --> 00:02:54,543
+I stop the local model and send a new
+message.
+
+50
+00:02:55,500 --> 00:02:58,071
+Nothing goes to the external AI.
+
+51
+00:02:59,029 --> 00:03:00,743
+No checks, no send.
+
+52
+00:03:02,300 --> 00:03:08,300
+AI agents get the same checks through MCP,
+the way AI agents call tools.
+
+53
+00:03:08,671 --> 00:03:12,957
+Here Claude Code checks the Hinglish note
+with Chaperone first.
+
+54
+00:03:13,329 --> 00:03:16,329
+The agent only gets the masked text.
+
+55
+00:03:17,300 --> 00:03:21,157
+On our own test messages, masking only
+names and
+
+56
+00:03:21,157 --> 00:03:25,014
+IDs left 23 hidden facts a reader could
+guess.
+
+57
+00:03:25,014 --> 00:03:26,300
+Chaperone left 7.
+
+58
+00:03:26,300 --> 00:03:28,871
+Sensitive details sent: 2%, against 37%
+
+59
+00:03:28,871 --> 00:03:31,443
+for Presidio, an open-source masking tool.
+
+60
+00:03:31,443 --> 00:03:34,443
+It adds about 2 seconds a message.
+
+61
+00:03:34,443 --> 00:03:39,157
+From 13 May 2027, India's data protection
+law, the DPDP Act,
+
+62
+00:03:39,157 --> 00:03:43,443
+keeps every office responsible for client
+data it sends out.
+
+63
+00:03:43,443 --> 00:03:47,729
+Chaperone gives small offices a safe way
+to use AI.

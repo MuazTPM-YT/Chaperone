@@ -1,0 +1,35 @@
+It's late at a small clinic. The receptionist wants to go home, so they paste the discharge notes into an AI chatbot. They didn't do anything wrong. But the diagnosis has left the building.
+The problem isn't people. Nobody gave them a safe way to use AI.
+
+This is Chaperone. It runs on the office laptop and checks every message before it reaches an AI.
+One sentence about Vikram's salary. HR sends it to the internal assistant. It goes as typed.
+Sales sends it to an outside marketing chatbot. Blocked. Nothing leaves.
+An intern sends it outside. The name and the salary are hidden.
+Same words. Different flow. Different answer.
+
+Hiding names isn't enough. This Hinglish note never says diabetes.
+Chaperone blurs the test result and the drug. Then a local model plays attacker and tries to guess what's hidden.
+It still guesses diabetes, from the word HbA1c. So that word gets vaguer too, and the next try finds nothing.
+Masking only names and IDs would have given diabetes away. And if it's still guessable after two rounds, nothing is sent.
+No name here. But our only female cardiologist at Udupi is one person. So she leaves as a doctor at one of our branches.
+
+Back to the clinic. The discharge note goes to an outside AI.
+Names leave as placeholders. The age and the date leave vaguer, and the exact values stay on the laptop.
+IDs the summary doesn't need, like the wife's phone number, are left out.
+The reply gets the real names back, only on this laptop. And when the AI writes an age the doctor never gave, Chaperone flags it.
+
+Now the owner's question. Where did this patient's data go?
+One search finds every request that carried his name, where it went, and how it was sent.
+The log never stores the name. Only keyed hashes: tags that can't be turned back.
+Every line is sealed to the one before it. I change one line in a copy of the log, to say nothing was sent. The check names the broken line.
+
+What if the local checks go down? I stop the local model and send a new message.
+Nothing goes to the external AI. No checks, no send.
+
+AI agents get the same checks through MCP, the way AI agents call tools.
+Here Claude Code checks the Hinglish note with Chaperone first. The agent only gets the masked text.
+
+On our own test messages, masking only names and IDs left 23 hidden facts a reader could guess. Chaperone left 7.
+Sensitive details sent: 2%, against 37% for Presidio, an open-source masking tool. It adds about 2 seconds a message.
+From 13 May 2027, India's data protection law, the DPDP Act, keeps every office responsible for client data it sends out.
+Chaperone gives small offices a safe way to use AI.
