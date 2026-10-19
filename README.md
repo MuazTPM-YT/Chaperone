@@ -373,6 +373,7 @@ Each guarantee has a test in `tests/`:
 Known limits:
 
 - The 3B attacker still misses some cases (7 of 23 leaked in our test, median of 5 runs, range 7 to 9; names and IDs only: 23 of 23).
+- The attacker can also over-tighten harmless phrases: it guessed pregnancy from "shifts move to mornings" and made that phrase vague.
 - One request at a time: a global lock serialises the pipeline.
 - Placeholder maps live in memory and are lost on restart.
 - English and Hinglish only.
